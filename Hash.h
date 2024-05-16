@@ -1,0 +1,125 @@
+#pragma once
+#include <type_traits>
+#include <limits> // std::numeric_limits
+/**
+* Hashing and pairing functions
+**/
+namespace Hash {
+
+    /**
+    * \brief hash unsigned 2D/3D coordinate into 1D normalized floating point value.
+    *        based upon:
+    *        Mark Jarzynski and Marc Olano, Hash Functions for GPU Rendering,
+    *        Journal of Computer Graphics Techniques (JCGT), vol. 9, no. 3, 21-38, 2020
+    *        Available online http://jcgt.org/published/0009.
+    * @param {unsigned,   in}  x coordinate
+    * @param {unsigned,   in}  y coordinate
+    * @param {unsigned,   in}  z coordinate (optional)
+    * @param {floaintg,   out} hash value in region [0, 1]
+    **/
+    template<typename T>
+        requires(std::is_unsigned_v<T>)
+    constexpr auto hash(T x, T y, T z) {
+        using out_t = std::conditional_t<sizeof(T) <= sizeof(float), float, double>;
+        constexpr T bits{ std::numeric_limits<T>::digits + 1 };
+        constexpr T shift{ bits / 2 };
+        constexpr out_t divider{ std::pow(2, static_cast<out_t>(bits)) };
+
+        // heptaplex collapse noise
+#define HEPTAPLEX(X, Y, Z) ~(~X - Y - Z) * ~(X - ~Y - Z) * ~(X - Y - ~Z)
+        x = HEPTAPLEX(x, y, z);
+        y = HEPTAPLEX(x, y, z);
+        z = x ^ y ^ HEPTAPLEX(x, y, z);
+#undef HEPTAPLEX
+
+        // output
+        return static_cast<out_t>(z ^ ~(~z >> shift)) / divider;
+    }
+    template<typename T>
+        requires(std::is_unsigned_v<T>)
+    constexpr auto hash(T x, T y) {
+        return hash(x, y, x ^ y);
+    }
+
+    /**
+    * \brief hash integral 3D coordinate into 1D integral value.
+    *        based upon: “VDB: High-Resolution Sparse Volumes with Dynamic Topology”, p. 27:9)
+    *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
+    * @param {integral}      hash table size. 20 by deault.
+    *                        N = 20 -> 2^20 = 1,048,576 ~= 100x100x100 grid size
+    *                        N = 24 -> 2^24 = 16,777,216 = 256*256*256 grid size
+    * @param {integral, in}  x coordinate
+    * @param {integral, in}  y coordinate
+    * @param {integral, in}  z coordinate
+    * @param {integral, out} hash value
+    **/
+    template<std::size_t N = 20, typename T>
+        requires(std::is_integral_v<T> &&
+                 (N > 0 && N < std::numeric_limits<T>::digits - 1))
+    constexpr T hash_volume(T x, T y, T z) {
+        constexpr T A{ 73856093 };
+        constexpr T B{ 19349663 };
+        constexpr T C{ 83492791 };
+        return ((1 << N) - 1) & (x * A ^ y * B ^ z * C);
+    }
+
+    /**
+    * \brief 1D to 1D pseudo random number generator over unsigned integral numbers from PCG family
+    *        see: https://www.pcg-random.org/
+    * @param {uint32, in}  x coordinate
+    * @param {uint32, out} pseudo random number generated from input values
+    **/
+    constexpr std::uint32_t pcg(std::uint32_t x) {
+        const std::uint32_t state{ x * 747796405u + 2891336453u };
+        const std::uint32_t word{ ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u };
+        return (word >> 22u) ^ word;
+    }
+
+    /**
+    * \brief using Szudzik pairing function, transform two unsigned values into one
+    *        note: max input pair of Szudzik is the square root of the maximum integer value,
+    *              so for 32bit unsigned value maximum input value without an overflow being 65,535.
+    * @param {unsigned, in}  x coordinate
+    * @param {unsigned, in}  y coordinate
+    * @param {unsigned, out} pairing value
+    **/
+    template<typename T>
+        requires(std::is_unsigned_v<T>)
+    constexpr T SzudzikValueFromPair(const T x, const T y) {
+        return (x < y) ? (x + y * y) : (x * x + x + y);
+    }
+    template<auto x, auto y>
+        requires(std::is_unsigned_v<decltype(x)> && std::is_same_v<decltype(x), decltype(y)>)
+    constexpr auto SzudzikValueFromPair() {
+        return (x < y) ? (x + y * y) : (x * x + x + y);
+    }
+
+    /**
+    * \brief given Szudzik pairing value, return its two constructing coordinates
+    * @param {unsigned,             in}  pairing value
+    * @param {{unsigned, unsigned}, out} {.x = x coordinate, .y = y coordinate}
+    **/
+    template<typename T>
+        requires(std::is_unsigned_v<T>)
+    constexpr auto SzudzikPairFromValue(const T z) {
+        using out_t = struct { T x; T y; };
+
+        const T zsqrt{ static_cast<T>(std::floor(std::sqrt(z))) };
+        const T z2{ zsqrt * zsqrt };
+        const T temp{ z - z2 };
+
+        return (temp < zsqrt) ? out_t{ temp, zsqrt } : out_t{ zsqrt, temp - zsqrt };
+    }
+    template<auto z>
+        requires(std::is_unsigned_v<decltype(z)>)
+    constexpr auto SzudzikPairFromValue() {
+        using T = decltype(z);
+        using out_t = struct { T x; T y; };
+
+        const T zsqrt{ static_cast<T>(std::floor(std::sqrt(z))) };
+        const T z2{ zsqrt * zsqrt };
+        const T temp{ z - z2 };
+
+        return (temp < zsqrt) ? out_t{ temp, zsqrt } : out_t{ zsqrt, temp - zsqrt };
+    }
+};
