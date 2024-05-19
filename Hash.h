@@ -43,7 +43,7 @@ namespace Hash {
 
     /**
     * \brief hash integral 3D coordinate into 1D integral value.
-    *        based upon: ìVDB: High-Resolution Sparse Volumes with Dynamic Topologyî, p. 27:9)
+    *        based upon: ‚ÄúVDB: High-Resolution Sparse Volumes with Dynamic Topology‚Äù, p. 27:9)
     *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
     * @param {integral}      hash table size. 20 by deault.
     *                        N = 20 -> 2^20 = 1,048,576 ~= 100x100x100 grid size
@@ -86,11 +86,19 @@ namespace Hash {
     template<typename T>
         requires(std::is_unsigned_v<T>)
     constexpr T SzudzikValueFromPair(const T x, const T y) {
+        constexpr T bits{ (std::numeric_limits<T>::digits + 1) / 2 };
+        constexpr T largest{ static_cast<T>(std::pow(2, bits)) };
+        assert(x < largest);
+        assert(y < largest);
         return (x < y) ? (x + y * y) : (x * x + x + y);
     }
-    template<auto x, auto y>
-        requires(std::is_unsigned_v<decltype(x)> && std::is_same_v<decltype(x), decltype(y)>)
+    template<auto x, auto y, class T = decltype(x)>
+        requires(std::is_unsigned_v<T> && std::is_same_v<T, decltype(y)>)
     constexpr auto SzudzikValueFromPair() {
+        constexpr T bits{ (std::numeric_limits<T>::digits + 1) / 2 };
+        constexpr T largest{ static_cast<T>(std::pow(2, bits)) };
+        static_assert(x < largest);
+        static_assert(y < largest);
         return (x < y) ? (x + y * y) : (x * x + x + y);
     }
 
@@ -102,6 +110,9 @@ namespace Hash {
     template<typename T>
         requires(std::is_unsigned_v<T>)
     constexpr auto SzudzikPairFromValue(const T z) {
+        constexpr T bits{ (std::numeric_limits<T>::digits + 1) / 2 };
+        constexpr T largest{ static_cast<T>(std::pow(2, bits)) };
+        assert(z < largest);
         using out_t = struct { T x; T y; };
 
         const T zsqrt{ static_cast<T>(std::floor(std::sqrt(z))) };
@@ -110,10 +121,12 @@ namespace Hash {
 
         return (temp < zsqrt) ? out_t{ temp, zsqrt } : out_t{ zsqrt, temp - zsqrt };
     }
-    template<auto z>
-        requires(std::is_unsigned_v<decltype(z)>)
+    template<auto z, class T = decltype(z)>
+        requires(std::is_unsigned_v<T>)
     constexpr auto SzudzikPairFromValue() {
-        using T = decltype(z);
+        constexpr T bits{ (std::numeric_limits<T>::digits + 1) / 2 };
+        constexpr T largest{ static_cast<T>(std::pow(2, bits)) };
+        static_assert(z < largest);
         using out_t = struct { T x; T y; };
 
         const T zsqrt{ static_cast<T>(std::floor(std::sqrt(z))) };
