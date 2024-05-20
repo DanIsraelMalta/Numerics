@@ -654,6 +654,14 @@ void test_glsl_extra() {
         assert(std::abs(GLSL::length(GLSL::cross(a[0], a[2])) - 1.0f) <= 1e-6);
         assert(std::abs(GLSL::length(GLSL::cross(a[1], a[2])) - 1.0f) <= 1e-6);
     }
+
+    {
+        ivec3 a(0, 1, 2);
+        ivec3 b(2, 3, 3);
+        assert(Extra::manhattan_distance(a, b) == 5);
+        assert(Extra::chebyshev_distance(a, b) == 2);
+        assert(Extra::inverse_chebyshev_distance(a, b) == 1);
+    }
 }
 
 void test_glsl_solvers() {
