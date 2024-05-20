@@ -8,7 +8,7 @@ useful numerical algorithms and operations (requires c++23)
 + Numerics.h - generic numerical utilities.
 + DiamondAngle.h - operations on L1 angles.
 + Hash.h - useful hashing and pairing functions.
-+ Glsl.h - A generic, modern and extensible numerical toolkit following the syntax and functionality of the GLSL shading language.
++ Glsl.h - A generic, modern and extensible numerical toolkit following the syntax and functionality of the GLSL shading language. compact implementation of [GLSL-CPP](https://github.com/DanIsraelMalta/GLSL-CPP).
 + Glsl_extra.h - assorted utilities using GLSL vectors and matrices.
 + Glsl_triangle.h - triangle related functions using GLSL vectors and matrices.
 + Glsl_solvers.h - decompositions and linear system solvers using GLSL vectors and matrices.
