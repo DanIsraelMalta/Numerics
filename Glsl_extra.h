@@ -253,4 +253,38 @@ namespace Extra {
 
         return GLSL::Matrix3<T>(u, v, w);
     }
+
+    /**
+    * \brief return Manhattan distance between two vectors
+    * @param  {IFixedVector, in}  x
+    * @param  {IFixedVector, in}  y
+    * @return {arithmetic,   out} Manhattan distance between x and y
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T manhattan_distance(const VEC& x, const VEC& y) noexcept {
+        return GLSL::sum(GLSL::abs(x - y));
+    }
+
+    /**
+    * \brief return Chebyshev distance between two vectors
+    * @param  {IFixedVector, in}  x
+    * @param  {IFixedVector, in}  y
+    * @return {arithmetic,   out} Chebyshev distance between x and y
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T chebyshev_distance(const VEC& x, const VEC& y) noexcept {
+        return GLSL::max(GLSL::abs(x - y));
+    }
+
+    /**
+    * \brief return inverse Chebyshev distance between two vectors
+    * @param  {IFixedVector, in}  x
+    * @param  {IFixedVector, in}  y
+    * @return {arithmetic,   out} inverse Chebyshev distance between x and y
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T inverse_chebyshev_distance(const VEC& x, const VEC& y) noexcept {
+        return GLSL::min(GLSL::abs(x - y));
+    }
+
 }
