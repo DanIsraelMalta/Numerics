@@ -137,6 +137,7 @@ void test_numerics() {
 
     // test norm
     assert(static_cast<std::int32_t>(Numerics::norm(3.0, 4.0)) == 5);
+    assert(static_cast<std::int32_t>(Numerics::norm(3.0)) == 3);
 
     // test clamp
     static_assert(Numerics::clamp(3, 4, 5) == 4);
