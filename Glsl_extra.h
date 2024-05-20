@@ -77,6 +77,40 @@ namespace Extra {
     }
 
     /**
+    * \brief generate look-at matrix (3x3 or 4x4)
+    * @param {Vector3,         in}  origin/eye
+    * @param {Vector3,         in}  target
+    * @param {Vector3,         in}  up direction (normalized)
+    * @param {Matrix3|Matrix4, out} look at matrix
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Matrix3<T> look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const GLSL::Vector3<T>& up) {
+        assert(Numerics::areEquals(GLSL::length(up), static_cast<T>(1)));
+
+        const GLSL::Vector3<T> Z{ -GLSL::normalize(target - origin) };
+        const GLSL::Vector3<T> X{ -GLSL::cross(up, Z) };
+        const GLSL::Vector3<T> Y{  GLSL::cross(Z, X) };
+
+        return GLSL::Matrix3<T>(X, Y, Z);
+    }
+
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Matrix4<T> look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const GLSL::Vector3<T>& up) {
+        assert(Numerics::areEquals(GLSL::length(up), static_cast<T>(1)));
+
+        const GLSL::Vector3<T> Z{ -GLSL::normalize(target - origin) };
+        const GLSL::Vector3<T> X{ -GLSL::cross(up, Z) };
+        const GLSL::Vector3<T> Y{  GLSL::cross(Z, X) };
+
+        return GLSL::Matrix4<T>(X.x, Y.x, Z.x,  GLSL::dot(X, origin),
+                                X.y, Y.y, Z.y, -GLSL::dot(Y, origin),
+                                X.z, Y.z, Z.z,  GLSL::dot(Z, origin),
+                                T{}, T{}, T{},  static_cast<T>(1));
+    }
+
+    /**
     * \brief generate a DCM (direct cosine matrix) matrix from Euler angles
     * @param {Vector3, in}  Euler angles
     * @param {Matrix3, out} DC, matrix
