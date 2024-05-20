@@ -415,6 +415,11 @@ namespace Numerics {
     * @param {arithmetic,    out} square root of sum of squares of values (euclidean norm; L2)
     **/
     template<typename T, typename... Ts>
+        requires(std::is_arithmetic_v<T>)
+    constexpr T norm(const T a) noexcept {
+        return std::sqrt(dot(a));
+    }
+    template<typename T, typename... Ts>
         requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
     constexpr T norm(const T a, const T b, const Ts... ts) noexcept {
         return std::sqrt(dot(a, b, ts...));
