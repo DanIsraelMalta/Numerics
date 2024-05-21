@@ -2,6 +2,7 @@
 #include <numbers>
 #include <array>
 #include <iostream>
+#include <list>
 #include "DiamondAngle.h"
 #include "Hash.h"
 #include "Variadic.h"
@@ -153,6 +154,12 @@ void test_numerics() {
     assert(static_cast<unsigned int>(stat.sum) == 20u);
     assert(static_cast<unsigned int>(stat.mean) == 5u);
     assert(static_cast<unsigned int>(stat.var * 100) == 666);
+
+    // test partition
+    std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
+    auto it = Numerics::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
+    assert(v == vExpected);
 }
 
 void test_glsl_basics() {
