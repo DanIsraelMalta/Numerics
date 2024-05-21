@@ -564,9 +564,7 @@ namespace Numerics {
     template<class It, class UnaryPred, class T = typename std::decay_t<decltype(*std::declval<It>())>>
         requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<UnaryPred, T>)
     It partition(It first, It last, UnaryPred&& p) {
-        if constexpr (std::forward_iterator<It>) {
-            return std::partition(first, last, FWD(p));
-        } else {
+        if constexpr (std::bidirectional_iterator<It>) {
             if (first == last) {
                 return first;
             }
@@ -583,6 +581,8 @@ namespace Numerics {
                 Utilities::swap(*first, *last);
             }
             return first;
+        } else if (std::forward_iterator<It>) {
+            return std::partition(first, last, FWD(p));
         }
     }
 }
