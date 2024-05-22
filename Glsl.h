@@ -554,7 +554,7 @@ namespace GLSL {
     **/
     template<IFixedVector VEC>
         requires(VEC::length() == 2 || VEC::length() == 3)
-    constexpr VEC cross(const VEC& x, const VEC& y) noexcept {
+    constexpr auto cross(const VEC& x, const VEC& y) noexcept {
         if constexpr (VEC::length() == 2) {
             return (x[0] * y[1] - x[1] * y[0]);
         }
