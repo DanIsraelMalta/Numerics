@@ -473,9 +473,8 @@ namespace GLSL {
     * @param {VEC,        in}  vector
     * @param {value_type, out} product of vector elements
     **/
-    template<IFixedVector VEC>
-    constexpr VEC::value_type prod(const VEC& x) noexcept {
-        using T = typename VEC::value_type;
+    template<IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T prod(const VEC& x) noexcept {
         T prod{ static_cast<T>(1) };
         Utilities::static_for<0, 1, VEC::length()>([&prod, &x](std::size_t i) {
             prod *= x[i];
@@ -488,9 +487,8 @@ namespace GLSL {
     * @param {VEC,        in}  vector
     * @param {value_type, out} sum of vector elements
     **/
-    template<IFixedVector VEC>
-    constexpr VEC::value_type sum(const VEC& x) noexcept {
-        using T = typename VEC::value_type;
+    template<IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T sum(const VEC& x) noexcept {
         T sum{};
         Utilities::static_for<0, 1, VEC::length()>([&sum, &x](std::size_t i) {
             sum += x[i];
