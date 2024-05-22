@@ -227,7 +227,7 @@ namespace PointDistance {
             const GLSL::Vector2<T> cs(std::cos(an), std::sin(an));
 
             // reduce to first sector
-            const T bn = []() {
+            const T bn = [&]() {
                 if constexpr (std::is_floating_point_v<T>) {
                     return std::fmod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an;
                 }
@@ -252,7 +252,7 @@ namespace PointDistance {
             constexpr GLSL::Vector2<T> cs(std::cos(an), std::sin(an));
 
             // reduce to first sector
-            const T bn = []() {
+            const T bn = [&]() {
                 if constexpr (std::is_floating_point_v<T>) {
                     return std::fmod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an;
                 }
