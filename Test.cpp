@@ -367,7 +367,6 @@ void test_glsl_basics() {
         assert(static_cast<std::uint32_t>(gi.y * 1000) == 333u);
         assert(static_cast<std::uint32_t>(gi.z * 100) == 25u);
         assert(static_cast<std::uint32_t>(gi.w * 10) == 2u);
-        std::cout << "gi = " << gi.as_string() << '\n';
     }
 
     {
