@@ -19,9 +19,12 @@ namespace Triangle {
         using T = typename VEC::value_type;
 
         // triangle sides length, sorted in ascending order
-        std::array<T, 3> sides{ { GLSL::dot(v1 - v0),
-                                  GLSL::dot(v2 - v1),
-                                  GLSL::dot(v2 - v0) } };
+        const VEC v10{ v1 - v0 };
+        const VEC v21{ v2 - v1 };
+        const VEC v20{ v2 - v0 };
+        std::array<T, 3> sides{ { GLSL::length(v10),
+                                  GLSL::length(v21),
+                                  GLSL::length(v20) } };
         if (sides[0] > sides[2]) { Utilities::swap(sides[0], sides[2]); }
         if (sides[0] > sides[1]) { Utilities::swap(sides[0], sides[1]); }
         if (sides[1] > sides[2]) { Utilities::swap(sides[1], sides[2]); }
@@ -74,7 +77,7 @@ namespace Triangle {
     **/
     template<GLSL::IFixedVector VEC>
         requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr bool is_point_withing_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
+    constexpr bool is_point_within_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
         using T = typename VEC::value_type;
         constexpr std::size_t N{ VEC::length() };
         assert(Triangle::is_valid(a, b, c));
@@ -108,7 +111,7 @@ namespace Triangle {
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr GLSL::Vector3<T> barycentric_from_cartesian(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
+    constexpr GLSL::Vector3<T> barycentric_from_cartesian(const VEC& a, const VEC& b, const VEC& c) {
         assert(Triangle::is_valid(a, b, c));
 
         const T daa{ GLSL::dot(a, a) };
@@ -125,71 +128,5 @@ namespace Triangle {
         const T y{ (dbb * dca - dab * dcb) / denom };
         const T z{ (daa * dcb - dab * dca) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - y - z, y, z);
-    }
-
-    /**
-    * \brief return the closest point on a triangle to a given point
-    * @param {Vector2|Vector3, in}  point
-    * @param {Vector2|Vector3, in}  triangle vertex #0
-    * @param {Vector2|Vector3, in}  triangle vertex #1
-    * @param {Vector2|Vector3, in}  triangle vertex #2
-    * @param {Vector3,         out} closest point on triangle
-    **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr VEC closest_point_on_trinagle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
-        using T = typename VEC::value_type;
-        assert(Triangle::is_valid(a, b, c));
-
-        const VEC ab{ b - a };
-        const VEC ac{ c - a };
-        const VEC normal{ GLSL::normalize(GLSL::cross(ac, ab)) };
-
-        const VEC p{ p - GLSL::dot(normal, p - a) * normal };
-        const VEC ap{ p - a };
-
-        const VEC barycoords{ Triangle::barycentric_from_cartesian(ab, ac, ap) };
-
-        if (barycoords.x < T{}) {
-            const VEC bc{ c - b };
-            const T n{ GLSL::length(bc) };
-            assert(n >= T{});
-            const T t{ Numerics::clamp(GLSL::dot(bc, p - b) / n, T{}, n) };
-            return (b + (t / n) * bc);
-        } else if (barycoords.y < T{}) {
-            const VEC ca{ a - c };
-            const T n{ GLSL::length(ca) };
-            assert(n >= T{});
-            const T t{ Numerics::clamp(GLSL::dot(ca, p - c) / n, T{}, n) };
-            return c + (t / n) * ca;
-        } else if (barycoords.z < T{}) {
-            const T n{ GLSL::length(ab) };
-            assert(n >= T{});
-            const T t{ Numerics::clamp(GLSL::dot(ab, p - a) / n, T{}, n) };
-            return a + (t / n) * ab;
-        } else {
-            return (a * barycoords.x + b * barycoords.y + c * barycoords.z);
-        }
-    }
-
-    /**
-    * \brief return the center of the incircle of a triangle
-    * @param {Vector2|Vector3, in}  triangle vertex #0
-    * @param {Vector2|Vector3, in}  triangle vertex #1
-    * @param {Vector2|Vector3, in}  triangle vertex #2
-    * @param {Vector2|Vector3, out} triangle incircle center
-    **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr VEC triangle_incenter(const VEC& v0, const VEC& v1, const VEC& v2) {
-        using T = typename VEC::value_type;
-        assert(Triangle::is_valid(v0, v1, v2));
-
-        const T l0{ GLSL::length(v2 - v1) };
-        const T l1{ GLSL::length(v0 - v2) };
-        const T l2{ GLSL::length(v1 - v0) };
-        const T sum{ l0 + l1 + l2 };
-        [[assume(sum != T{})]];
-        return (v0 * l0 + v1 * l1 + v2 * l2) / sum;
     }
 }
