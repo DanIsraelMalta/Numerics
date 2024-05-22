@@ -267,7 +267,7 @@ namespace GLSL {
     constexpr VEC clamp(const VEC& x, const T minVal, const T maxVal) noexcept {
         VEC out{};
         Utilities::static_for<0, 1, VEC::length()>([&x, &out, minVal, maxVal](std::size_t i) {
-            out[i] = Numerics::min(Numerics::max(x[i], minVal), maxVal);
+            out[i] = Numerics::clamp(x[i], minVal, maxVal);
         });
         return out;
     }
