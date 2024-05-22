@@ -10,6 +10,7 @@
 #include "Glsl.h"
 #include "Glsl_extra.h"
 #include "GLSL_solvers.h"
+#include "Glsl_aabb.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -743,6 +744,21 @@ void test_glsl_solvers() {
     }
 }
 
+void test_glsl_aabb() {
+    const ivec3 centroid = Aabb::centroid(ivec3(-1, -2, -3), ivec3(1, 2, 3));
+    assert(GLSL::equal(centroid, ivec3(0)));
+
+    const ivec3 diagonal = Aabb::diagnonal(ivec3(-1, -2, -3), ivec3(1, 2, 3));
+    assert(GLSL::equal(diagonal, ivec3(3, 4, 6)));
+
+    assert(Aabb::is_point_inside(ivec2(1), ivec2(0), ivec2(2)));
+    assert(!Aabb::is_point_inside(ivec2(1, 3), ivec2(0), ivec2(2)));
+
+    const auto expanded = Aabb::expand(ivec2(0), ivec2(1), ivec2(2));
+    assert(GLSL::equal(expanded.min, ivec2(0)));
+    assert(GLSL::equal(expanded.max, ivec2(2)));
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -751,5 +767,6 @@ int main() {
     test_glsl_basics();
     test_glsl_extra();
     test_glsl_solvers();
-	return 1;
+    test_glsl_aabb();
+    return 1;
 }
