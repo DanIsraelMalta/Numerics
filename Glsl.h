@@ -321,15 +321,15 @@ namespace GLSL {
     * @param {VEC, in}  vector
     * @param {VEC, out} inverse of square root of vector
     **/
-    template<IFixedVector VEC>
+    template<IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T>)
     constexpr VEC inversesqrt(const VEC& x) {
-        using T = typename VEC::value_type;
         constexpr T one{ static_cast<T>(1) };
 
         VEC out{};
         Utilities::static_for<0, 1, VEC::length()>([&out, &x](std::size_t i) {
             assert(!Numerics::areEquals(x[i], T{}));
-            out = one / std::sqrt(x[i]);
+            out[i] = one / static_cast<T>(std::sqrt(x[i]));
         });
         return out;
     }
