@@ -11,6 +11,7 @@
 #include "Glsl_extra.h"
 #include "GLSL_solvers.h"
 #include "Glsl_aabb.h"
+#include "Glsl_triangle.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -749,7 +750,7 @@ void test_glsl_aabb() {
     assert(GLSL::equal(centroid, ivec3(0)));
 
     const ivec3 diagonal = Aabb::diagnonal(ivec3(-1, -2, -3), ivec3(1, 2, 3));
-    assert(GLSL::equal(diagonal, ivec3(3, 4, 6)));
+    assert(GLSL::equal(diagonal, ivec3(2, 4, 6)));
 
     assert(Aabb::is_point_inside(ivec2(1), ivec2(0), ivec2(2)));
     assert(!Aabb::is_point_inside(ivec2(1, 3), ivec2(0), ivec2(2)));
@@ -757,6 +758,14 @@ void test_glsl_aabb() {
     const auto expanded = Aabb::expand(ivec2(0), ivec2(1), ivec2(2));
     assert(GLSL::equal(expanded.min, ivec2(0)));
     assert(GLSL::equal(expanded.max, ivec2(2)));
+}
+
+void test_glsl_triangle() {
+    assert(Triangle::is_point_within_triangle(ivec2(0), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+    assert(!Triangle::is_point_within_triangle(ivec2(0, 2), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+
+    assert(Triangle::is_valid(ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+    assert(!Triangle::is_valid(ivec2(-1), ivec2(-1), ivec2(0, 1)));
 }
 
 int main() {
@@ -768,5 +777,6 @@ int main() {
     test_glsl_extra();
     test_glsl_solvers();
     test_glsl_aabb();
+    test_glsl_triangle();
     return 1;
 }
