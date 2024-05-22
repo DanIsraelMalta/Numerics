@@ -227,7 +227,14 @@ namespace PointDistance {
             const GLSL::Vector2<T> cs(std::cos(an), std::sin(an));
 
             // reduce to first sector
-            const T bn{ std::mod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an };
+            const T bn = []() {
+                if constexpr (std::is_floating_point_v<T>) {
+                    return std::fmod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an;
+                }
+                else {
+                    return (std::atan(p.x, p.y) % static_cast<T>(2) * an) - an;
+                }
+            }();
             p = GLSL::length(p) * GLSL::Vector2<T>(std::cos(bn), std::abs(std::sin(bn)));
 
             // line sdf
@@ -245,7 +252,14 @@ namespace PointDistance {
             constexpr GLSL::Vector2<T> cs(std::cos(an), std::sin(an));
 
             // reduce to first sector
-            const T bn{ std::mod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an };
+            const T bn = []() {
+                if constexpr (std::is_floating_point_v<T>) {
+                    return std::fmod(std::atan(p.x, p.y), static_cast<T>(2) * an) - an;
+                }
+                else {
+                    return (std::atan(p.x, p.y) % static_cast<T>(2) * an) - an;
+                }
+            }();
             p = GLSL::length(p) * GLSL::Vector2<T>(std::cos(bn), std::abs(std::sin(bn)));
 
             // line sdf
