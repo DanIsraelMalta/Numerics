@@ -290,7 +290,7 @@ namespace RayIntersections {
         assert(Numerics::areEquals(GLSL::length(rd), static_cast<T>(1)));
         assert(Numerics::areEquals(GLSL::length(ca), static_cast<T>(1)));
 
-        const Vector3<T> oc{ ro - cb };
+        const GLSL::Vector3<T> oc{ ro - cb };
 
         const T card{ GLSL::dot(ca, rd) };
         const T caoc{ GLSL::dot(ca, oc) };
