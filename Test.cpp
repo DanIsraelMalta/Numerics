@@ -346,6 +346,31 @@ void test_glsl_basics() {
     }
 
     {
+        vec3 a(0.0f, 1.0f, 2.0f);
+        vec3 b(2.0f, 1.0f, 3.0f);
+
+        vec3 c = GLSL::mix<0.5f>(a, b);
+        assert(static_cast<std::uint32_t>(c.x) == 1u);
+        assert(static_cast<std::uint32_t>(c.y) == 1u);
+        assert(static_cast<std::uint32_t>(c.z * 10) == 25u);
+        
+        vec3 d = GLSL::mix(a, b, 0.25f);
+        assert(static_cast<std::uint32_t>(d.x * 10) == 5u);
+        assert(static_cast<std::uint32_t>(d.y) == 1u);
+        assert(static_cast<std::uint32_t>(d.z * 100) == 225u);
+    }
+
+    {
+        vec4 g(4.0f, 9.0f, 16.0f, 25.0f);
+        vec4 gi = GLSL::inversesqrt(g);
+        assert(static_cast<std::uint32_t>(gi.x * 10) == 5u);
+        assert(static_cast<std::uint32_t>(gi.y * 1000) == 333u);
+        assert(static_cast<std::uint32_t>(gi.z * 100) == 25u);
+        assert(static_cast<std::uint32_t>(gi.w * 10) == 2u);
+        std::cout << "gi = " << gi.as_string() << '\n';
+    }
+
+    {
         using mat2i = GLSL::Matrix2<int>;
         // 0 2
         // 1 3
