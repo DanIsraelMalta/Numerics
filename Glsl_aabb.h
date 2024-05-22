@@ -41,7 +41,7 @@ namespace Aabb {
     template<GLSL::IFixedVector VEC>
         requires((VEC::length() == 2) || (VEC::length() == 3))
     constexpr bool is_point_inside(const VEC& p, const VEC& min, const VEC& max) noexcept {
-        return GLSL::all(GLSL::lessThanEqual(p, max)) && GLSL::all(GLSL::lessThan(min, p));
+        return GLSL::lessThanEqual(p, max) && GLSL::lessThanEqual(min, p);
     }
 
     /**
