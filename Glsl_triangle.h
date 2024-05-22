@@ -76,17 +76,27 @@ namespace Triangle {
         requires((VEC::length() == 2) || (VEC::length() == 3))
     constexpr bool is_point_withing_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
         using T = typename VEC::value_type;
+        constexpr std::size_t N{ VEC::length() };
         assert(Triangle::is_valid(a, b, c));
 
         const VEC local_a{ a - p };
         const VEC local_b{ b - p };
         const VEC local_c{ c - p };
 
-        const VEC u{ GLSL::cross(local_b, local_c) };
-        const VEC v{ GLSL::cross(local_c, local_a) };
-        const VEC w{ GLSL::cross(local_a, local_b) };
+        if constexpr (N == 2) {
+            const T u{ GLSL::cross(local_b, local_c) };
+            const T v{ GLSL::cross(local_c, local_a) };
+            const T w{ GLSL::cross(local_a, local_b) };
 
-        return (GLSL::dot(u, v) >= T{}) && (GLSL::dot(u, w) >= T{});
+            return (u * v >= T{}) && (u * w >= T{});
+        }
+        else {
+            const VEC u{ GLSL::cross(local_b, local_c) };
+            const VEC v{ GLSL::cross(local_c, local_a) };
+            const VEC w{ GLSL::cross(local_a, local_b) };
+
+            return (GLSL::dot(u, v) >= T{}) && (GLSL::dot(u, w) >= T{});
+        }
     }
 
     /**
