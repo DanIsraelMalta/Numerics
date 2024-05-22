@@ -132,7 +132,7 @@ namespace Triangle {
         assert(Triangle::is_valid(a, b, c));
 
         const VEC ab{ b - a };
-        const VEC ac{ v - a };
+        const VEC ac{ c - a };
         const VEC normal{ GLSL::normalize(GLSL::cross(ac, ab)) };
 
         const VEC p{ p - GLSL::dot(normal, p - a) * normal };
@@ -141,24 +141,24 @@ namespace Triangle {
         const VEC barycoords{ Triangle::barycentric_from_cartesian(ab, ac, ap) };
 
         if (barycoords.x < T{}) {
-            const VEC bc{ v - b };
+            const VEC bc{ c - b };
             const T n{ GLSL::length(bc) };
             assert(n >= T{});
             const T t{ Numerics::clamp(GLSL::dot(bc, p - b) / n, T{}, n) };
             return (b + (t / n) * bc);
         } else if (barycoords.y < T{}) {
-            const VEC ca{ a - v };
+            const VEC ca{ a - c };
             const T n{ GLSL::length(ca) };
             assert(n >= T{});
-            const T t{ Numerics::clamp(GLSL::dot(ca, p - v) / n, T{}, n) });
-            return v + (t / n) * ca;
+            const T t{ Numerics::clamp(GLSL::dot(ca, p - c) / n, T{}, n) };
+            return c + (t / n) * ca;
         } else if (barycoords.z < T{}) {
             const T n{ GLSL::length(ab) };
             assert(n >= T{});
             const T t{ Numerics::clamp(GLSL::dot(ab, p - a) / n, T{}, n) };
             return a + (t / n) * ab;
         } else {
-            return (a * barycoords.x + b * barycoords.y + v * barycoords.z);
+            return (a * barycoords.x + b * barycoords.y + c * barycoords.z);
         }
     }
 
