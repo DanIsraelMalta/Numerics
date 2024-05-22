@@ -188,7 +188,7 @@ namespace GLSL {
 #undef M_RELATIONAL_FUNCTION
 
     //
-    // GLSL bit operations for IFixedVector
+    // GLSL boolean operations for IFixedVector
     //
 
     /**
@@ -196,21 +196,21 @@ namespace GLSL {
     * @param {VEC,  in}  vector to invert
     * @param {bool, out} true if ALL elements are true
     **/
-#define M_BIT_FUNCTION(NAME, OP)                                                   \
+#define M_BOOL_FUNCTION(NAME, OP)                                                  \
     template<IFixedVector VEC, class T = typename VEC::value_type>                 \
         requires(std::is_same_v<T, bool>)                                          \
-    constexpr auto NAME(const VEC& x) {                                            \
-        T result{ true };                                                          \
+    constexpr bool NAME(const VEC& x) {                                            \
+        bool result{ true };                                                       \
         Utilities::static_for<0, 1, VEC::length()>([&x, &result](std::size_t i) {  \
             result OP x[i];                                                        \
         });                                                                        \
         return result;                                                             \
     }
 
-    M_BIT_FUNCTION(all, &= );
-    M_BIT_FUNCTION(any, != );
+    M_BOOL_FUNCTION(all, &= );
+    M_BOOL_FUNCTION(any, != );
 
-#undef M_BIT_FUNCTION
+#undef M_BOOL_FUNCTION
 
     /**
     * \brief inverts elements in logical vector
@@ -228,6 +228,10 @@ namespace GLSL {
         return result;
     }
 
+    //
+    // GLSL generic operations
+    //
+
     /**
     * \brief returns minimal element in vector
     * @param {VEC,        in}  vector
@@ -243,6 +247,21 @@ namespace GLSL {
     }
 
     /**
+    * \brief returns vector filled with minimal values from two different vectors
+    * @param {VEC, in}  vector 1
+    * @param {VEC, in}  vector 2
+    * @param {VEC, out} vector holding minimal elements of input arguments
+    **/
+    template<IFixedVector VEC>
+    constexpr VEC min(const VEC& x, const VEC& y) noexcept {
+        VEC out;
+        Utilities::static_for<0, 1, VEC::length()>([&x, &y, &out](std::size_t i) {
+            out[i] = Numerics::min(x[i], y[i]);
+        });
+        return out;
+    }
+
+    /**
     * \brief returns maximal element in vector
     * @param {VEC,        in}  vector
     * @param {value_type, out} maximal element
@@ -254,6 +273,21 @@ namespace GLSL {
             _max = Numerics::max(_max, x[i]);
         });
         return _max;
+    }
+
+    /**
+    * \brief returns vector filled with maximal values from two different vectors
+    * @param {VEC, in}  vector 1
+    * @param {VEC, in}  vector 2
+    * @param {VEC, out} vector holding maximal elements of input arguments
+    **/
+    template<IFixedVector VEC>
+    constexpr VEC max(const VEC& x, const VEC& y) noexcept {
+        VEC out;
+        Utilities::static_for<0, 1, VEC::length()>([&x, &y, &out](std::size_t i) {
+            out[i] = Numerics::max(x[i], y[i]);
+        });
+        return out;
     }
 
     /**
