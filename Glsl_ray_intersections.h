@@ -303,7 +303,7 @@ namespace RayIntersections {
             return GLSL::Vector2<T>(static_cast<T>(-1.0));
         }
 
-        assert(!Numerics::areEquals(a, T{}));
+        [[assume(a != T{})]];
         [[assume(h >= T{})]];
         h = std::sqrt(h);
         return GLSL::Vector2<T>((-b - h) / a, (-b + h) / a);
