@@ -434,8 +434,14 @@ namespace Numerics {
     **/
     template<typename T>
         requires(std::is_arithmetic_v<T>)
-    constexpr auto clamp(const T x, const T minVal, const T maxVal) noexcept {
-        return min(max(x, minVal), maxVal);
+    constexpr T clamp(const T x, const T minVal, const T maxVal) noexcept {
+        assert(minVal < maxVal);
+        return Numerics::min(Numerics::max(x, minVal), maxVal);
+    }
+    template<auto minVal, auto maxVal, class T = decltype(minVal)>
+        requires(std::is_arithmetic_v<T> && std::is_same_v<T, decltype(maxVal) >&& (minVal < maxVal))
+    constexpr T clamp(const T x) noexcept {
+        return Numerics::min(Numerics::max(x, minVal), maxVal);
     }
 
     /**
