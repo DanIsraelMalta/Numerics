@@ -745,6 +745,31 @@ void test_glsl_solvers() {
             assert(std::abs((solution[i] * 1e5) / 1e5 - x[i]) < 1e-5);
         });
     }
+    {
+        const auto det_via_lu = Solvers::determinant_using_lu(a);
+        const auto det_via_qr = Solvers::determinant_using_qr(a);
+        const auto det = GLSL::determinant(a);
+        assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det_via_qr));
+        assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det));
+        assert(static_cast<std::int32_t>(det_via_lu) == -85750);
+    }
+
+    {
+        mat4 df(12.0f, 16.0f, 38.0f, 92.0f,
+                13.0f, 15.0f, 75.0f, 32.0f,
+                14.0f, 14.0f, -15.0f, 27.0f,
+                15.0f, 13.0f, 5.0f, 5.0f);
+        mat4 dinv = Solvers::inverse(df);
+        mat4 invExpected(0.242363f, -0.290946f, -0.609483f, 0.693781f,
+                         -0.292204f, 0.342824f, 0.726677f, -0.741583f,
+                         0.004369f, 0.005397f, -0.023901f, 0.014135f,
+                         0.028270f, -0.023901f, -0.037008f, 0.032639f);
+        Utilities::static_for<0, 1, 4>([&dinv, &invExpected](std::size_t i) {
+            Utilities::static_for<0, 1, 4>([&dinv, &invExpected, i](std::size_t j) {
+                assert(std::abs(std::abs(dinv(i, j)) - std::abs(invExpected(i, j))) < 1e-6);
+            });
+        });
+    }
 }
 
 void test_glsl_aabb() {
