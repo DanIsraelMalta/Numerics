@@ -181,10 +181,16 @@ namespace Extra {
         const T sint{ std::sin(t) };
         const T cost{ std::cos(t) };
         const T icost{ static_cast<T>(1) - cost };
+        const T axy{ a.x * a.y * icost };
+        const T axz{ a.x * a.z * icost };
+        const T ayz{ a.y * a.z * icost };
+        const T sax{ sint * a.x };
+        const T say{ sint * a.y };
+        const T saz{ sint * a.z };
 
-        return GLSL::Matrix3<T>(a.x * a.x * icost + cost, a.y * a.x * icost - sint * a.z, a.z * a.x * icost + sint * a.y,
-                                a.x * a.y * icost + sint * a.z, a.y * a.y * icost + cost, a.z * a.y * icost - sint * a.x,
-                                a.x * a.z * icost - sint * a.y, a.y * a.z * icost + sint * a.x, a.z * a.z * icost + cost);
+        return GLSL::Matrix3<T>(a.x * a.x * icost + cost, axy - saz,                axz + say,
+                                axy + saz,                a.y * a.y * icost + cost, ayz - sax,
+                                axz - say,                ayz + sax,                a.z * a.z * icost + cost);
     }
 
     /**
