@@ -161,9 +161,11 @@ namespace Extra {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Vector4<T> create_plane(const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const GLSL::Vector3<T>& c) {
-        assert(!Numerics::areEquals(GLSL::dot(b - a), T{}));
-        assert(!Numerics::areEquals(GLSL::dot(c - a), T{}));
-        const GLSL::Vector3<T> n(GLSL::normalize(GLSL::cross(b - a, c - a)));
+        const GLSL::Vector3<T> ba{ b - a };
+        const GLSL::Vector3<T> ca{ c - a };
+        assert(GLSL::dot(ba) > T{});
+        assert(GLSL::dot(ca) > T{});
+        const GLSL::Vector3<T> n(GLSL::normalize(GLSL::cross(ba, ca)));
         return GLSL::Vector4<T>(n, -GLSL::dot(a, n));
     }
 
