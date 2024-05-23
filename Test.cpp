@@ -697,6 +697,24 @@ void test_glsl_extra() {
         assert(Extra::chebyshev_distance(a, b) == 2);
         assert(Extra::inverse_chebyshev_distance(a, b) == 1);
     }
+
+    {
+        const auto Rx = Extra::rotation_matrix_from_axis_angle(dvec3(1.0, 0.0, 0.0), std::numbers::pi_v<double> / 2);
+        const auto RxExpected = dmat3(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+        Utilities::static_for<0, 1, 3>([&Rx, &RxExpected](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&Rx, &RxExpected, i](std::size_t j) {
+                assert(std::abs(std::abs(Rx(i, j)) - std::abs(RxExpected(i, j))) <= 1e-6);
+            });
+        });
+
+        const auto Ry = Extra::rotation_matrix_from_axis_angle(dvec3(0.0, 1.0, 0.0), std::numbers::pi_v<double> / 2);
+        const auto RyExpected = dmat3(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0);
+        Utilities::static_for<0, 1, 3>([&Ry, &RyExpected](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&Ry, &RyExpected, i](std::size_t j) {
+                assert(std::abs(std::abs(Ry(i, j)) - std::abs(RyExpected(i, j))) <= 1e-6);
+            });
+        });
+    }
 }
 
 void test_glsl_solvers() {
