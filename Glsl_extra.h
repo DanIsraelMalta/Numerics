@@ -177,20 +177,37 @@ namespace Extra {
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix3<T> rotation_matrix_from_axis_angle(const GLSL::Vector3<T>& a, const T t) noexcept {
-        const T sint{ std::sin(t) };
-        const T cost{ std::cos(t) };
+    constexpr GLSL::Matrix3<T> rotation_matrix_from_axis_angle(const GLSL::Vector3<T>& axis, const T angle) noexcept {
+        const T sint{ std::sin(angle) };
+        const T cost{ std::cos(angle) };
         const T icost{ static_cast<T>(1) - cost };
-        const T axy{ a.x * a.y * icost };
-        const T axz{ a.x * a.z * icost };
-        const T ayz{ a.y * a.z * icost };
-        const T sax{ sint * a.x };
-        const T say{ sint * a.y };
-        const T saz{ sint * a.z };
+        const T axy{ axis.x * axis.y * icost };
+        const T axz{ axis.x * axis.z * icost };
+        const T ayz{ axis.y * axis.z * icost };
+        const T sax{ sint * axis.x };
+        const T say{ sint * axis.y };
+        const T saz{ sint * axis.z };
 
-        return GLSL::Matrix3<T>(a.x * a.x * icost + cost, axy - saz,                axz + say,
-                                axy + saz,                a.y * a.y * icost + cost, ayz - sax,
-                                axz - say,                ayz + sax,                a.z * a.z * icost + cost);
+        return GLSL::Matrix3<T>(axis.x * axis.x * icost + cost, axy - saz,                      axz + say,
+                                axy + saz,                      axis.y * axis.y * icost + cost, ayz - sax,
+                                axz - say,                      ayz + sax,                      axis.z * axis.z * icost + cost);
+    }
+    template<auto angle, class T = decltype(angle)>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Matrix3<T> rotation_matrix_from_axis_angle(const GLSL::Vector3<T>& axis) noexcept {
+        constexpr T sint{ std::sin(angle) };
+        constexpr T cost{ std::cos(angle) };
+        constexpr T icost{ static_cast<T>(1) - cost };
+        const T axy{ axis.x * axis.y * icost };
+        const T axz{ axis.x * axis.z * icost };
+        const T ayz{ axis.y * axis.z * icost };
+        const T sax{ sint * axis.x };
+        const T say{ sint * axis.y };
+        const T saz{ sint * axis.z };
+
+        return GLSL::Matrix3<T>(axis.x * axis.x * icost + cost, axy - saz,                      axz + say,
+                                axy + saz,                      axis.y * axis.y * icost + cost, ayz - sax,
+                                axz - say,                      ayz + sax,                      axis.z * axis.z * icost + cost);
     }
 
     /**
