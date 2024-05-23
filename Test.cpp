@@ -145,6 +145,8 @@ void test_numerics() {
     // test clamp
     static_assert(Numerics::clamp(3, 4, 5) == 4);
     static_assert(Numerics::clamp(-2, -8, -4) == -4);
+    static_assert(Numerics::clamp<4, 5>(3) == 4);
+    static_assert(Numerics::clamp<-8, -4>(-2) == -4);
 
     // test accumulate
     const std::array<double, 4> tempArray{ 1.0, std::pow(10.0, 100), 0.01, -std::pow(10.0, 100) };
