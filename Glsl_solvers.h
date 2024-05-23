@@ -201,13 +201,14 @@ namespace Decomposition {
 // 
 
 namespace Solvers {
+
     /**
-    * \brief calculate matrix determinant using LU decomposition for matrixes larger than 4x4)
+    * \brief calculate matrix determinant using LU decomposition
     * @param {MAT,        in}  matrix
     * @param {value_type, out} matrix determinant
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr T determinant(const MAT& mat) noexcept {
+    constexpr T determinant_using_lu(const MAT& mat) noexcept {
         // LU decomposition
         auto lowerUpper = Decomposition::LU(mat);
         T det{ static_cast<T>(lowerUpper.Sign) };
@@ -215,6 +216,26 @@ namespace Solvers {
         // determinant calculation
         Utilities::static_for<0, 1, MAT::columns()>([&det, &lowerUpper](std::size_t i) {
             det *= lowerUpper.LU(i, i);
+        });
+
+        // output
+        return det;
+    }
+
+    /**
+    * \brief calculate matrix determinant using QR decomposition
+    * @param {MAT,        in}  matrix
+    * @param {value_type, out} matrix determinant
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr T determinant_using_qr(const MAT& mat) noexcept {
+        // QR decomposition
+        auto qr = Decomposition::QR_GivensRotation(mat);
+        T det{ static_cast<T>(1) };
+
+        // determinant calculation
+        Utilities::static_for<0, 1, MAT::columns()>([&det, &qr](std::size_t i) {
+            det *= qr.R(i, i);
         });
 
         // output
