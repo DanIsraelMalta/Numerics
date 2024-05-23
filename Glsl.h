@@ -80,22 +80,22 @@ namespace GLSL {
 #undef M_OPERATOR
 
     // binary arithmetic operator overload for IFixedVector
-#define M_OPERATOR(OP, AOP)                                                  \
-    template<IFixedVector VEC>                                               \
-    constexpr VEC& operator OP (VEC lhs, const VEC& rhs) {                   \
-        return (lhs AOP rhs);                                                \
-    }                                                                        \
-    template<IFixedVector VEC>                                               \
-    constexpr VEC& operator OP (VEC lhs, typename VEC::value_type rhs) {     \
-        return (lhs AOP rhs);                                                \
-    }                                                                        \
-    template<IFixedVector VEC>                                               \
-    constexpr VEC& operator OP (typename VEC::value_type rhs, VEC lhs) {     \
-        return (lhs AOP rhs);                                                \
-    }                                                                        \
-    template<IFixedVector VEC>                                               \
-    constexpr VEC& operator OP (VEC lhs, VEC&& rhs) {                        \
-        return (lhs AOP FWD(rhs));                                           \
+#define M_OPERATOR(OP, AOP)                                                 \
+    template<IFixedVector VEC>                                              \
+    constexpr VEC operator OP (VEC lhs, const VEC& rhs) {                   \
+        return (lhs AOP rhs);                                               \
+    }                                                                       \
+    template<IFixedVector VEC>                                              \
+    constexpr VEC operator OP (VEC lhs, typename VEC::value_type rhs) {     \
+        return (lhs AOP rhs);                                               \
+    }                                                                       \
+    template<IFixedVector VEC>                                              \
+    constexpr VEC operator OP (typename VEC::value_type rhs, VEC lhs) {     \
+        return (lhs AOP rhs);                                               \
+    }                                                                       \
+    template<IFixedVector VEC>                                              \
+    constexpr VEC operator OP (VEC lhs, VEC&& rhs) {                        \
+        return (lhs AOP FWD(rhs));                                          \
     }
 
     M_OPERATOR(+, +=);
@@ -855,18 +855,18 @@ namespace GLSL {
     }
 
     // matrix-matrix arithmetic operator overload
-#define M_OPERATOR(OP, AOP)                                                 \
-    template<IFixedCubicMatrix MAT>                                         \
-    constexpr MAT& operator OP (MAT lhs, const MAT& rhs) {                  \
-        return (lhs AOP rhs);                                               \
-    }                                                                       \
-    template<IFixedCubicMatrix VEC>                                         \
-    constexpr VEC& operator OP (VEC lhs, typename VEC::value_type rhs) {    \
-        return (lhs AOP rhs);                                               \
-    }                                                                       \
-    template<IFixedCubicMatrix MAT>                                         \
-    constexpr MAT& operator OP (MAT lhs, MAT&& rhs) {                       \
-        return (lhs AOP FWD(rhs));                                          \
+#define M_OPERATOR(OP, AOP)                                                \
+    template<IFixedCubicMatrix MAT>                                        \
+    constexpr MAT operator OP (MAT lhs, const MAT& rhs) {                  \
+        return (lhs AOP rhs);                                              \
+    }                                                                      \
+    template<IFixedCubicMatrix VEC>                                        \
+    constexpr VEC operator OP (VEC lhs, typename VEC::value_type rhs) {    \
+        return (lhs AOP rhs);                                              \
+    }                                                                      \
+    template<IFixedCubicMatrix MAT>                                        \
+    constexpr MAT operator OP (MAT lhs, MAT&& rhs) {                       \
+        return (lhs AOP FWD(rhs));                                         \
     }
 
     M_OPERATOR(+, +=);
