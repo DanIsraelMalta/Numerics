@@ -86,18 +86,14 @@ namespace Triangle {
         const VEC local_b{ b - p };
         const VEC local_c{ c - p };
 
-        if constexpr (N == 2) {
-            const T u{ GLSL::cross(local_b, local_c) };
-            const T v{ GLSL::cross(local_c, local_a) };
-            const T w{ GLSL::cross(local_a, local_b) };
+        const auto u = GLSL::cross(local_b, local_c);
+        const auto v = GLSL::cross(local_c, local_a);
+        const auto w = GLSL::cross(local_a, local_b);
 
+        if constexpr (N == 2) {
             return (u * v >= T{}) && (u * w >= T{});
         }
         else {
-            const VEC u{ GLSL::cross(local_b, local_c) };
-            const VEC v{ GLSL::cross(local_c, local_a) };
-            const VEC w{ GLSL::cross(local_a, local_b) };
-
             return (GLSL::dot(u, v) >= T{}) && (GLSL::dot(u, w) >= T{});
         }
     }
