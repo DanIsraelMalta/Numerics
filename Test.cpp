@@ -724,6 +724,13 @@ void test_glsl_extra() {
             });
         });
     }
+
+    {
+        ivec4 a(1, 2, 3, 4);
+        ivec4 b(2, 3, 4, 5);
+        assert(Extra::left_dot<3>(a, b) == 20);
+        assert(Extra::left_dot<2>(b) == 13);
+    }
 }
 
 void test_glsl_solvers() {
