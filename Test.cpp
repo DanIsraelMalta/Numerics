@@ -772,6 +772,25 @@ void test_glsl_solvers() {
             assert(std::abs((solution[i] * 1e5) / 1e5 - x[i]) < 1e-5);
         });
     }
+
+    {
+        GLSL::Matrix3<double> ap(4.0, 12.0, -16.0,
+                                 12.0, 37.0, -43.0,
+                                 -16.0, -43.0, 98.0);
+        GLSL::Matrix3<double> cholExpectec(2.0, 0.0, 0.0,
+                                           6.0, 1.0, 0.0,
+                                           -8.0, 5.0, 3.0);
+        const auto chol = Decomposition::Cholesky(ap);
+        Utilities::static_for<0, 1, 3>([&chol, &cholExpectec](std::size_t i) {
+            assert(std::abs(GLSL::length(chol[i]) - GLSL::length(cholExpectec[i])) < 1e-6);
+        });
+
+        dvec3 b(6.0, 3.0, 1.0);
+        auto solution = Solvers::SolveCholesky(ap, b);
+        const dvec3 x(257.611111, -70.555556, 11.111111);
+        assert(std::abs(GLSL::length(solution) - GLSL::length(x)) < 1e-6);
+    }
+    
     {
         const auto det_via_lu = Solvers::determinant_using_lu(a);
         const auto det_via_qr = Solvers::determinant_using_qr(a);
