@@ -45,6 +45,15 @@ void test_hash() {
 }
 
 void test_variadic() {
+    // test forEach
+    int a{ 1 };
+    int b{ 2 };
+    int c{ 3 };
+    Variadic::forEach([](int& x) { x*=2; }, a, b, c);
+    assert(a == 2);
+    assert(b == 4);
+    assert(c == 6);
+
     // test lowerThan
     static_assert(Variadic::lowerThan<2>(0, 1, 1, 0, -5));
     static_assert(!Variadic::lowerThan<2>(0, 1, 1, 0, 5));
