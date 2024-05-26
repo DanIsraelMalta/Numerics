@@ -357,15 +357,10 @@ namespace Numerics {
     constexpr T min(const T a) noexcept {
         return a;
     }
-    template<typename T>
-        requires(Concepts::OrderedDescending<T, T>)
-    constexpr T min(const T a, const T b) noexcept {
-        return ((a < b) ? a : b);
-    }
     template<typename T, typename...Ts>
         requires(Concepts::OrderedDescending<T, T> && (std::is_same_v<T, Ts> && ...))
-    constexpr T min(const T a, const T b, const Ts... ts) noexcept {
-        return min(min(a, b), ts...);
+    constexpr T min(const T a, const Ts... ts) noexcept {
+        return a < min(ts...) ? a : min(ts...);
     }
 
     /**
@@ -377,15 +372,10 @@ namespace Numerics {
     constexpr T max(const T a) noexcept {
         return a;
     }
-    template<typename T>
-        requires(Concepts::OrderedAscending<T, T>)
-    constexpr T max(const T a, const T b) noexcept {
-        return ((a > b) ? a : b);
-    }
     template<typename T, typename...Ts>
         requires(Concepts::OrderedAscending<T, T> && (std::is_same_v<T, Ts> && ...))
-    constexpr T max(const T a, const T b, const Ts... ts) noexcept {
-        return max(max(a, b), ts...);
+    constexpr T max(const T a, const Ts... ts) noexcept {
+        return a > max(ts...) ? a : max(ts...);
     }
 
     /**
