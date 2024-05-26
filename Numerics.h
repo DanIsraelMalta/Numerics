@@ -407,7 +407,9 @@ namespace Numerics {
     template<typename T, typename... Ts>
         requires(std::is_arithmetic_v<T>)
     constexpr T norm(const T a) noexcept {
-        return std::sqrt(dot(a));
+        const T _dot{ dot(a) };
+        [[assume(_dot >= T{})]]
+        return std::sqrt(_dot);
     }
     template<typename T, typename... Ts>
         requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
