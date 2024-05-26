@@ -104,7 +104,7 @@ namespace Decomposition {
     }
 
     /**
-    * \brief given positive definite matrix A, constructs a lower triangular matrix L such that L*L' = A.
+    * \brief given symmetric positive definite matrix A, constructs a lower triangular matrix L such that L*L' = A.
     *        (it's roughly TWICE as efficient as the LU decomposition)
     *
     * @param {IFixedCubicMatrix, in}     matrix
@@ -122,11 +122,11 @@ namespace Decomposition {
                 T s{};
 
                 for (std::size_t i{}; i < k; ++i) {
-                    s += lower(i, k) * lower(i, j);
+                    s += lower(k, i) * lower(j, i);
                 }
 
                 assert(!Numerics::areEquals(lower(k, k), T{}));
-                lower(k, j) = s = (mat(k, j) - s) / lower(k, k);
+                lower(j, k) = s = (mat(j, k) - s) / lower(k, k);
                 d += s * s;
             }
 
@@ -346,7 +346,7 @@ namespace Solvers {
         VEC x(b);
         for (std::size_t k{}; k < N; ++k) {
             for (std::size_t i{}; i < k; ++i) {
-                x[k] -= x[i] * L(i, k);
+                x[k] -= x[i] * L(k, i);
             }
 
             assert(!Numerics::areEquals(L(k, k), T{}));
@@ -354,13 +354,14 @@ namespace Solvers {
         }
 
         // Solve L'*X = Y;
-        for (int64_t k{ N - 1 }; k >= 0; --k) {
-            for (std::size_t i{ k + 1 }; i < N; ++i) {
-                x[k] -= x[i] * L(k, i);
+        for (std::int64_t k{ N - 1 }; k >= 0; --k) {
+            const std::size_t _k{ static_cast<std::size_t>(k) };
+            for (std::size_t i{ _k + 1 }; i < N; ++i) {
+                x[_k] -= x[i] * L(i, _k);
             }
 
-            assert(!Numerics::areEquals(L(k, k), T{}));
-            x[k] /= L(k, k);
+            assert(!Numerics::areEquals(L(_k, _k), T{}));
+            x[_k] /= L(_k, _k);
         }
 
         // output
