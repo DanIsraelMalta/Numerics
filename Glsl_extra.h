@@ -312,4 +312,54 @@ namespace Extra {
         return GLSL::min(GLSL::abs(x - y));
     }
 
+    /**
+    * \brief calculate "left looking" dot product between two vectors
+    * @param {VEC,        in}  x
+    * @param {VEC,        in}  y
+    * @param {value_type, out} dot product between x and y
+    **/
+    template<std::size_t N, GLSL::IFixedVector VEC>
+        requires(N <= VEC::length())
+    constexpr VEC::value_type left_dot(const VEC& x, const VEC& y) noexcept {
+        using T = typename VEC::value_type;
+        T dot{};
+
+        if constexpr (std::is_floating_point_v<T>) {
+            Utilities::static_for<0, 1, N>([&dot, &x, &y](std::size_t i) {
+                dot = std::fma(x[i], y[i], dot);
+            });
+        } else {
+            Utilities::static_for<0, 1, N>([&dot, &x, &y](std::size_t i) {
+                dot += x[i] * y[i];
+            });
+        }
+
+        return dot;
+    }
+
+    /**
+    * \brief calculate "left looking" dot product of vector
+    * @param {VEC,        in}  vector
+    * @param {value_type, out} dot product of vector
+    **/
+    template<std::size_t N, GLSL::IFixedVector VEC>
+        requires(N <= VEC::length())
+    constexpr VEC::value_type left_dot(const VEC& x) noexcept {
+        using T = typename VEC::value_type;
+        T dot{};
+
+        if constexpr (std::is_floating_point_v<T>) {
+            Utilities::static_for<0, 1, N>([&dot, &x](std::size_t i) {
+                dot = std::fma(x[i], x[i], dot);
+            });
+        }
+        else {
+            Utilities::static_for<0, 1, N>([&dot, &x](std::size_t i) {
+                dot += x[i] * x[i];
+            });
+        }
+
+        return dot;
+    }
+
 }
