@@ -22,7 +22,6 @@ namespace GLSL {
                            std::is_assignable_v<VEC, std::array<typename VEC::value_type, VEC::length()>&&>&&     // IFixedVector is assignable from a moveable array
         requires(VEC vec, std::size_t i) {
             { vec[i] } -> std::same_as<typename VEC::value_type&>;      // IFixedVector elements can be accessed randomly
-            { vec.as_string() } -> std::same_as<std::string>;           // IFixedVector as string
     };
 
     // trait to check that an argument is of IFixedVector concept
@@ -86,6 +85,10 @@ namespace GLSL {
         return (lhs AOP rhs);                                               \
     }                                                                       \
     template<IFixedVector VEC>                                              \
+    constexpr VEC operator OP (VEC lhs, VEC&& rhs) {                        \
+        return (lhs AOP FWD(rhs));                                          \
+    }                                                                       \
+    template<IFixedVector VEC>                                              \
     constexpr VEC operator OP (VEC lhs, typename VEC::value_type rhs) {     \
         return (lhs AOP rhs);                                               \
     }                                                                       \
@@ -93,10 +96,6 @@ namespace GLSL {
     constexpr VEC operator OP (typename VEC::value_type rhs, VEC lhs) {     \
         return (lhs AOP rhs);                                               \
     }                                                                       \
-    template<IFixedVector VEC>                                              \
-    constexpr VEC operator OP (VEC lhs, VEC&& rhs) {                        \
-        return (lhs AOP FWD(rhs));                                          \
-    }
 
     M_OPERATOR(+, +=);
     M_OPERATOR(-, -=);
@@ -548,9 +547,9 @@ namespace GLSL {
     /**
     * \brief return the cross product of two vectors
     *        2D operator is based on wedge operator from geometric algebra.
-    * @param {VEC,        in}  x (2d or 3d vector)
-    * @param {VEC,        in}  y (2d or 3d vector)
-    * @param {value_type, out} cross product between x and y
+    * @param {VEC,            in}  x (2d or 3d vector)
+    * @param {VEC,            in}  y (2d or 3d vector)
+    * @param {VEC|value_type, out} cross product between x and y (vector in 3D case, value in 2D case)
     **/
     template<IFixedVector VEC>
         requires(VEC::length() == 2 || VEC::length() == 3)
@@ -575,7 +574,7 @@ namespace GLSL {
         const T d{ dot(x) };
         assert(d >= T{});
         [[assume(d >= T{})]];
-        return std::sqrt(d);
+        return static_cast<T>(std::sqrt(d));
     }
 
     /**
@@ -664,7 +663,6 @@ namespace GLSL {
         requires(MAT mat, std::size_t i) {
             { mat[i]    } -> std::same_as<typename MAT::vector_type&>;  // IFixedMatrix columns can be accessed randomly
             { mat(i, i) } -> std::same_as<typename MAT::value_type&>;   // IFixedMatrix elements can be accessed randomly (col, row)
-            { mat.as_string() } -> std::same_as<std::string>;                  // IFixedCubicMatrix as string
     };
 
     // standard element wise unary functions for IFixedCubicMatrix
@@ -1277,17 +1275,15 @@ namespace GLSL {
                 return pack;
             }
 
-            // return as string
-            constexpr std::string as_string() const {
-                constexpr std::array<std::size_t, N> indexes{ Indexes... };
-
-                std::string out{"{"};
-                Utilities::static_for<0, 1, N - 1>([this, &out, indices = MOV(indexes)](std::size_t i) {
-                    out += std::to_string(data[indices[i]]) + ", ";
+            // overload stream '<<' operator
+            friend std::ostream& operator<<(std::ostream& xio_stream, Swizzle& swizzle) {
+                xio_stream << "{";
+                Utilities::static_for<0, 1, N - 1>([&xio_stream, &swizzle](std::size_t i) {
+                    xio_stream << std::to_string(swizzle[i]) << ", ";
                 });
-                out += std::to_string(data[indexes[N-1]]) + "}";
+                xio_stream << std::to_string(swizzle[N-1]) << "}";
 
-                return out;
+                return xio_stream;
             }
 
             //
@@ -1441,9 +1437,9 @@ namespace GLSL {
             return *this;
         };
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ "{" + std::to_string(data[0]) + ", " + std::to_string(data[1]) + "}" };
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Vector2& vec) {
+            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << "}";
         }
 
         // overload operator '[]'
@@ -1542,9 +1538,9 @@ namespace GLSL {
             return *this;
         };
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ "{" + std::to_string(data[0]) + ", " + std::to_string(data[1]) + ", " + std::to_string(data[2]) + "}" };
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Vector3& vec) {
+            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << ", " << std::to_string(vec[2]) << "}";
         }
 
         // overload operator '[]'
@@ -1932,9 +1928,9 @@ namespace GLSL {
             return *this;
         };
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ "{" + std::to_string(data[0]) + ", " + std::to_string(data[1]) + ", " + std::to_string(data[2]) + ", " + std::to_string(data[3]) + "}" };
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Vector4& vec) {
+            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << ", " << std::to_string(vec[2]) << ", " << std::to_string(vec[3]) << "}";
         }
 
         // overload operator '[]'
@@ -2006,10 +2002,10 @@ namespace GLSL {
         // construct from two Vector2 (two columns)
         constexpr Matrix2(const vector_type& c0, const vector_type& c1) : c{ c0, c1 } {}
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ '{' + std::to_string(this->operator()(0,0)) + ", " + std::to_string(this->operator()(1, 0)) + ",\n" +
-                                      std::to_string(this->operator()(0,1)) + ", " + std::to_string(this->operator()(1, 1)) + "}"};
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix2& mat) {
+            return xio_stream << '{' << std::to_string(mat(0,0)) << ", " << std::to_string(mat(1, 0)) << ",\n" <<
+                                        std::to_string(mat(0,1)) << ", " << std::to_string(mat(1, 1)) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2078,11 +2074,11 @@ namespace GLSL {
         // construct from two Vector2 (two columns)
         constexpr Matrix3(const vector_type& c0, const vector_type& c1, const vector_type& c2) : c{ c0, c1, c2 } {}
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ '{' + std::to_string(this->operator()(0,0)) + ", " + std::to_string(this->operator()(1, 0)) + ", " + std::to_string(this->operator()(2, 0)) + ",\n" +
-                                      std::to_string(this->operator()(0,1)) + ", " + std::to_string(this->operator()(1, 1)) + ", " + std::to_string(this->operator()(2, 1)) + ",\n" +
-                                      std::to_string(this->operator()(0,2)) + ", " + std::to_string(this->operator()(1, 2)) + ", " + std::to_string(this->operator()(2, 2)) + "}" };
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix3& mat) {
+            return xio_stream << '{' << std::to_string(mat(0,0)) + ", "  << std::to_string(mat(1, 0)) << ", " << std::to_string(mat(2, 0)) << ",\n" <<
+                                        std::to_string(mat(0, 1)) + ", " << std::to_string(mat(1, 1)) << ", " << std::to_string(mat(2, 1)) << ",\n" <<
+                                        std::to_string(mat(0, 2)) + ", " << std::to_string(mat(1, 2)) << ", " << std::to_string(mat(2, 2)) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2154,12 +2150,12 @@ namespace GLSL {
         constexpr Matrix4(const vector_type& c0, const vector_type& c1,
                           const vector_type& c2, const vector_type& c3) : c{ c0, c1, c2, c3 } {}
 
-        // return as string
-        constexpr std::string as_string() const {
-            return std::string{ '{' + std::to_string(this->operator()(0,0)) + ", " + std::to_string(this->operator()(1, 0)) + ", " + std::to_string(this->operator()(2, 0)) + ", " + std::to_string(this->operator()(3, 0)) + ",\n" +
-                                      std::to_string(this->operator()(0,1)) + ", " + std::to_string(this->operator()(1, 1)) + ", " + std::to_string(this->operator()(2, 1)) + ", " + std::to_string(this->operator()(3, 1)) + ",\n" +
-                                      std::to_string(this->operator()(0,2)) + ", " + std::to_string(this->operator()(1, 2)) + ", " + std::to_string(this->operator()(2, 2)) + ", " + std::to_string(this->operator()(3, 2)) + ",\n" +
-                                      std::to_string(this->operator()(0,3)) + ", " + std::to_string(this->operator()(1, 3)) + ", " + std::to_string(this->operator()(2, 3)) + ", " + std::to_string(this->operator()(3, 3)) + "}" };
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix4& mat) {
+            return xio_stream << '{' << std::to_string(mat(0,0)) << ", " << std::to_string(mat(1, 0)) << ", " << std::to_string(mat(2, 0)) << ", " << std::to_string(mat(3, 0)) << ",\n" <<
+                                        std::to_string(mat(0,1)) << ", " << std::to_string(mat(1, 1)) << ", " << std::to_string(mat(2, 1)) << ", " << std::to_string(mat(3, 1)) << ",\n" <<
+                                        std::to_string(mat(0,2)) << ", " << std::to_string(mat(1, 2)) << ", " << std::to_string(mat(2, 2)) << ", " << std::to_string(mat(3, 2)) << ",\n" <<
+                                        std::to_string(mat(0,3)) << ", " << std::to_string(mat(1, 3)) << ", " << std::to_string(mat(2, 3)) << ", " << std::to_string(mat(3, 3)) << "}";
         }
 
         // overload operator '[]' to return column
