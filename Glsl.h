@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 #include "Utilities.h"
 #include "Numerics.h"
 #include "Variadic.h"
@@ -1279,9 +1278,9 @@ namespace GLSL {
             friend std::ostream& operator<<(std::ostream& xio_stream, Swizzle& swizzle) {
                 xio_stream << "{";
                 Utilities::static_for<0, 1, N - 1>([&xio_stream, &swizzle](std::size_t i) {
-                    xio_stream << std::to_string(swizzle[i]) << ", ";
+                    xio_stream << swizzle[i] << ", ";
                 });
-                xio_stream << std::to_string(swizzle[N-1]) << "}";
+                xio_stream << swizzle[N-1] << "}";
 
                 return xio_stream;
             }
@@ -1439,7 +1438,7 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Vector2& vec) {
-            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << "}";
+            return xio_stream << "{" << vec[0] << ", " << vec[1] << "}";
         }
 
         // overload operator '[]'
@@ -1540,7 +1539,7 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Vector3& vec) {
-            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << ", " << std::to_string(vec[2]) << "}";
+            return xio_stream << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << "}";
         }
 
         // overload operator '[]'
@@ -1930,7 +1929,7 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Vector4& vec) {
-            return xio_stream << "{" << std::to_string(vec[0]) << ", " << std::to_string(vec[1]) << ", " << std::to_string(vec[2]) << ", " << std::to_string(vec[3]) << "}";
+            return xio_stream << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << ", " << vec[3] << "}";
         }
 
         // overload operator '[]'
@@ -2004,8 +2003,8 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Matrix2& mat) {
-            return xio_stream << '{' << std::to_string(mat(0,0)) << ", " << std::to_string(mat(1, 0)) << ",\n" <<
-                                        std::to_string(mat(0,1)) << ", " << std::to_string(mat(1, 1)) << "}";
+            return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ",\n" <<
+                                        mat(0,1) << ", " << mat(1, 1) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2076,9 +2075,9 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Matrix3& mat) {
-            return xio_stream << '{' << std::to_string(mat(0,0)) + ", "  << std::to_string(mat(1, 0)) << ", " << std::to_string(mat(2, 0)) << ",\n" <<
-                                        std::to_string(mat(0, 1)) + ", " << std::to_string(mat(1, 1)) << ", " << std::to_string(mat(2, 1)) << ",\n" <<
-                                        std::to_string(mat(0, 2)) + ", " << std::to_string(mat(1, 2)) << ", " << std::to_string(mat(2, 2)) << "}";
+            return xio_stream << '{' << mat(0, 0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ",\n" <<
+                                        mat(0, 1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ",\n" <<
+                                        mat(0, 2) << ", " << mat(1, 2) << ", " << mat(2, 2) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2152,10 +2151,10 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, Matrix4& mat) {
-            return xio_stream << '{' << std::to_string(mat(0,0)) << ", " << std::to_string(mat(1, 0)) << ", " << std::to_string(mat(2, 0)) << ", " << std::to_string(mat(3, 0)) << ",\n" <<
-                                        std::to_string(mat(0,1)) << ", " << std::to_string(mat(1, 1)) << ", " << std::to_string(mat(2, 1)) << ", " << std::to_string(mat(3, 1)) << ",\n" <<
-                                        std::to_string(mat(0,2)) << ", " << std::to_string(mat(1, 2)) << ", " << std::to_string(mat(2, 2)) << ", " << std::to_string(mat(3, 2)) << ",\n" <<
-                                        std::to_string(mat(0,3)) << ", " << std::to_string(mat(1, 3)) << ", " << std::to_string(mat(2, 3)) << ", " << std::to_string(mat(3, 3)) << "}";
+            return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ", " << mat(3, 0) << ",\n" <<
+                                        mat(0,1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ", " << mat(3, 1) << ",\n" <<
+                                        mat(0,2) << ", " << mat(1, 2) << ", " << mat(2, 2) << ", " << mat(3, 2) << ",\n" <<
+                                        mat(0,3) << ", " << mat(1, 3) << ", " << mat(2, 3) << ", " << mat(3, 3) << "}";
         }
 
         // overload operator '[]' to return column
