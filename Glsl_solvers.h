@@ -203,6 +203,48 @@ namespace Decomposition {
 namespace Solvers {
 
     /**
+    * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
+    *        user suuplies two stoppage criterias:
+    *        1. maximal amount of iterations (10 by default)
+    *        2. minimal value between two consecutive eigenvalue approximation (1e-5 by default).
+    * @param {MAT,        in}  matrix
+    * @param {size_t,     in}  maximal number of iterations (default is 10)
+    * @param {value_type, in{  minimal error in iteration to stop calculation (defult is 1e-5)
+    * @param {value_type, out} spectral radius
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr T spectral_radius(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) noexcept {
+        using VEC = typename MAT::vector_type;
+
+        // initialize random "eigenvactor"
+        VEC eigenvector;
+        Extra::make_random(eigenvector);
+
+        // eignevector calculation via power iteration
+        VEC eigenvector_next;
+        std::size_t i{};
+        T eigenvalue{ static_cast<T>(10) * tol };
+        T eigenvaluePrev{};
+        while ((i < iter) && (std::abs(eigenvalue - eigenvaluePrev) > tol)) {
+            eigenvaluePrev = eigenvalue;
+            eigenvector_next = eigenvector * mat;
+
+            const T max{ GLSL::max(eigenvector_next) };
+            assert(!Numerics::areEquals(max, T{}));
+            eigenvector /= max;
+
+            eigenvalue = GLSL::dot(eigenvector_next, eigenvector);
+            ++i;
+        }
+
+        // output
+        const T dot{ GLSL::dot(eigenvector) };
+        assert(!Numerics::areEquals(dot, T{}));
+        [[assume(dot > T{})]];
+        return eigenvalue / dot;
+    }
+
+    /**
     * \brief calculate matrix determinant using LU decomposition
     * @param {MAT,        in}  matrix
     * @param {value_type, out} matrix determinant
