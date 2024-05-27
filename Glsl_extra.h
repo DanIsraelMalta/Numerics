@@ -362,4 +362,23 @@ namespace Extra {
         return dot;
     }
 
+    /**
+    * \brief fill a vector with positive random values in the range of [0, static_cast<T>(std::numeric_limits<std::uint32_t>::max())]
+    * @param {IFixedVector, in} vector to be filled with random values
+    **/
+    template<GLSL::IFixedVector VEC>
+    constexpr void make_random(VEC& vec) noexcept {
+        using T = typename VEC::value_type;
+        constexpr std::uint32_t value = (__TIME__[7] - '0') * 1u +
+                                        (__TIME__[6] - '0') * 10u +
+                                        (__TIME__[4] - '0') * 60u +
+                                        (__TIME__[3] - '0') * 600u +
+                                        (__TIME__[1] - '0') * 3600u +
+                                        (__TIME__[0] - '0') * 36000u;
+
+        vec[0] = static_cast<T>(Hash::pcg(value));
+        Utilities::static_for<1, 1, VEC::length()>([&vec](std::size_t i) {
+            vec[i] = static_cast<T>(Hash::pcg(static_cast<std::uint32_t>(vec[i-1])));
+        });
+    }
 }
