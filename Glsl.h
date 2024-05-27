@@ -595,7 +595,7 @@ namespace GLSL {
     template<IFixedVector VEC>
     constexpr VEC normalize(const VEC& x) {
         using T = typename VEC::value_type;
-        const T l{ length(x) };
+        const T l{ GLSL::length(x) };
         assert(l >= T{});
         [[assume(l >= T{})]];
         return (x / l);
@@ -899,6 +899,7 @@ namespace GLSL {
 
     /**
     * \brief perform matrix-vector multiplication (right multiplication)
+    *        this is slower than vector-matrix multiplicaton (left multiplication)
     * @param {MAT, in}  matrix
     * @param {VEC, in}  vector
     * @param {MAT, out} matrix * vector
@@ -928,6 +929,7 @@ namespace GLSL {
 
     /**
     * \brief perform vector-matrix multiplication (left multiplication)
+    *        this is faster than matrix-vector multiplicaton (right multiplication)
     * @param {VEC, in}  vector
     * @param {MAT, in}  matrix
     * @param {MAT, out} vector * matrix
