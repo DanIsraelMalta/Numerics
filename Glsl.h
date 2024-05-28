@@ -304,6 +304,16 @@ namespace GLSL {
         return out;
     }
 
+    template<auto minVal, auto maxVal, IFixedVector VEC, class T = decltype(minVal)>
+        requires(std::is_same_v<T, decltype(maxVal)> && std::is_same_v<T, typename VEC::value_type> && (minVal < maxVal))
+    constexpr VEC clamp(const VEC& x) noexcept {
+        VEC out{};
+        Utilities::static_for<0, 1, VEC::length()>([&x, &out](std::size_t i) {
+            out[i] = Numerics::clamp<minVal, maxVal>(x[i]);
+        });
+        return out;
+    }
+
     /**
     * \brief returns -1 if x is less than 0 and 1 if x is greater or equal to 0.
     * @param {VEC, in}  vector
