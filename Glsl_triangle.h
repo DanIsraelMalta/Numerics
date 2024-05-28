@@ -116,11 +116,11 @@ namespace Triangle {
         const T dca{ GLSL::dot(c, a) };
         const T dcb{ GLSL::dot(c, b) };
         const T denom{ daa * dbb - dab * dab };
-        assert(denom != T{});
         if (denom <= T{}) [[unlikely]] {
             return GLSL::Vector3<T>(static_cast<T>(-1));
         }
 
+        [[assume(denom != T{})]]
         const T y{ (dbb * dca - dab * dcb) / denom };
         const T z{ (daa * dcb - dab * dca) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - y - z, y, z);
