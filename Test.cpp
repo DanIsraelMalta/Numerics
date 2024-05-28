@@ -12,6 +12,7 @@
 #include "GLSL_solvers.h"
 #include "Glsl_aabb.h"
 #include "Glsl_triangle.h"
+#include "Glsl_axis_aligned_bounding_box.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -861,6 +862,57 @@ void test_glsl_triangle() {
     assert(!Triangle::is_valid(ivec2(-1), ivec2(-1), ivec2(0, 1)));
 }
 
+void test_glsl_axis_aligned_bounding_box() {
+    {
+        vec3 center(1.0f, 1.0f, 0.0f);
+        vec3 normal(0.0f, 0.0f, 1.0f);
+        float radius{ 1.0f };
+        auto aabb = AxisLignedBoundingBox::disk_aabb(center, normal, radius);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(0.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(2.0f, 2.0f, 0.0f))) <= 1e-6);
+
+        center = vec3(-1.0f, -1.0f, 0.0f);
+        normal *= -1.0f;
+        aabb = AxisLignedBoundingBox::disk_aabb(center, normal, radius);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(-2.0f, -2.0f, 0.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(0.0f))) <= 1e-6);
+    }
+
+    {
+        vec3 p0{ 1.0f, 1.0f, 0.0f };
+        vec3 p1{ 1.0f, 10.0f, 0.0f };
+        float radius{ 1.0f };
+        auto aabb = AxisLignedBoundingBox::cylinder_aabb(p0, p1, radius);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(0.0f, 1.0f, -1.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(2.0f, 10.0f, 1.0f))) <= 1e-6);
+    }
+
+    {
+        vec3 p0{ 1.0f, 1.0f, 0.0f };
+        vec3 p1{ 1.0f, 5.0f, 0.0f };
+        float r0{ 2.0f };
+        float r1{ 1.0f };
+        auto aabb = AxisLignedBoundingBox::cone_aabb(p0, p1, r0, r1);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(-1.0f, 1.0f, -2.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(3.0f, 5.0f, 2.0f))) <= 1e-6);
+    }
+
+    {
+        vec3 center{10.0f, 10.0f, 0.0f};
+        vec3 axis1{2.0f, 0.0f, 0.0f};
+        vec3 axis2{0.0f, 2.0f, 0.0f};
+        auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(8.0f, 8.0f, 0.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(12.0f, 12.0f, 0.0f))) <= 1e-6);
+
+        axis1 = vec3{ 4.0f, 0.0f, 0.0f };
+        axis2 = vec3{ 0.0f, 0.0f, 4.0f };
+        aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
+        assert(GLSL::max(GLSL::abs(aabb.min - vec3(6.0f, 10.0f, -4.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec3(14.0f, 10.0f, 4.0f))) <= 1e-6);
+    }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -871,5 +923,6 @@ int main() {
     test_glsl_solvers();
     test_glsl_aabb();
     test_glsl_triangle();
+    test_glsl_axis_aligned_bounding_box();
     return 1;
 }
