@@ -13,6 +13,7 @@
 #include "Glsl_aabb.h"
 #include "Glsl_triangle.h"
 #include "Glsl_axis_aligned_bounding_box.h"
+#include "Glsl_point_distance.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -914,6 +915,120 @@ void test_glsl_axis_aligned_bounding_box() {
     }
 }
 
+void test_glsl_point_distance() {
+    {
+        vec3 p{ 5.0f, 5.0f, 5.0f };
+        float distance = PointDistance::udf_to_segment(p, vec3(0.0f), vec3(10.0f));
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec3(0.0f, 0.0f, 5.0f), vec3(10.0f, 0.0f, 5.0f));
+        assert(std::abs(distance - 5.0f) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec3(0.0f), vec3(5.0f));
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec3(6.0f, 6.0f, 6.0f), vec3(10.0f));
+        assert(std::abs(distance - std::sqrt(3)) < 1e-6);
+    }
+
+    {
+        float distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, 1.0f), vec2(0.0f, 0.0f), 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, -0.5f), vec2(0.0f, 0.0f), 1.0f);
+        assert(std::abs(distance - -0.5f) < 1e-6);
+
+        distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, 1.5f), vec2(0.0f, 0.0f), 1.0f);
+        assert(std::abs(distance - 0.5f) < 1e-6);
+
+        distance = PointDistance::TwoD::circle_sdf(vec2(1.21f, 1.0f), vec2(1.0f, 1.0f), 1.0f);
+        assert(std::abs(distance - -0.79f) < 1e-6);
+
+        distance = PointDistance::TwoD::circle_sdf(vec2(1.0f + std::sqrt(2.0f)/2.0f), vec2(1.0f, 1.0f), 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::TwoD::circle_sdf(vec2(std::sqrt(2.0f) / 2.0f), vec2(0.0f), 2.0f);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+    }
+
+    {
+        float distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(0.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(2.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(0.0f, 4.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+    }
+
+    {
+        vec2 p{ 5.0f, 5.0f };
+
+        float distance = PointDistance::TwoD::segment_sdf(p, vec2(0.0f), vec2(10.0f));
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec2(6.0f, 6.0f), vec2(10.0f, 10.0f));
+        assert(std::abs(distance - std::sqrt(2)) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec2(0.0f, 0.0f), vec2(0.0f, 10.0f));
+        assert(std::abs(distance - 5.0f) < 1e-6);
+
+        distance = PointDistance::udf_to_segment(p, vec2(10.0f, 0.0f), vec2(10.0f, 10.0f));
+        assert(std::abs(distance - 5.0f) < 1e-6);
+    }
+
+    {
+        vec2 p0(1.0f);
+        vec2 p1(2.0f, 3.0f);
+        vec2 p2(0.0f, 3.0f);
+
+        float distance = PointDistance::TwoD::sdf_triangle(vec2(0.0f), p0, p1, p2);
+        assert(std::abs(distance - std::sqrt(2.0f)) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_triangle(vec2(1.0f, -1.0f), p0, p1, p2);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_triangle(vec2(1.0f, 2.5f), p0, p1, p2);
+        assert(std::abs(distance - -0.5f) < 1e-6);
+    }
+
+    {
+        std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
+
+        float distance = PointDistance::TwoD::sdf_polygon(polygon, vec2(2.0f, 0.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_polygon(polygon, vec2(3.0f, 1.5f));
+        assert(std::abs(distance - -0.5f) < 1e-6);
+    }
+
+    {
+        float distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 2);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 3);
+        assert(std::abs(distance - -0.5f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 4);
+        assert(std::abs(distance - -std::sqrt(2.0f)/2.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(1.0f, 0.0f), 1.0f, 2);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(2.0f, 0.0f), 1.0f, 2);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+    }
+
+    {
+        float distance = PointDistance::TwoD::sdf_ellipse(vec2(0.5f, 0.0f), vec2(1.0f, 2.0f));
+        assert(std::abs(distance - -0.5f) < 1e-6);
+
+        distance = PointDistance::TwoD::sdf_ellipse(vec2(5.0f, 0.0f), vec2(1.0f, 2.0f));
+        assert(std::abs(distance - 4.0f) < 1e-6);
+    }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -925,5 +1040,6 @@ int main() {
     test_glsl_aabb();
     test_glsl_triangle();
     test_glsl_axis_aligned_bounding_box();
+    test_glsl_point_distance();
     return 1;
 }
