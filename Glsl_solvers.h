@@ -244,6 +244,31 @@ namespace Solvers {
         return eigenvalue / dot;
     }
 
+    template<std::size_t N, GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr T spectral_radius(const MAT& mat) {
+        using VEC = typename MAT::vector_type;
+
+        // initialize random "eigenvactor"
+        VEC eigenvector;
+        Extra::make_random(eigenvector);
+
+        // eignevector calculation via power iteration
+        VEC eigenvector_next;
+        Utilities::static_for<0, 1, N>([&mat, &eigenvector, &eigenvector_next](std::size_t i) {
+            eigenvector_next = eigenvector * mat;
+
+            const T max{ GLSL::max(eigenvector_next) };
+            assert(!Numerics::areEquals(max, T{}));
+            eigenvector /= max;
+        });
+        
+        // output
+        const T dot{ GLSL::dot(eigenvector) };
+        assert(!Numerics::areEquals(dot, T{}));
+        [[assume(dot > T{})]];
+        return GLSL::dot(eigenvector_next, eigenvector) / dot;
+    }
+
     /**
     * \brief calculate matrix determinant using LU decomposition
     * @param {MAT,        in}  matrix
