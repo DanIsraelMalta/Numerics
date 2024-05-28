@@ -1277,10 +1277,10 @@ namespace GLSL {
             template<IFixedVector VEC> explicit(false) operator VEC() const {
                 constexpr std::array<std::size_t, N> indexes{ Indexes... };
 
-                std::array<T, N> pack{};
+                VEC pack;
                 Utilities::static_for<0, 1, N>([this, &pack, indices = MOV(indexes)](std::size_t i) {
                     assert(indices[i] < N);
-                    pack[i] = data[indices[i]];
+                    pack[i] = data.at(indices[i]);
                 });
 
                 return pack;
