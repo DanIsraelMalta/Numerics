@@ -636,6 +636,7 @@ void test_glsl_basics() {
         assert(GLSL::min(a) == 1);
         assert(GLSL::max(a) == 4);
         assert(GLSL::equal(GLSL::clamp(a, 2, 3), ivec4(2, 2, 3, 3)));
+        assert(GLSL::equal(GLSL::clamp<1, 2>(a), ivec4(2, 1, 2, 2)));
 
         assert(GLSL::equal(GLSL::sign(ivec4(-1, 2, 0, -4)), ivec4(-1, 1, 1, -1)));
         assert(GLSL::equal(GLSL::step(0, ivec4(-1, 2, 0, -4)), ivec4(0, 1, 1, 0)));
