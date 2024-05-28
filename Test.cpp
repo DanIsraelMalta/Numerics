@@ -828,6 +828,9 @@ void test_glsl_solvers() {
         auto lambda = Solvers::spectral_radius(a, 30);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 1561366u);
 
+        lambda = Solvers::spectral_radius<30>(a);
+        assert(static_cast<std::uint32_t>(lambda * 10000) == 1561366u);
+
 
         dmat3 a2(0.5, 0.5, 0.4, 0.2, 0.8, 0.5, 0.3, 0.9, 1.1);
         lambda = Solvers::spectral_radius(a2);
