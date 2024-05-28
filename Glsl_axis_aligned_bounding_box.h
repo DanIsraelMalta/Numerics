@@ -18,15 +18,17 @@ namespace AxisLignedBoundingBox {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto disk_aabb(const GLSL::Vector3<T> c, const GLSL::Vector3<T> n, const T rad) {
+        using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
         constexpr GLSL::Vector3<T> one(static_cast<T>(1));
         assert(Numerics::areEquals(GLSL::length(n), static_cast<T>(1)));
 
-        const GLSL::Vector3<T> n2{ n * n };
-        assert(!Numerics::areEquals(n2.x, static_cast<T>(1)));
-        assert(!Numerics::areEquals(n2.y, static_cast<T>(1)));
-        assert(!Numerics::areEquals(n2.z, static_cast<T>(1)));
-        const GLSL::Vector3<T> e{ rad * GLSL::sqrt(one - n2) };
-        return std::array<GLSL::Vector3<T>, 2>{ {c - e, c + e} };
+        const GLSL::Vector3<T> one_minus_n2{ one - n * n };
+        assert(one_minus_n2.x >= T{});
+        assert(one_minus_n2.y >= T{});
+        assert(one_minus_n2.z >= T{});
+        const GLSL::Vector3<T> e{ rad * GLSL::sqrt(one_minus_n2) };
+
+        return out_t{ c - e , c + e };
     }
 
     /**
@@ -39,12 +41,19 @@ namespace AxisLignedBoundingBox {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto cylinder_aabb(const GLSL::Vector3<T> pa, const GLSL::Vector3<T> pb, const T ra) {
+        using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
         constexpr GLSL::Vector3<T> one(static_cast<T>(1));
+
         const GLSL::Vector3<T> a{ pb - pa };
-        assert(GLSL::dot(a) > T{});
-        const GLSL::Vector3<T> e{ ra * sqrt(one - a * a / GLSL::dot(a)) };
-        return std::array<GLSL::Vector3<T>, 2>{ { GLSL::min(pa - e, pb - e),
-                                                  GLSL::max(pa + e, pb + e) } };
+        const T dot{ GLSL::dot(a) };
+        assert(dot > T{});
+        const GLSL::Vector3<T> squared{ one - a * a / dot };
+        assert(squared.x >= T{});
+        assert(squared.y >= T{});
+        assert(squared.z >= T{});
+        const GLSL::Vector3<T> e{ ra * GLSL::sqrt(one - a * a / dot) };
+
+        return out_t{ GLSL::min(pa - e, pb - e), GLSL::max(pa + e, pb + e) };
     }
 
     /**
@@ -58,27 +67,42 @@ namespace AxisLignedBoundingBox {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto cone_aabb(const GLSL::Vector3<T> pa, const GLSL::Vector3<T> pb, const T ra, const T rb) {
+        using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
         constexpr GLSL::Vector3<T> one(static_cast<T>(1));
+
         const GLSL::Vector3<T> a{ pb - pa };
-        assert(GLSL::dot(a) > T{});
-        const GLSL::Vector3<T> e{ GLSL::sqrt(one - a * a / GLSL::dot(a)) };
-        const T era{ e * ra };
-        const T erb{ e * rb };
-        return std::array<GLSL::Vector3<T>, 2>{ { GLSL::min(pa - era, pb - erb),
-                                                  GLSL::max(pa + era, pb + erb) } };
+        const T dot{ GLSL::dot(a) };
+        assert(dot > T{});
+        const GLSL::Vector3<T> squared{ one - a * a / dot };
+        assert(squared.x >= T{});
+        assert(squared.y >= T{});
+        assert(squared.z >= T{});
+        const GLSL::Vector3<T> e{ GLSL::sqrt(squared) };
+        const GLSL::Vector3<T> era{ e * ra };
+        const GLSL::Vector3<T> erb{ e * rb };
+
+        return out_t{ GLSL::min(pa - era, pb - erb), GLSL::max(pa + era, pb + erb) };
     }
 
     /**
-    * \brief return the axis aligned bounding box of a planar/flat ellipse
+    * \brief return the axis aligned bounding box of a planar/flat ellipse.
+    *        the ellipse plane is defined by its axes.
     * @param {Vector3,            in}  ellipse center
-    * @param {Vector3,            in}  ellipse first axis
-    * @param {floating_point,     in}  ellipse second axis
+    * @param {Vector3,            in}  vector connecting ellipse edge points along long axis
+    * @param {Vector3,            in}  vector connecting ellipse edge points along small axis
     * @param {[Vector3, Vector3], out} [aabb min, aabb max]
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto ellipse_aabb(const GLSL::Vector3<T> c, const GLSL::Vector3<T> u, const GLSL::Vector3<T> v) {
-        const GLSL::Vector3<T> e{ GLSL::sqrt(u * u + v * v) };
-        return std::array<GLSL::Vector3<T>, 2>{ { c - e, c + e }};
+        using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
+
+        const GLSL::Vector3<T> squared{ u * u + v * v };
+        assert(squared.x >= T{});
+        assert(squared.y >= T{});
+        assert(squared.z >= T{});
+        const GLSL::Vector3<T> e{ GLSL::sqrt(squared) };
+
+        return out_t{ c - e, c + e };
     }
 }
