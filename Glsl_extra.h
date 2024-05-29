@@ -381,4 +381,15 @@ namespace Extra {
             vec[i] = static_cast<T>(Hash::pcg(static_cast<std::uint32_t>(vec[i-1])));
         });
     }
+
+    /**
+    * \brief test if vector is normalized
+    * @param {IFixedVector, in}  vector
+    * @param {value_type,   in}  allowed tolerance for vector L2 norm from 1 (default is 1e-5)
+    * @param {bool,         out} true if vector L2 norm is 1
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr bool is_normalized(const VEC& vec, const T tol = static_cast<T>(1e-5)) noexcept {
+        return std::abs(static_cast<T>(1) - GLSL::dot(vec)) <= tol;
+    }
 }
