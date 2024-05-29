@@ -256,7 +256,7 @@ namespace PointDistance {
         requires(std::is_floating_point_v<T>)
     constexpr T sdf_to_plane(const GLSL::Vector3<T>& p, const GLSL::Vector4<T>& plane) {
         const GLSL::Vector3<T> n{ plane.xyz };
-        assert(Numerics::areEquals(GLSL::length(n), static_cast<T>(1)));
+        assert(Extra::is_normalized(n));
         return GLSL::dot(p, n) + plane.w;
     }
 
