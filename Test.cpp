@@ -932,100 +932,183 @@ void test_glsl_point_distance() {
     }
 
     {
-        float distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, 1.0f), vec2(0.0f, 0.0f), 1.0f);
-        assert(std::abs(distance) < 1e-6);
-
-        distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, -0.5f), vec2(0.0f, 0.0f), 1.0f);
-        assert(std::abs(distance - -0.5f) < 1e-6);
-
-        distance = PointDistance::TwoD::circle_sdf(vec2(0.0f, 1.5f), vec2(0.0f, 0.0f), 1.0f);
-        assert(std::abs(distance - 0.5f) < 1e-6);
-
-        distance = PointDistance::TwoD::circle_sdf(vec2(1.21f, 1.0f), vec2(1.0f, 1.0f), 1.0f);
-        assert(std::abs(distance - -0.79f) < 1e-6);
-
-        distance = PointDistance::TwoD::circle_sdf(vec2(1.0f + std::sqrt(2.0f)/2.0f), vec2(1.0f, 1.0f), 1.0f);
-        assert(std::abs(distance) < 1e-6);
-
-        distance = PointDistance::TwoD::circle_sdf(vec2(std::sqrt(2.0f) / 2.0f), vec2(0.0f), 2.0f);
-        assert(std::abs(distance - -1.0f) < 1e-6);
-    }
-
-    {
-        float distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(0.0f), vec2(1.0f, 3.0f));
-        assert(std::abs(distance - -1.0f) < 1e-6);
-
-        distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(2.0f), vec2(1.0f, 3.0f));
-        assert(std::abs(distance - 1.0f) < 1e-6);
-
-        distance = PointDistance::TwoD::rectangle_at_center_sdf(vec2(0.0f, 4.0f), vec2(1.0f, 3.0f));
-        assert(std::abs(distance - 1.0f) < 1e-6);
-    }
-
-    {
         vec2 p{ 5.0f, 5.0f };
 
-        float distance = PointDistance::TwoD::segment_sdf(p, vec2(0.0f), vec2(10.0f));
+        float distance = PointDistance::sdf_to_segment(p, vec2(0.0f), vec2(10.0f));
         assert(std::abs(distance) < 1e-6);
 
-        distance = PointDistance::udf_to_segment(p, vec2(6.0f, 6.0f), vec2(10.0f, 10.0f));
+        distance = PointDistance::sdf_to_segment(p, vec2(6.0f, 6.0f), vec2(10.0f, 10.0f));
         assert(std::abs(distance - std::sqrt(2)) < 1e-6);
 
-        distance = PointDistance::udf_to_segment(p, vec2(0.0f, 0.0f), vec2(0.0f, 10.0f));
+        distance = PointDistance::sdf_to_segment(p, vec2(0.0f, 0.0f), vec2(0.0f, 10.0f));
         assert(std::abs(distance - 5.0f) < 1e-6);
 
-        distance = PointDistance::udf_to_segment(p, vec2(10.0f, 0.0f), vec2(10.0f, 10.0f));
+        distance = PointDistance::sdf_to_segment(p, vec2(10.0f, 0.0f), vec2(10.0f, 10.0f));
         assert(std::abs(distance - 5.0f) < 1e-6);
     }
 
     {
-        vec2 p0(1.0f);
-        vec2 p1(2.0f, 3.0f);
-        vec2 p2(0.0f, 3.0f);
+        float distance = PointDistance::sdf_to_sphere(vec2(0.0f, 1.0f), vec2(0.0f, 0.0f), 1.0f);
+        assert(std::abs(distance) < 1e-6);
 
-        float distance = PointDistance::TwoD::sdf_triangle(vec2(0.0f), p0, p1, p2);
-        assert(std::abs(distance - std::sqrt(2.0f)) < 1e-6);
-
-        distance = PointDistance::TwoD::sdf_triangle(vec2(1.0f, -1.0f), p0, p1, p2);
-        assert(std::abs(distance - 2.0f) < 1e-6);
-
-        distance = PointDistance::TwoD::sdf_triangle(vec2(1.0f, 2.5f), p0, p1, p2);
+        distance = PointDistance::sdf_to_sphere(vec2(0.0f, -0.5f), vec2(0.0f, 0.0f), 1.0f);
         assert(std::abs(distance - -0.5f) < 1e-6);
-    }
 
+        distance = PointDistance::sdf_to_sphere(vec2(0.0f, 1.5f), vec2(0.0f, 0.0f), 1.0f);
+        assert(std::abs(distance - 0.5f) < 1e-6);
+
+        distance = PointDistance::sdf_to_sphere(vec2(1.21f, 1.0f), vec2(1.0f, 1.0f), 1.0f);
+        assert(std::abs(distance - -0.79f) < 1e-6);
+
+        distance = PointDistance::sdf_to_sphere(vec2(1.0f + std::sqrt(2.0f)/2.0f), vec2(1.0f, 1.0f), 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::sdf_to_sphere(vec2(std::sqrt(2.0f) / 2.0f), vec2(0.0f), 2.0f);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+    }
+    
+    {
+        float distance = PointDistance::sdf_to_box_at_center(vec2(0.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_box_at_center(vec2(2.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_box_at_center(vec2(0.0f, 4.0f), vec2(1.0f, 3.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+    }
+       
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
-        float distance = PointDistance::TwoD::sdf_polygon(polygon, vec2(2.0f, 0.0f));
+        float distance = PointDistance::sdf_to_polygon(polygon, vec2(2.0f, 0.0f));
         assert(std::abs(distance - 1.0f) < 1e-6);
 
-        distance = PointDistance::TwoD::sdf_polygon(polygon, vec2(3.0f, 1.5f));
+        distance = PointDistance::sdf_to_polygon(polygon, vec2(3.0f, 1.5f));
         assert(std::abs(distance - -0.5f) < 1e-6);
     }
 
     {
-        float distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 2);
+        float distance = PointDistance::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 2);
         assert(std::abs(distance) < 1e-6);
 
-        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 3);
+        distance = PointDistance::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 3);
         assert(std::abs(distance - -0.5f) < 1e-6);
 
-        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 4);
+        distance = PointDistance::sdf_to_regular_poygon(vec2(0.0f), 1.0f, 4);
         assert(std::abs(distance - -std::sqrt(2.0f)/2.0f) < 1e-6);
 
-        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(1.0f, 0.0f), 1.0f, 2);
+        distance = PointDistance::sdf_to_regular_poygon(vec2(1.0f, 0.0f), 1.0f, 2);
         assert(std::abs(distance - 1.0f) < 1e-6);
 
-        distance = PointDistance::TwoD::sdf_to_regular_poygon(vec2(2.0f, 0.0f), 1.0f, 2);
+        distance = PointDistance::sdf_to_regular_poygon(vec2(2.0f, 0.0f), 1.0f, 2);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+    }
+   
+    {
+        float distance = PointDistance::sdf_to_ellipse(vec2(0.5f, 0.0f), vec2(1.0f, 2.0f));
+        assert(std::abs(distance - -0.5f) < 1e-6);
+
+        distance = PointDistance::sdf_to_ellipse(vec2(5.0f, 0.0f), vec2(1.0f, 2.0f));
+        assert(std::abs(distance - 4.0f) < 1e-6);
+    }
+
+    {
+        auto plane = Extra::create_plane(vec3(0.0f, 0.0f, 2.0f), vec3(1.0f, 0.0f, 2.0f), vec3(0.0f, 1.0f, 2.0f));
+
+        float distance = PointDistance::sdf_to_plane(vec3(0.0f), plane);
+        assert(std::abs(distance - -2.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_plane(vec3(0.0f, 0.0f, 1.0f), plane);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_plane(vec3(0.0f, 0.0f, 3.0f), plane);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+    }
+
+    {
+        vec3 p0(1.0f);
+        vec3 p1(1.0f, 10.0f, 1.0f);
+
+        auto distance = PointDistance::sdf_to_capsule(vec3(1.0f), p0, p1, 1.0f);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_capsule(vec3(1.0f, 5.0f, 2.0f), p0, p1, 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::sdf_to_capsule(vec3(1.0f, 6.0f, 3.0f), p0, p1, 1.0f);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+    }
+
+    {
+        vec3 p0(1.0f);
+        vec3 p1(1.0f, 10.0f, 1.0f);
+
+        auto distance = PointDistance::sdf_to_capped_cylinder(vec3(1.0f), p0, p1, 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::sdf_to_capped_cylinder(vec3(1.0f, 5.0f, 2.0f), p0, p1, 1.0f);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::sdf_to_capped_cylinder(vec3(1.0f, 6.0f, 3.0f), p0, p1, 1.0f);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_capped_cylinder(vec3(1.0f, 11.0f, 1.0f), p0, p1, 1.0f);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+    }
+
+    {
+        auto distance = PointDistance::sdf_to_bound_ellipsoied(vec3(0.0f), vec3(1.0f, 2.0f, 3.0f));
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_bound_ellipsoied(vec3(2.0f, 0.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_bound_ellipsoied(vec3(0.0f, 4.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
         assert(std::abs(distance - 2.0f) < 1e-6);
     }
 
     {
-        float distance = PointDistance::TwoD::sdf_ellipse(vec2(0.5f, 0.0f), vec2(1.0f, 2.0f));
-        assert(std::abs(distance - -0.5f) < 1e-6);
+        vec2 p0_2(1.0f);
+        vec2 p1_2(2.0f, 3.0f);
+        vec2 p2_2(0.0f, 3.0f);
+        vec3 p0_3(1.0f, 1.0f, 0.0f);
+        vec3 p1_3(2.0f, 3.0f, 0.0f);
+        vec3 p2_3(0.0f, 3.0f, 0.0f);
 
-        distance = PointDistance::TwoD::sdf_ellipse(vec2(5.0f, 0.0f), vec2(1.0f, 2.0f));
-        assert(std::abs(distance - 4.0f) < 1e-6);
+        float distance_2 = PointDistance::sdf_to_triangle(vec2(0.0f), p0_2, p1_2, p2_2);
+        float distance_3 = PointDistance::udf_to_triangle(vec3(0.0f), p0_3, p1_3, p2_3);
+        assert(std::abs(distance_3 - distance_2) < 1e-6);
+
+        distance_2 = PointDistance::sdf_to_triangle(vec2(1.0f, -1.0f), p0_2, p1_2, p2_2);
+        distance_3 = PointDistance::udf_to_triangle(vec3(1.0f, -1.0f, 0.0f), p0_3, p1_3, p2_3);
+        assert(std::abs(distance_3 - distance_2) < 1e-6);
+
+        distance_2 = PointDistance::sdf_to_triangle(vec2(1.0f, 2.5f), p0_2, p1_2, p2_2);
+        distance_3 = PointDistance::udf_to_triangle(vec3(1.0f, 2.5f, 0.0f), p0_3, p1_3, p2_3);
+        assert(distance_2 < 0.0f);
+        assert(distance_3 < 1e-6);
+
+        distance_2 = PointDistance::sdf_to_triangle(vec2(1.5f, 2.5f), p0_2, p1_2, p2_2);
+        distance_3 = PointDistance::udf_to_triangle(vec3(1.5f, 2.5f, 0.0f), p0_3, p1_3, p2_3);
+        assert(distance_2 < 0.0);
+        assert(distance_3 < 1e-6);
+    }
+
+    {
+        vec3 p0(1.0f, 1.0f, 0.0f);
+        vec3 p1(4.0f, 1.0f, 0.0f);
+        vec3 p2(4.0f, 4.0f, 0.0f);
+        vec3 p3(1.0f, 4.0f, 0.0f);
+
+        float distance = PointDistance::udf_to_quad(vec3(0.0f, 2.0f, 0.0f), p0, p1, p2, p3);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = PointDistance::udf_to_quad(vec3(6.0f, 2.0f, 0.0f), p0, p1, p2, p3);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+
+        distance = PointDistance::udf_to_quad(vec3(3.0f, 3.0f, 0.0f), p0, p1, p2, p3);
+        assert(std::abs(distance) < 1e-6);
     }
 }
 
