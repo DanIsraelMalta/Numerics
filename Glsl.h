@@ -1287,7 +1287,7 @@ namespace GLSL {
             }
 
             // overload stream '<<' operator
-            friend std::ostream& operator<<(std::ostream& xio_stream, Swizzle& swizzle) {
+            friend std::ostream& operator<<(std::ostream& xio_stream, const Swizzle& swizzle) {
                 xio_stream << "{";
                 Utilities::static_for<0, 1, N - 1>([&xio_stream, &swizzle](std::size_t i) {
                     xio_stream << swizzle[i] << ", ";
@@ -1449,7 +1449,7 @@ namespace GLSL {
         };
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Vector2& vec) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Vector2& vec) {
             return xio_stream << "{" << vec[0] << ", " << vec[1] << "}";
         }
 
@@ -1550,7 +1550,7 @@ namespace GLSL {
         };
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Vector3& vec) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Vector3& vec) {
             return xio_stream << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << "}";
         }
 
@@ -1940,7 +1940,7 @@ namespace GLSL {
         };
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Vector4& vec) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Vector4& vec) {
             return xio_stream << "{" << vec[0] << ", " << vec[1] << ", " << vec[2] << ", " << vec[3] << "}";
         }
 
@@ -2014,7 +2014,7 @@ namespace GLSL {
         constexpr Matrix2(const vector_type& c0, const vector_type& c1) : c{ c0, c1 } {}
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix2& mat) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix2& mat) {
             return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ",\n" <<
                                         mat(0,1) << ", " << mat(1, 1) << "}";
         }
@@ -2086,7 +2086,7 @@ namespace GLSL {
         constexpr Matrix3(const vector_type& c0, const vector_type& c1, const vector_type& c2) : c{ c0, c1, c2 } {}
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix3& mat) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix3& mat) {
             return xio_stream << '{' << mat(0, 0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ",\n" <<
                                         mat(0, 1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ",\n" <<
                                         mat(0, 2) << ", " << mat(1, 2) << ", " << mat(2, 2) << "}";
@@ -2162,7 +2162,7 @@ namespace GLSL {
                           const vector_type& c2, const vector_type& c3) : c{ c0, c1, c2, c3 } {}
 
         // overload stream '<<' operator
-        friend std::ostream& operator<<(std::ostream& xio_stream, Matrix4& mat) {
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix4& mat) {
             return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ", " << mat(3, 0) << ",\n" <<
                                         mat(0,1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ", " << mat(3, 1) << ",\n" <<
                                         mat(0,2) << ", " << mat(1, 2) << ", " << mat(2, 2) << ", " << mat(3, 2) << ",\n" <<
