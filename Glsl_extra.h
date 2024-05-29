@@ -156,7 +156,7 @@ namespace Extra {
     * @param {Vector3, in}  point #0
     * @param {Vector3, in}  point #1
     * @param {Vector3, in}  point #2
-    * @param {Vector4, out} plane {x, y, z, n}
+    * @param {Vector4, out} plane {normal x, normal y, normal z, distance}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
