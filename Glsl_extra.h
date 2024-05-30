@@ -7,7 +7,7 @@
 
 namespace Extra {
     /**
-    * \brief make a matrix identity matrix
+    * \brief transform a matrix to identity matrix
     * @param {IFixedCubicMatrix, in|oout} matrix which will be an identity matrix
     **/
     template<GLSL::IFixedCubicMatrix MAT>
