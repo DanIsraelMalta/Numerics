@@ -6,6 +6,20 @@
 //
 
 namespace Extra {
+    /**
+    * \brief make a matrix identity matrix
+    * @param {IFixedCubicMatrix, in|oout} matrix which will be an identity matrix
+    **/
+    template<GLSL::IFixedCubicMatrix MAT>
+    constexpr void make_identity(MAT& mat) noexcept {
+        using T = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        mat = std::array<T, N * N>{{ T{} }};
+        Utilities::static_for<1, 1, N>([&mat](std::size_t i) {
+            mat(i, i) = static_cast<T>(1);
+        });
+    }
 
     /**
     * \brief efficient inverse of affine rigid transformation (assuming matrix is not singular)
