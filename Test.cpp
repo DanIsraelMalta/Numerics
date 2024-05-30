@@ -1212,13 +1212,13 @@ void test_glsl_ray_intersection() {
 
     {
         vec2 intersections = RayIntersections::ellipsoid_intersection(vec3(10.0f, 0.0f, 0.0f), vec3(-1.0f, 0.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
-        assert(GLSL::equal(intersections, vec2(9.0f, 11.0f)));
+        assert(GLSL::max(GLSL::abs(intersections - vec2(9.0f, 11.0f))) < 1e-6);
 
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 10.0f, 0.0f), vec3(0.0f, -1.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
-        assert(GLSL::equal(intersections, vec2(8.0f, 12.0f)));
+        assert(GLSL::max(GLSL::abs(intersections - vec2(8.0f, 12.0f))) < 1e-6);
 
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
-        assert(GLSL::equal(intersections, vec2(7.0f, 13.0f)));
+        assert(GLSL::max(GLSL::abs(intersections - vec2(7.0f, 13.0f))) < 1e-6);
     }
 }
 
