@@ -14,6 +14,7 @@
 #include "Glsl_triangle.h"
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_point_distance.h"
+#include "Glsl_ray_intersections.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -1112,6 +1113,115 @@ void test_glsl_point_distance() {
     }
 }
 
+
+void test_glsl_ray_intersection() {
+    {
+        vec3 p0(0.0f, 0.0f, 2.0f);
+        vec3 p1(1.0f, 0.0f, 2.0f);
+        vec3 p2(0.0f, 1.0f, 2.0f);
+        auto plane = Extra::create_plane(p0, p1, p2);
+
+        float distance = RayIntersections::plane_intersect(vec3(0.0f), vec3(1.0f, 0.0f, 0.0f), plane);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = RayIntersections::plane_intersect(vec3(0.0f), vec3(0.0f, 0.0f, 1.0f), plane);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+
+        distance = RayIntersections::plane_intersect(vec3(5.0f), vec3(0.0f, 0.0f, -1.0f), plane);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+    }
+
+    {
+        dvec3 center(3.0);
+        dvec3 normal(0.0, 0.0, 1.0);
+        double radius{ 1.0 };
+
+        double distance = RayIntersections::disk_intersect(dvec3(2.5, 2.5, 2.0), dvec3(0.0, 0.0, 1.0), center, normal, radius);
+        assert(distance < 0.0);
+
+        distance = RayIntersections::disk_intersect(dvec3(2.5, 2.5, 2.0), dvec3(0.0, 0.0, 1.0), center, -normal, radius);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        distance = RayIntersections::disk_intersect(dvec3(1.5, 1.5, 2.0), dvec3(0.0, 0.0, 1.0), center, -normal, radius);
+        assert(distance < 0.0);
+
+        distance = RayIntersections::disk_intersect(dvec3(0.0), GLSL::normalize(center), center, -normal, radius);
+        assert(std::abs(distance - GLSL::distance(dvec3(0.0), center)) < 1e-6);
+
+        distance = RayIntersections::disk_intersect(dvec3(2.5, 2.5, 5.0), dvec3(0.0, 0.0, -1.0), center, normal, radius);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+    }
+
+    {
+        vec3 p0(1.0f, 1.0f, 0.0f);
+        vec3 p1(2.0f, 3.0f, 0.0f);
+        vec3 p2(0.0f, 3.0f, 0.0f);
+
+        vec3 intersection = RayIntersections::triangle_intersect_cartesian(vec3(0.0f), GLSL::normalize(p0), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(-1.0f)));
+
+        intersection = RayIntersections::triangle_intersect_barycentric(vec3(0.0f), GLSL::normalize(p0), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(-1.0f)));
+
+        intersection = RayIntersections::triangle_intersect_cartesian(vec3(1.0f, 2.0f, 3.0f), vec3(0.0f, 0.0f, -1.0f), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(1.0f, 2.0f, 0.0f)));
+
+        intersection = RayIntersections::triangle_intersect_barycentric(vec3(1.0f, 2.0f, 3.0f), vec3(0.0f, 0.0f, -1.0f), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(3.0f, 0.25f, 0.25f)));
+
+        intersection = RayIntersections::triangle_intersect_cartesian(vec3(1.0f, 2.0f, -3.0f), vec3(0.0f, 0.0f, 1.0f), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(1.0f, 2.0f, 0.0f)));
+
+        intersection = RayIntersections::triangle_intersect_barycentric(vec3(1.0f, 2.0f, -3.0f), vec3(0.0f, 0.0f, 1.0f), p0, p1, p2);
+        assert(GLSL::equal(intersection, vec3(3.0f, 0.25f, 0.25f)));
+    }
+
+    {
+        vec3 center(3.0f, 3.0f, 1.0f);
+        vec3 u(1.0f, 0.0f, 0.0f);
+        vec3 v(0.0f, 2.0f, 0.0f);
+
+        vec3 intersection = RayIntersections::ellipse_intersect(vec3(3.0f), vec3(0.0f, 0.0f, -1.0f), center, u, v);
+        assert(GLSL::equal(intersection, vec3(2.0f, 0.0f, 0.0f)));
+
+        intersection = RayIntersections::ellipse_intersect(vec3(3.5f, 3.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), center, u, v);
+        assert(GLSL::equal(intersection, vec3(1.0f, 0.0f, 0.5f)));
+
+        intersection = RayIntersections::ellipse_intersect(vec3(3.0f, 3.5f, 0.0f), vec3(0.0f, 0.0f, 1.0f), center, u, v);
+        assert(GLSL::equal(intersection, vec3(1.0f, 1.0f, 0.0f)));
+
+        intersection = RayIntersections::ellipse_intersect(vec3(3.5f, 3.5f, 0.0f), vec3(0.0f, 0.0f, 1.0f), center, u, v);
+        assert(GLSL::equal(intersection, vec3(-1.0f)));
+    }
+
+    {
+        vec3 center(3.0f);
+        vec4 sphere(center, 2.0f);
+
+        vec2 intersection = RayIntersections::sphere_intersect(vec3(3.0f, 3.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f), sphere);
+        assert(GLSL::equal(intersection, vec2(1.0f, 5.0f)));
+
+        intersection = RayIntersections::sphere_intersect(vec3(3.0f, 3.0f, 2.5f), vec3(0.0f, 0.0f, 1.0f), sphere);
+        assert(intersection.x < 0.0f);
+        assert(std::abs(intersection.y - 2.5f) < 1e-6);
+
+        intersection = RayIntersections::sphere_intersect(vec3(3.0f, 2.5f, 3.0f), vec3(0.0f, 1.0f, 0.0f), sphere);
+        assert(intersection.x < 0.0f);
+        assert(std::abs(intersection.y - 2.5f) < 1e-6);
+    }
+
+    {
+        vec2 intersections = RayIntersections::ellipsoid_intersection(vec3(10.0f, 0.0f, 0.0f), vec3(-1.0f, 0.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
+        assert(GLSL::equal(intersections, vec2(9.0f, 11.0f)));
+
+        intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 10.0f, 0.0f), vec3(0.0f, -1.0f, 0.0f), vec3(1.0f, 2.0f, 3.0f));
+        assert(GLSL::equal(intersections, vec2(8.0f, 12.0f)));
+
+        intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
+        assert(GLSL::equal(intersections, vec2(7.0f, 13.0f)));
+    }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -1124,5 +1234,6 @@ int main() {
     test_glsl_triangle();
     test_glsl_axis_aligned_bounding_box();
     test_glsl_point_distance();
-    return 1;
+    test_glsl_ray_intersection();
+	return 1;
 }
