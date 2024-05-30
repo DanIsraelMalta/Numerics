@@ -33,6 +33,28 @@ namespace GLSL {
                                      (VEC1::length() == VEC2::length()) };
     };
 
+    /**
+    * concept of a fixed size arithmetic column major cubic matrix.
+    **/
+    template<typename MAT, typename...Args>
+    concept IFixedCubicMatrix = std::is_integral_v<decltype(MAT::length())> &&                                        // IFixedMatrix amount of elements
+                                std::is_integral_v<decltype(MAT::columns())> &&                                       // IFixedMatrix amount of columns
+                                std::is_arithmetic_v<typename MAT::value_type> &&                                     // IFixedMatrix arithmetics underlying type
+                                IFixedVector<typename MAT::vector_type> &&                                            // IFixedMatrix arithmetics underlying column type is an IFixedVector
+                                std::is_constructible_v<MAT, typename MAT::value_type> &&                             // IFixedMatrix is constructible from a single scalar element
+                                (std::is_arithmetic_v<Args> && ...) &&                                                // arguments are of arithmetic type...
+                                std::is_constructible_v<MAT, Args...>&&                                               // IFixedMatrix is constructible from variadic amount of arithmetics (amount identical to VEC::length)
+                                std::is_constructible_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&& // IFixedMatrix is constructible from a moveable array
+                                std::is_assignable_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&&    // IFixedMatrix is assignable from a moveable array
+        requires(MAT mat, std::size_t i) {
+            { mat[i]    } -> std::same_as<typename MAT::vector_type&>;  // IFixedMatrix columns can be accessed randomly
+            { mat(i, i) } -> std::same_as<typename MAT::value_type&>;   // IFixedMatrix elements can be accessed randomly (col, row)
+    };
+
+    //
+    // IFixedVector operations and functions
+    // 
+
     // unary arithmetic operator overload for IFixedVector
     template<IFixedVector VEC>
     constexpr auto operator - (const VEC& xi_vec) {
@@ -656,23 +678,9 @@ namespace GLSL {
         return (eta * I - (eta * _dot + std::sqrt(k)) * N);
     }
 
-    /**
-    * concept of a fixed size arithmetic column major cubic matrix.
-    **/
-    template<typename MAT, typename...Args>
-    concept IFixedCubicMatrix = std::is_integral_v<decltype(MAT::length())> &&                                        // IFixedMatrix amount of elements
-                                std::is_integral_v<decltype(MAT::columns())> &&                                       // IFixedMatrix amount of columns
-                                std::is_arithmetic_v<typename MAT::value_type> &&                                     // IFixedMatrix arithmetics underlying type
-                                IFixedVector<typename MAT::vector_type> &&                                            // IFixedMatrix arithmetics underlying column type is an IFixedVector
-                                std::is_constructible_v<MAT, typename MAT::value_type> &&                             // IFixedMatrix is constructible from a single scalar element
-                                (std::is_arithmetic_v<Args> && ...) &&                                                // arguments are of arithmetic type...
-                                std::is_constructible_v<MAT, Args...>&&                                               // IFixedMatrix is constructible from variadic amount of arithmetics (amount identical to VEC::length)
-                                std::is_constructible_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&& // IFixedMatrix is constructible from a moveable array
-                                std::is_assignable_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&&    // IFixedMatrix is assignable from a moveable array
-        requires(MAT mat, std::size_t i) {
-            { mat[i]    } -> std::same_as<typename MAT::vector_type&>;  // IFixedMatrix columns can be accessed randomly
-            { mat(i, i) } -> std::same_as<typename MAT::value_type&>;   // IFixedMatrix elements can be accessed randomly (col, row)
-    };
+    //
+    // IFixedCubicMatrix operations and functions
+    //
 
     // standard element wise unary functions for IFixedCubicMatrix
 #define M_UNARY_FUNCTION(NAME, FUNC)                                            \
@@ -1167,6 +1175,10 @@ namespace GLSL {
         });
         return out;
     }
+
+    //
+    // IFixedVector constructs
+    //
 
     /**
     * \brief 'swizzling' class (implements IFixedVector concept)
@@ -1974,6 +1986,10 @@ namespace GLSL {
     template<typename T> struct is_vector<Vector4<T>> : public std::true_type {};
     template<typename T> constexpr bool is_vector_v = is_vector<T>::value;
     template<typename T> concept IGlslVector = is_vector_v<T>;
+
+    //
+    // IFixedCubicMatrix constructs
+    //
 
     /**
     * \brief 2x2 numerical matrix (column major)
