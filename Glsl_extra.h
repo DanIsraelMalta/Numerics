@@ -8,7 +8,7 @@
 namespace Extra {
     /**
     * \brief transform a matrix to identity matrix
-    * @param {IFixedCubicMatrix, in|oout} matrix which will be an identity matrix
+    * @param {IFixedCubicMatrix, in|out} matrix which will be an identity matrix
     **/
     template<GLSL::IFixedCubicMatrix MAT>
     constexpr void make_identity(MAT& mat) noexcept {
@@ -16,8 +16,43 @@ namespace Extra {
         constexpr std::size_t N{ MAT::columns() };
 
         mat = std::array<T, N * N>{{ T{} }};
-        Utilities::static_for<1, 1, N>([&mat](std::size_t i) {
+        Utilities::static_for<0, 1, N>([&mat](std::size_t i) {
             mat(i, i) = static_cast<T>(1);
+        });
+    }
+
+    /**
+    * \brief transform a matrix to Van-Der-Monde matrix
+    * @param {IFixedCubicMatrix, in|out} matrix which will be Van-Der-Monde matrix
+    * @param {IFixedVector,      in}     vector holding base of powers of Van-Der-Monde matrix elements
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = MAT::vector_type>
+    constexpr void make_van_der_monde(MAT& mat, const VEC& vec) noexcept {
+        using T = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        Utilities::static_for<0, 1, N>([&mat](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&mat, i](std::size_t j) {
+                const T power{static_cast<T>(N - j - i)};
+                mat(i, j) = static_cast<T>(std::pow(vec[i], power));
+            });
+        });
+    }
+
+    /**
+    * \brief transform a matrix to Toeplitz matrix
+    * @param {IFixedCubicMatrix, in|out} matrix which will be Toeplitz matrix
+    * @param {IFixedVector,      in}     vector holding values to fill matrix
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = MAT::vector_type>
+    constexpr void make_toeplitz(MAT& mat, const VEC& vec) noexcept {
+        using T = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        Utilities::static_for<0, 1, N>([&mat](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&mat, i](std::size_t j) {
+                mat(i, j) = (i >= j) ? vec[i - j] : vec[j - i];
+            });
         });
     }
 
