@@ -1426,6 +1426,7 @@ namespace GLSL {
 
         // construct from a single value
         constexpr explicit Vector2(const T value) noexcept : x(value), y(value) {}
+        constexpr explicit Vector3(const T _x, const T _y) noexcept : x(_x), y(_y) {}
 
         // construct from a moveable array
         constexpr explicit Vector2(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -1525,8 +1526,9 @@ namespace GLSL {
         // IFixedVector constraints
     public:
 
-        // construct from a single value
+        // construct from a single/several value
         constexpr explicit Vector3(const T value) noexcept : x(value), y(value), z(value) {}
+        constexpr explicit Vector3(const T _x, const T _y, const T _z) noexcept : x(_x), y(_y), z(_z) {}
 
         // construct from a moveable array
         constexpr explicit Vector3(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -1917,6 +1919,7 @@ namespace GLSL {
 
         // construct from a single value
         constexpr explicit Vector4(const T value) noexcept : x(value), y(value), z(value), w(value) {}
+        constexpr explicit Vector3(const T _x, const T _y, const T _z, const T _w) noexcept : x(_x), y(_y), z(_z), w(_w) {}
 
         // construct from a moveable array
         constexpr explicit Vector4(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
