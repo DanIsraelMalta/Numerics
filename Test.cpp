@@ -1220,6 +1220,35 @@ void test_glsl_ray_intersection() {
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
         assert(GLSL::max(GLSL::abs(intersections - vec2(7.0f, 13.0f))) < 1e-6);
     }
+
+    {
+        dvec3 target(0.0, 0.0, 0.0);
+        dvec3 eye(5.0, 4.0, 6.0);
+        dvec3 world_up(0.0, 0.0, 1.0);
+        dvec3 expected_axis = GLSL::normalize(target - eye);
+
+        // look-at matrix test #1
+        dmat3 transformation_using_world_up = Extra::create_look_at_matrix(eye, target, world_up); // look-at matrix using world up
+        auto axis_angle_using_world_up = Extra::get_axis_angle_from_rotation_matrix(transformation_using_world_up); // look-at matrix (using world up) axis and angle
+        dmat3 dcm_using_world_up_axis_angle = Extra::rotation_matrix_from_axis_angle(axis_angle_using_world_up.axis, std::acos(axis_angle_using_world_up.cosine)); // rotation matrix from axis and angle
+
+        Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, i](std::size_t j) {
+                assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_world_up_axis_angle(j, i))) < 1e-6);
+            });
+        });
+
+        // look at matrix test #2
+        dmat3 transformation_using_rotation = Extra::create_look_at_matrix(eye, target, std::acos(axis_angle_using_world_up.cosine)); // look-at matrix using roll angle
+        auto axis_angle_using_roll = Extra::get_axis_angle_from_rotation_matrix(transformation_using_rotation); // look-at matrix (using roll angle) axis and angle
+        dmat3 dcm_using_roll = Extra::rotation_matrix_from_axis_angle(axis_angle_using_roll.axis, std::acos(axis_angle_using_roll.cosine)); // rotation matrix from axis and angle
+
+        Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll, i](std::size_t j) {
+                assert(std::abs(std::abs(transformation_using_rotation(i, j)) - std::abs(dcm_using_roll(j, i))) < 1e-6);
+            });
+        });
+    }
 }
 
 int main() {
