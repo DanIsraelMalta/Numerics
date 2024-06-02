@@ -1167,13 +1167,41 @@ namespace GLSL {
     * @param {MAT, in}  matrix
     * @param {VEC, out} trace
     **/
-    template<IFixedCubicMatrix MAT>
-    constexpr auto trace(const MAT& mat) noexcept {
-        typename MAT::vector_type out;
+    template<IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type>
+    constexpr VEC trace(const MAT& mat) noexcept {
+        VEC out;
         Utilities::static_for<0, 1, MAT::columns()>([&mat, &out](std::size_t i) {
             out[i] = mat(i, i);
         });
         return out;
+    }
+
+    /**
+    * \brief returns minimal element in matrix
+    * @param {MAT,        in}  matrix
+    * @param {value_type, out} maximal element
+    **/
+    template<IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type, class T = typename MAT::value_type>
+    constexpr T min(const MAT& mat) noexcept {
+        VEC minColumns;
+        Utilities::static_for<0, 1, MAT::columns()>([&minColumns, &mat](std::size_t i) {
+            minColumns[i] = GLSL::min(mat[i]);
+        });
+        return GLSL::min(minColumns);
+    }
+
+    /**
+    * \brief returns maximal element in matrix
+    * @param {MAT,        in}  matrix
+    * @param {value_type, out} maximal element
+    **/
+    template<IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type, class T = typename MAT::value_type>
+    constexpr T max(const MAT& mat) noexcept {
+        VEC maxColumns;
+        Utilities::static_for<0, 1, MAT::columns()>([&maxColumns, &mat](std::size_t i) {
+            maxColumns[i] = GLSL::max(mat[i]);
+        });
+        return GLSL::max(maxColumns);
     }
 
     //
