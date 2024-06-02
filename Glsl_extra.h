@@ -56,6 +56,53 @@ namespace Extra {
         });
     }
 
+        /**
+    * \brief fill a vector with positive random values in the range of [0, static_cast<T>(std::numeric_limits<std::uint32_t>::max())]
+    * @param {IFixedVector, in} vector to be filled with random values
+    **/
+    template<GLSL::IFixedVector VEC>
+    constexpr void make_random(VEC& vec) noexcept {
+        using T = typename VEC::value_type;
+        constexpr std::uint32_t value = (__TIME__[7] - '0') * 1u +
+                                        (__TIME__[6] - '0') * 10u +
+                                        (__TIME__[4] - '0') * 60u +
+                                        (__TIME__[3] - '0') * 600u +
+                                        (__TIME__[1] - '0') * 3600u +
+                                        (__TIME__[0] - '0') * 36000u;
+
+        vec[0] = static_cast<T>(Hash::pcg(value));
+        Utilities::static_for<1, 1, VEC::length()>([&vec](std::size_t i) {
+            vec[i] = static_cast<T>(Hash::pcg(static_cast<std::uint32_t>(vec[i-1])));
+        });
+    }
+
+    /**
+    * \brief test if vector is normalized
+    * @param {IFixedVector, in}  vector
+    * @param {value_type,   in}  allowed tolerance for vector L2 norm from 1 (default is 1e-5)
+    * @param {bool,         out} true if vector L2 norm is 1
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr bool is_normalized(const VEC& vec, const T tol = static_cast<T>(1e-5)) noexcept {
+        return std::abs(static_cast<T>(1) - GLSL::dot(vec)) <= tol;
+    }
+
+    /**
+    * \brief tests if a given matrix is symmetric
+    * @param {IFixedCubicMatrix, in}  matrix which will be testd for symmetry
+    * @param {bool,              out} true if matrix is symmetrical
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr bool is_symmetric(const MAT& mat, const T tol = static_cast<T>(1e-5)) noexcept {
+        bool symmetric{ true };
+        Utilities::static_for<0, 1, 3>([&mat, &symmetric, tol](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&mat, &symmetric, tol, i](std::size_t j) {
+                symmetric &= mat(i, j) - mat(j, i) <= tol;
+            });
+        });
+        return symmetric;
+    }
+
     /**
     * \brief efficient inverse of affine rigid transformation (assuming matrix is not singular)
     *        an affine rigid transformation matrix is a 4x4 matrix with first 3x3 portion holding
@@ -107,77 +154,56 @@ namespace Extra {
         }
     }
 
-    /**
-    * \brief generate look-at matrix (3x3)
-    * @param {Vector3,        in}  origin
-    * @param {Vector3,        in}  target
-    * @param {floating_point, in}  roll angle [rad]
-    * @param {Matrix3,        out} look at matrix
+	/**
+    * \brief generate look-at matrix (4x4)
+    * @param {Vector3,                in}  origin/eye
+    * @param {Vector3,                in}  target/center
+    * @param {Vector3|floating_point, in}  either world up direction (normalized) or roll angle [rad]
+    * @param {Matrix3,                out} look at matrix
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix3<T> look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const T roll) {
-        const GLSL::Vector3<T> rr(std::sin(roll), std::cos(roll), T{});
-        const GLSL::Vector3<T> ww{ GLSL::normalize(target - origin) };
-        const GLSL::Vector3<T> uu{ GLSL::normalize(GLSL::cross(ww, rr)) };
-        const GLSL::Vector3<T> vv{ GLSL::normalize(GLSL::cross(uu, ww)) };
+    template<typename T, typename U>
+        requires(std::is_floating_point_v<T> && (std::is_same_v<T, U> || GLSL::is_fixed_vector_v<U>))
+    constexpr GLSL::Matrix3<T> create_look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const U roll_or_world_up) {
+        const GLSL::Vector3<T> arbitrary = [roll_or_world_up]() {
+            if constexpr (GLSL::is_fixed_vector_v<U>) {
+				assert(Extra::is_normalized(roll_or_world_up));
+                return roll_or_world_up;
+            } else {
+                return GLSL::Vector3<T>(std::sin(roll_or_world_up), std::cos(roll_or_world_up), T{});
+            }
+        }();
 
-        return GLSL::Matrix3<T>(uu, vv, ww);
+        const GLSL::Vector3<T> forward{ GLSL::normalize(origin - target) };
+        const GLSL::Vector3<T> right{ GLSL::normalize(GLSL::cross(arbitrary, forward)) };
+        const GLSL::Vector3<T> upper{ GLSL::cross(forward, right) };
+
+        return GLSL::Matrix3<T>(right, upper, forward);
+
     }
 
     /**
-    * \brief generate look-at matrix (3x3 or 4x4)
-    * @param {Vector3,         in}  origin/eye
-    * @param {Vector3,         in}  target
-    * @param {Vector3,         in}  up direction (normalized)
-    * @param {Matrix3|Matrix4, out} look at matrix
-    **/
+        * \brief return rotation axis and rotation angle of a rotation matrix.
+        *        only works for non symmetric rotation matrices.
+        * @param {Matrix3,               in}  rotation matrix (not symmetric)
+        * @param {{Vector3, arithmetic}, out} {rotation axis, rotation angle [rad] cosine }
+        **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix3<T> look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const GLSL::Vector3<T>& up) {
-        assert(Numerics::areEquals(GLSL::length(up), static_cast<T>(1)));
+    constexpr auto get_axis_angle_from_rotation_matrix(const GLSL::Matrix3<T>& mat) {
+        using out_t = struct { GLSL::Vector3<T> axis; T cosine; };
 
-        const GLSL::Vector3<T> Z{ -GLSL::normalize(target - origin) };
-        const GLSL::Vector3<T> X{ -GLSL::cross(up, Z) };
-        const GLSL::Vector3<T> Y{  GLSL::cross(Z, X) };
+        assert(Extra::is_normalized(mat[0]));
+        assert(Extra::is_normalized(mat[1]));
+        assert(Extra::is_normalized(mat[2]));
+        assert(Extra::is_normalized(GLSL::cross(mat[0], mat[1])));
+        assert(Extra::is_normalized(GLSL::cross(mat[0], mat[2])));
+        assert(Extra::is_normalized(GLSL::cross(mat[1], mat[2])));
+        assert(!Extra::is_symmetric(mat));
 
-        return GLSL::Matrix3<T>(X, Y, Z);
-    }
+        const GLSL::Vector3<T> axis(mat(1, 2) - mat(2, 1), mat(2, 0) - mat(0, 2), mat(0, 1) - mat(1, 0));
+        const T cosine{ (mat(0,0) + mat(1,1) + mat(2,2) - static_cast<T>(1)) / static_cast<T>(2) };
+        return out_t{ GLSL::normalize(axis), cosine };
 
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix4<T> look_at_matrix(const GLSL::Vector3<T>& origin, const GLSL::Vector3<T>& target, const GLSL::Vector3<T>& up) {
-        assert(Numerics::areEquals(GLSL::length(up), static_cast<T>(1)));
-
-        const GLSL::Vector3<T> Z{ -GLSL::normalize(target - origin) };
-        const GLSL::Vector3<T> X{ -GLSL::cross(up, Z) };
-        const GLSL::Vector3<T> Y{  GLSL::cross(Z, X) };
-
-        return GLSL::Matrix4<T>(X.x, Y.x, Z.x,  GLSL::dot(X, origin),
-                                X.y, Y.y, Z.y, -GLSL::dot(Y, origin),
-                                X.z, Y.z, Z.z,  GLSL::dot(Z, origin),
-                                T{}, T{}, T{},  static_cast<T>(1));
-    }
-
-    /**
-    * \brief generate a DCM (direct cosine matrix) matrix from Euler angles
-    * @param {Vector3, in}  Euler angles
-    * @param {Matrix3, out} DC, matrix
-    **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix3<T> rotation_matrix_from_euler(const GLSL::Vector3<T>& euler) noexcept {
-        const T a{ std::sin(euler.x) };
-        const T c{ std::sin(euler.y) };
-        const T e{ std::sin(euler.z) };
-        const T b{ std::cos(euler.x) };
-        const T d{ std::cos(euler.y) };
-        const T f{ std::cos(euler.z) };
-        const T ac{ a * c };
-        const T bc{ b * c };
-        return GLSL::Matrix3<T>(d * f, d * e, -c,
-                                ac * f - b * e, ac * e + b * f, a * d,
-                                bc * f + a * e, bc * e - a * f, b * d);
     }
 
     /**
@@ -190,7 +216,7 @@ namespace Extra {
         requires((VEC::length() == 2) || (VEC::length() == 3))
     constexpr VEC orientate(const VEC& v, const VEC& dir) noexcept {
         using T = typename VEC::value_type;
-        assert(Numerics::areEquals(GLSL::length(dir), static_cast<T>(1)));
+        assert(Extra::is_normalized(dir));
 
         VEC res(v);
         if (const T kk{ GLSL::dot(dir, v) }; kk > T{}) {
@@ -270,7 +296,7 @@ namespace Extra {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Vector3<T> rotate_point_around_axis(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& axis, const T angle) noexcept {
-        assert(Numerics::areEquals(GLSL::length(axis), static_cast<T>(1)));
+        assert(Extra::is_normalized(axis));
         return GLSL::mix(GLSL::dot(axis, p) * axis, p, std::cos(angle)) + GLSL::cross(axis, p) * std::sin(angle);
     }
 
@@ -306,7 +332,7 @@ namespace Extra {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Matrix3<T> orthonomrmalBasis(const GLSL::Vector3<T>& u) noexcept {
-        assert(Numerics::areEquals(GLSL::length(u), static_cast<T>(1)));
+        assert(Extra::is_normalized(u));
 
         GLSL::Vector3<T> v{ [&u]() {
             const GLSL::Vector3<T> t{ GLSL::abs(u) };
@@ -409,36 +435,5 @@ namespace Extra {
         }
 
         return dot;
-    }
-
-    /**
-    * \brief fill a vector with positive random values in the range of [0, static_cast<T>(std::numeric_limits<std::uint32_t>::max())]
-    * @param {IFixedVector, in} vector to be filled with random values
-    **/
-    template<GLSL::IFixedVector VEC>
-    constexpr void make_random(VEC& vec) noexcept {
-        using T = typename VEC::value_type;
-        constexpr std::uint32_t value = (__TIME__[7] - '0') * 1u +
-                                        (__TIME__[6] - '0') * 10u +
-                                        (__TIME__[4] - '0') * 60u +
-                                        (__TIME__[3] - '0') * 600u +
-                                        (__TIME__[1] - '0') * 3600u +
-                                        (__TIME__[0] - '0') * 36000u;
-
-        vec[0] = static_cast<T>(Hash::pcg(value));
-        Utilities::static_for<1, 1, VEC::length()>([&vec](std::size_t i) {
-            vec[i] = static_cast<T>(Hash::pcg(static_cast<std::uint32_t>(vec[i-1])));
-        });
-    }
-
-    /**
-    * \brief test if vector is normalized
-    * @param {IFixedVector, in}  vector
-    * @param {value_type,   in}  allowed tolerance for vector L2 norm from 1 (default is 1e-5)
-    * @param {bool,         out} true if vector L2 norm is 1
-    **/
-    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-    constexpr bool is_normalized(const VEC& vec, const T tol = static_cast<T>(1e-5)) noexcept {
-        return std::abs(static_cast<T>(1) - GLSL::dot(vec)) <= tol;
     }
 }
