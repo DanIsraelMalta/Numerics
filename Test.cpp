@@ -1225,7 +1225,6 @@ void test_glsl_ray_intersection() {
         dvec3 target(0.0, 0.0, 0.0);
         dvec3 eye(5.0, 4.0, 6.0);
         dvec3 world_up(0.0, 0.0, 1.0);
-        dvec3 expected_axis = GLSL::normalize(target - eye);
 
         // look-at matrix test #1
         dmat3 transformation_using_world_up = Extra::create_look_at_matrix(eye, target, world_up); // look-at matrix using world up
