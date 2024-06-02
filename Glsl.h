@@ -2007,6 +2007,8 @@ namespace GLSL {
         // construct from a single value
         constexpr explicit Matrix2(const T value) noexcept : data{ value, value,
                                                                    value, value } {}
+        constexpr explicit Matrix2(const T v0, const T v1, const T v2, const T v3) noexcept : data{ v0, v1,
+                                                                                                    v2, v3} {}
 
         // construct from a moveable array
         constexpr explicit Matrix2(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -2079,6 +2081,11 @@ namespace GLSL {
         constexpr explicit Matrix3(const T value) noexcept : data{ value, value, value,
                                                                    value, value, value,
                                                                    value, value, value } {}
+        constexpr explicit Matrix3(const T v0, const T v1, const T v2,
+                                   const T v3, const T v4, const T v5,
+                                   const T v6, const T v7, const T v8) noexcept : data{ v0, v1, v2,
+                                                                                        v3, v4, v5,
+                                                                                        v6, v7, v8 } {}
 
         // construct from a moveable array
         constexpr explicit Matrix3(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -2154,6 +2161,13 @@ namespace GLSL {
                                                                    value, value, value, value,
                                                                    value, value, value, value,
                                                                    value, value, value, value } {}
+        constexpr explicit Matrix4(const T v0,  const T v1,  const T v2,  const T v3,
+                                   const T v4,  const T v5,  const T v6,  const T v7,
+                                   const T v8,  const T v9,  const T v10, const T v11,
+                                   const T v12, const T v13, const T v14, const T v15) noexcept : data{ v0,  v1,  v2,  v3,
+                                                                                                        v4,  v5,  v6,  v7,
+                                                                                                        v8,  v9,  v10, v11,
+                                                                                                        v12, v13, v14, v15} {}
 
         // construct from a moveable array
         constexpr explicit Matrix4(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
