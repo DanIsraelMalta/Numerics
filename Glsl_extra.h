@@ -104,6 +104,24 @@ namespace Extra {
     }
 
     /**
+    * \brief tests if a given 3x3 matrix is direct cosine matrix (DCM)
+    * @param {Matrix3, in}  tested matrix
+    * @param {bool,    out} true if matrix is DCM
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr bool is_dcm_matrix(const GLSL::Matrix3<T>& mat) noexcept {
+        bool is_dcm{ true };
+        is_dcm &= Extra::is_normalized(mat[0]);
+        is_dcm &= Extra::is_normalized(mat[1]);
+        is_dcm &= Extra::is_normalized(mat[2]);
+        is_dcm &= Extra::is_normalized(GLSL::cross(mat[0], mat[1]));
+        is_dcm &= Extra::is_normalized(GLSL::cross(mat[0], mat[2]));
+        is_dcm &= Extra::is_normalized(GLSL::cross(mat[1], mat[2]));
+        return is_dcm;
+    }
+
+    /**
     * \brief efficient inverse of affine rigid transformation (assuming matrix is not singular)
     *        an affine rigid transformation matrix is a 4x4 matrix with first 3x3 portion holding
     *        rotation information and the fourth column holds the translation information.
@@ -192,12 +210,7 @@ namespace Extra {
     constexpr auto get_axis_angle_from_rotation_matrix(const GLSL::Matrix3<T>& mat) {
         using out_t = struct { GLSL::Vector3<T> axis; T cosine; };
 
-        assert(Extra::is_normalized(mat[0]));
-        assert(Extra::is_normalized(mat[1]));
-        assert(Extra::is_normalized(mat[2]));
-        assert(Extra::is_normalized(GLSL::cross(mat[0], mat[1])));
-        assert(Extra::is_normalized(GLSL::cross(mat[0], mat[2])));
-        assert(Extra::is_normalized(GLSL::cross(mat[1], mat[2])));
+        assert(Extra::is_dcm_matrix(mat));
         assert(!Extra::is_symmetric(mat));
 
         const GLSL::Vector3<T> axis(mat(1, 2) - mat(2, 1), mat(2, 0) - mat(0, 2), mat(0, 1) - mat(1, 0));
