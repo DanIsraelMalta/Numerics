@@ -56,7 +56,7 @@ namespace Extra {
         });
     }
 
-        /**
+    /**
     * \brief fill a vector with positive random values in the range of [0, static_cast<T>(std::numeric_limits<std::uint32_t>::max())]
     * @param {IFixedVector, in} vector to be filled with random values
     **/
