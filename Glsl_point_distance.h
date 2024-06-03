@@ -85,7 +85,7 @@ namespace PointDistance {
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
-    constexpr auto sdf_to_triangle(const GLSL::Vector2<T>& p, const GLSL::Vector2<T>& p0, const GLSL::Vector2<T>& p1, const GLSL::Vector2<T>& p2) {
+    constexpr T sdf_to_triangle(const GLSL::Vector2<T>& p, const GLSL::Vector2<T>& p0, const GLSL::Vector2<T>& p1, const GLSL::Vector2<T>& p2) {
         constexpr T one{ static_cast<T>(1) };
         const GLSL::Vector2<T> e0{ p1 - p0 };
         const GLSL::Vector2<T> e1{ p2 - p1 };
