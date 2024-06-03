@@ -15,6 +15,7 @@
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_point_distance.h"
 #include "Glsl_ray_intersections.h"
+#include "Glsls_transformation.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -712,28 +713,74 @@ void test_glsl_extra() {
     }
 
     {
-        const auto Rx = Extra::rotation_matrix_from_axis_angle(dvec3(1.0, 0.0, 0.0), std::numbers::pi_v<double> / 2);
-        const auto RxExpected = dmat3(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
-        Utilities::static_for<0, 1, 3>([&Rx, &RxExpected](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&Rx, &RxExpected, i](std::size_t j) {
-                assert(std::abs(std::abs(Rx(i, j)) - std::abs(RxExpected(i, j))) <= 1e-6);
-            });
-        });
-
-        const auto Ry = Extra::rotation_matrix_from_axis_angle(dvec3(0.0, 1.0, 0.0), std::numbers::pi_v<double> / 2);
-        const auto RyExpected = dmat3(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0);
-        Utilities::static_for<0, 1, 3>([&Ry, &RyExpected](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&Ry, &RyExpected, i](std::size_t j) {
-                assert(std::abs(std::abs(Ry(i, j)) - std::abs(RyExpected(i, j))) <= 1e-6);
-            });
-        });
-    }
-
-    {
         ivec4 a(1, 2, 3, 4);
         ivec4 b(2, 3, 4, 5);
         assert(Extra::left_dot<3>(a, b) == 20);
         assert(Extra::left_dot<2>(b) == 13);
+    }
+}
+
+void test_glsl_transformation() {
+    {
+        const auto Rx = Transformation::rotation_matrix_from_axis_angle(dvec3(1.0, 0.0, 0.0), std::numbers::pi_v<double> / 2);
+        const auto RxExpected = dmat3(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.0, 0.0);
+        Utilities::static_for<0, 1, 3>([&Rx, &RxExpected](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&Rx, &RxExpected, i](std::size_t j) {
+                assert(std::abs(std::abs(Rx(i, j)) - std::abs(RxExpected(i, j))) <= 1e-6);
+                });
+            });
+
+        const auto Ry = Transformation::rotation_matrix_from_axis_angle(dvec3(0.0, 1.0, 0.0), std::numbers::pi_v<double> / 2);
+        const auto RyExpected = dmat3(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0);
+        Utilities::static_for<0, 1, 3>([&Ry, &RyExpected](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&Ry, &RyExpected, i](std::size_t j) {
+                assert(std::abs(std::abs(Ry(i, j)) - std::abs(RyExpected(i, j))) <= 1e-6);
+                });
+            });
+    }
+
+    {
+        dvec3 target(0.0, 0.0, 0.0);
+        dvec3 eye(5.0, 4.0, 6.0);
+        dvec3 world_up(0.0, 0.0, 1.0);
+
+        // look-at matrix test #1
+        dmat3 transformation_using_world_up = Transformation::create_look_at_matrix(eye, target, world_up); // look-at matrix using world up
+        auto axis_angle_using_world_up = Transformation::get_axis_angle_from_rotation_matrix(transformation_using_world_up); // look-at matrix (using world up) axis and angle
+        dmat3 dcm_using_world_up_axis_angle = Transformation::rotation_matrix_from_axis_angle(axis_angle_using_world_up.axis, std::acos(axis_angle_using_world_up.cosine)); // rotation matrix from axis and angle
+
+        Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, i](std::size_t j) {
+                assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_world_up_axis_angle(j, i))) < 1e-6);
+                });
+            });
+
+        // look at matrix test #2
+        dmat3 transformation_using_rotation = Transformation::create_look_at_matrix(eye, target, std::acos(axis_angle_using_world_up.cosine)); // look-at matrix using roll angle
+        auto axis_angle_using_roll = Transformation::get_axis_angle_from_rotation_matrix(transformation_using_rotation); // look-at matrix (using roll angle) axis and angle
+        dmat3 dcm_using_roll = Transformation::rotation_matrix_from_axis_angle(axis_angle_using_roll.axis, std::acos(axis_angle_using_roll.cosine)); // rotation matrix from axis and angle
+
+        Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll, i](std::size_t j) {
+                assert(std::abs(std::abs(transformation_using_rotation(i, j)) - std::abs(dcm_using_roll(j, i))) < 1e-6);
+                });
+            });
+    }
+
+    {
+        vec3 xAxis(1.0f, 0.0f, 0.0f);
+        vec3 zAxis(0.0f, 0.0f, 1.0f);
+        float angle{ std::numbers::pi_v<float> / 2.0f };
+
+        vec3 rotated = Transformation::rotate_point_around_axis(vec3(2.0f, 0.0f, 0.0f), zAxis, angle);
+        assert(std::abs(rotated.x) < 1e-6);
+        assert(std::abs(rotated.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated.z) < 1e-6);
+
+        rotated = Transformation::rotate_point_around_axis(vec3(0.0f, 0.0f, -2.0f), xAxis, angle);
+        assert(std::abs(rotated.x) < 1e-6);
+        assert(std::abs(rotated.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated.z) < 1e-6);
     }
 }
 
@@ -801,7 +848,7 @@ void test_glsl_solvers() {
         const dvec3 x(257.611111, -70.555556, 11.111111);
         assert(std::abs(GLSL::length(solution) - GLSL::length(x)) < 1e-6);
     }
-    
+
     {
         const auto det_via_lu = Solvers::determinant_using_lu(a);
         const auto det_via_qr = Solvers::determinant_using_qr(a);
@@ -1113,7 +1160,6 @@ void test_glsl_point_distance() {
     }
 }
 
-
 void test_glsl_ray_intersection() {
     {
         vec3 p0(0.0f, 0.0f, 2.0f);
@@ -1220,50 +1266,6 @@ void test_glsl_ray_intersection() {
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
         assert(GLSL::max(GLSL::abs(intersections - vec2(7.0f, 13.0f))) < 1e-6);
     }
-
-    {
-        dvec3 target(0.0, 0.0, 0.0);
-        dvec3 eye(5.0, 4.0, 6.0);
-        dvec3 world_up(0.0, 0.0, 1.0);
-
-        // look-at matrix test #1
-        dmat3 transformation_using_world_up = Extra::create_look_at_matrix(eye, target, world_up); // look-at matrix using world up
-        auto axis_angle_using_world_up = Extra::get_axis_angle_from_rotation_matrix(transformation_using_world_up); // look-at matrix (using world up) axis and angle
-        dmat3 dcm_using_world_up_axis_angle = Extra::rotation_matrix_from_axis_angle(axis_angle_using_world_up.axis, std::acos(axis_angle_using_world_up.cosine)); // rotation matrix from axis and angle
-
-        Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, i](std::size_t j) {
-                assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_world_up_axis_angle(j, i))) < 1e-6);
-            });
-        });
-
-        // look at matrix test #2
-        dmat3 transformation_using_rotation = Extra::create_look_at_matrix(eye, target, std::acos(axis_angle_using_world_up.cosine)); // look-at matrix using roll angle
-        auto axis_angle_using_roll = Extra::get_axis_angle_from_rotation_matrix(transformation_using_rotation); // look-at matrix (using roll angle) axis and angle
-        dmat3 dcm_using_roll = Extra::rotation_matrix_from_axis_angle(axis_angle_using_roll.axis, std::acos(axis_angle_using_roll.cosine)); // rotation matrix from axis and angle
-
-        Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll, i](std::size_t j) {
-                assert(std::abs(std::abs(transformation_using_rotation(i, j)) - std::abs(dcm_using_roll(j, i))) < 1e-6);
-            });
-        });
-    }
-
-    {
-        vec3 xAxis(1.0f, 0.0f, 0.0f);
-        vec3 zAxis(0.0f, 0.0f, 1.0f);
-        float angle{ std::numbers::pi_v<float> / 2.0f };
-
-        vec3 rotated = Extra::rotate_point_around_axis(vec3(2.0f, 0.0f, 0.0f), zAxis, angle);
-        assert(std::abs(rotated.x) < 1e-6);
-        assert(std::abs(rotated.y - 2.0f) < 1e-6);
-        assert(std::abs(rotated.z) < 1e-6);
-
-        rotated = Extra::rotate_point_around_axis(vec3(0.0f, 0.0f, -2.0f), xAxis, angle);
-        assert(std::abs(rotated.x) < 1e-6);
-        assert(std::abs(rotated.y - 2.0f) < 1e-6);
-        assert(std::abs(rotated.z) < 1e-6);
-    }
 }
 
 int main() {
@@ -1273,11 +1275,12 @@ int main() {
     test_numerics();
     test_glsl_basics();
     test_glsl_extra();
+    test_glsl_transformation();
     test_glsl_solvers();
     test_glsl_aabb();
     test_glsl_triangle();
     test_glsl_axis_aligned_bounding_box();
     test_glsl_point_distance();
     test_glsl_ray_intersection();
-	return 1;
+     return 1;
 }
