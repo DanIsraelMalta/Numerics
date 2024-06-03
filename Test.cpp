@@ -1248,6 +1248,22 @@ void test_glsl_ray_intersection() {
             });
         });
     }
+
+    {
+        vec3 xAxis(1.0f, 0.0f, 0.0f);
+        vec3 zAxis(0.0f, 0.0f, 1.0f);
+        float angle{ std::numbers::pi_v<float> / 2.0f };
+
+        vec3 rotated = Extra::rotate_point_around_axis(vec3(2.0f, 0.0f, 0.0f), zAxis, angle);
+        assert(std::abs(rotated.x) < 1e-6);
+        assert(std::abs(rotated.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated.z) < 1e-6);
+
+        rotated = Extra::rotate_point_around_axis(vec3(0.0f, 0.0f, -2.0f), xAxis, angle);
+        assert(std::abs(rotated.x) < 1e-6);
+        assert(std::abs(rotated.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated.z) < 1e-6);
+    }
 }
 
 int main() {
