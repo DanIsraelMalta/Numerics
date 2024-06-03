@@ -172,7 +172,7 @@ namespace Extra {
         }
     }
 
-	/**
+    /**
     * \brief generate look-at matrix (4x4)
     * @param {Vector3,                in}  origin/eye
     * @param {Vector3,                in}  target/center
@@ -200,11 +200,11 @@ namespace Extra {
     }
 
     /**
-        * \brief return rotation axis and rotation angle of a rotation matrix.
-        *        only works for non symmetric rotation matrices.
-        * @param {Matrix3,               in}  rotation matrix (not symmetric)
-        * @param {{Vector3, arithmetic}, out} {rotation axis, rotation angle [rad] cosine }
-        **/
+    * \brief return rotation axis and rotation angle of a rotation matrix.
+    *        only works for non symmetric rotation matrices.
+    * @param {Matrix3,               in}  rotation matrix (not symmetric)
+    * @param {{Vector3, arithmetic}, out} {rotation axis, rotation angle [rad] cosine }
+    **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto get_axis_angle_from_rotation_matrix(const GLSL::Matrix3<T>& mat) {
