@@ -299,6 +299,14 @@ namespace Extra {
         assert(Extra::is_normalized(axis));
         return GLSL::mix(GLSL::dot(axis, p) * axis, p, std::cos(angle)) + GLSL::cross(axis, p) * std::sin(angle);
     }
+    template<auto angle, class T = decltype(angle)>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector3<T> rotate_point_around_axis(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& axis) noexcept {
+        constexpr T sinAngle{ std::sin(angle) };
+        constexpr T cosAngle{ std::cos(angle) };
+        assert(Extra::is_normalized(axis));
+        return GLSL::mix(GLSL::dot(axis, p) * axis, p, cosAngle) + GLSL::cross(axis, p) * sinAngle;
+    }
 
     /**
     * \brief return a orthonormalized matrix (using Gram-Schmidt process)
