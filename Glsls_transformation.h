@@ -162,4 +162,127 @@ namespace Transformation {
         return GLSL::mix(GLSL::dot(axis, p) * axis, p, cosAngle) + GLSL::cross(axis, p) * sinAngle;
     }
 
+    /**
+    * \brief given axis and angle, return quaternion
+    * @param {Vector3,        in}  axis (should be normalized)
+    * @param {floating_point, in}  angle [rad]
+    * @param {Vector4,        out} quaternion
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector4<T> create_quaternion_from_axis_angle(const GLSL::Vector3<T>& axis, const T angle) {
+        assert(Extra::is_normalized(axis));
+        const T halfAngle{ angle / static_cast<T>(2.0) };
+        return GLSL::Vector4<T>(std::sin(halfAngle) * axis, std::cos(halfAngle));
+    }
+    template<auto angle, class T = decltype(angle)>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector4<T> create_quaternion_from_axis_angle(const GLSL::Vector3<T>& axis) {
+        assert(Extra::is_normalized(axis));
+        constexpr T halfAngle{ angle / static_cast<T>(2.0) };
+        constexpr T cosHalf{ std::cos(halfAngle) };
+        constexpr T sinHalf{ std::sin(halfAngle) };
+        return GLSL::Vector4<T>(sinHalf * axis, cosHalf);
+    }
+
+    /**
+    * \brief create a quaternion from DCM matrix
+    * @param {Matrix3, in}  DCM matrix
+    * @param {Vector4, out} quaternion
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector4<T> create_quaternion_from_rotation_matrix(const GLSL::Matrix3<T>& mat) {
+        assert(Extra::is_dcm_matrix(mat));
+
+        const T tr{static_cast<T>(1) + mat(0,0) + mat(1,1) + mat(2,2)};
+
+        // to avoid large numerical distortions (DCM trace shoule be positive)
+        if (tr > T{}) {
+            [[assume(tr > T{})]];
+            const T S{ static_cast<T>(2) * std::sqrt(tr) };
+            [[assume(S > T{})]];
+            const T Sinv{ static_cast<T>(1) / S };
+
+            return GLSL::Vector4<T>((mat(2,1) - mat(1,2)) * Sinv,
+                                    (mat(0,2) - mat(2,0)) * Sinv,
+                                    (mat(1,0) - mat(0,1)) * Sinv,
+                                    static_cast<T>(0.25) * S);
+        } // DCM trace is zero, find largest diagonal element, and build quaternion using it
+        else {
+            // column 0
+            if ((mat(0, 0) > mat(1, 1)) && (mat(0, 0) > mat(2, 2))) {
+                const T S{ static_cast<T>(2) * std::sqrt(static_cast<T>(1) + mat(0, 0) - mat(1, 1) - mat(2, 2)) };
+                [[assume(S > T{})]];
+                const T Sinv{ static_cast<T>(1) / S };
+
+                return GLSL::Vector4<T>(static_cast<T>(0.25) * S,
+                                        (mat(1, 0) + mat(0, 1)) * Sinv,
+                                        (mat(0, 2) + mat(2, 0)) * Sinv,
+                                        (mat(2, 1) - mat(1, 2)) * Sinv);
+            }   // Column 1
+            else if (mat(1, 1) > mat(2, 2))
+            {
+                const T S{ static_cast<T>(2) * std::sqrt(static_cast<T>(1) + mat(1, 1) - mat(0, 0) - mat(2, 2)) };
+                [[assume(S > T{})]];
+                const T Sinv{ static_cast<T>(1) / S };
+
+                return GLSL::Vector4<T>((mat(1, 0) + mat(0, 1)) * Sinv,
+                                        static_cast<T>(0.25) * S,
+                                        (mat(2, 1) + mat(1, 2)) * Sinv,
+                                        (mat(0, 2) - mat(2, 0)) * Sinv);
+            }
+            else
+            {   // Column 2
+                const T S{ static_cast<T>(2) * std::sqrt(static_cast<T>(1) + mat(2, 2) - mat(0, 0) - mat(1, 1)) };
+                [[assume(S > T{})]];
+                const T Sinv{ static_cast<T>(1) / S };
+
+                return GLSL::Vector4<T>((mat(0, 2) + mat(2, 0)) * Sinv,
+                                        (mat(2, 1) + mat(1, 2)) * Sinv,
+                                        static_cast<T>(0.25) * S,
+                                        (mat(1, 0) - mat(0, 1)) * Sinv);
+            }
+        }
+    }
+
+    /**
+    * \brief create a quaternion from DCM matrix
+    * @param {Vector4, in}  DCM matrix
+    * @param {Matrix3, out} quaternion
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Matrix3<T> create_rotation_matrix_from_quaternion(const GLSL::Vector4<T>& quat) {
+        assert(Extra::is_normalized(quat));
+        const T q0q1{ quat.x * quat.y };
+        const T q0q2{ quat.x * quat.z };
+        const T q1q2{ quat.y * quat.z };
+        const T q3q0{ quat.w * quat.x };
+        const T q3q1{ quat.w * quat.y };
+        const T q3q2{ quat.w * quat.z };
+        const T q0Sqr{ quat.x * quat.x };
+        const T q1Sqr{ quat.y * quat.y };
+        const T q2Sqr{ quat.z * quat.z };
+        const T q3Sqr{ quat.w * quat.w };
+        const T one{ static_cast<T>(1) };
+        const T two{ static_cast<T>(2) };
+        return GLSL::Matrix3<T>( one - two * (q2Sqr + q1Sqr), two * (q0q1 - q3q2),         two * (q0q2 + q3q1),
+                                 two * (q0q1 + q3q2),         one - two * (q0Sqr + q2Sqr), two * (q1q2 - q3q0),
+                                 two * (q0q2 - q3q1),         two * (q1q2 + q3q0),         one - two * (q0Sqr + q1Sqr) );
+    }
+
+    /**
+    * \brief rotate a point using normalized quaternion
+    * @param {Vector4, in}  quaternion (normalized)
+    * @param {Vector3, in}  point to rotate
+    * @param {Vector3, out} rotate point
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector3<T> rotate_point_using_quaternion(const GLSL::Vector4<T>& quat, const GLSL::Vector3<T>& point) {
+        const GLSL::Vector3<T> axis{ Extra::get_quaternion_axis(quat) };
+        const GLSL::Vector3<T> temp{ static_cast<T>(2) * GLSL::cross(axis, point) };
+        return (point + quat.w * temp + GLSL::cross(axis, temp));
+    }
 }
