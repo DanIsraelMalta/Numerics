@@ -727,16 +727,16 @@ void test_glsl_transformation() {
         Utilities::static_for<0, 1, 3>([&Rx, &RxExpected](std::size_t i) {
             Utilities::static_for<0, 1, 3>([&Rx, &RxExpected, i](std::size_t j) {
                 assert(std::abs(std::abs(Rx(i, j)) - std::abs(RxExpected(i, j))) <= 1e-6);
-                });
             });
+        });
 
         const auto Ry = Transformation::rotation_matrix_from_axis_angle(dvec3(0.0, 1.0, 0.0), std::numbers::pi_v<double> / 2);
         const auto RyExpected = dmat3(0.0, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0);
         Utilities::static_for<0, 1, 3>([&Ry, &RyExpected](std::size_t i) {
             Utilities::static_for<0, 1, 3>([&Ry, &RyExpected, i](std::size_t j) {
                 assert(std::abs(std::abs(Ry(i, j)) - std::abs(RyExpected(i, j))) <= 1e-6);
-                });
             });
+        });
     }
 
     {
@@ -752,8 +752,8 @@ void test_glsl_transformation() {
         Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle](std::size_t i) {
             Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, i](std::size_t j) {
                 assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_world_up_axis_angle(j, i))) < 1e-6);
-                });
             });
+        });
 
         // look at matrix test #2
         dmat3 transformation_using_rotation = Transformation::create_look_at_matrix(eye, target, std::acos(axis_angle_using_world_up.cosine)); // look-at matrix using roll angle
@@ -763,8 +763,8 @@ void test_glsl_transformation() {
         Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll](std::size_t i) {
             Utilities::static_for<0, 1, 3>([&transformation_using_rotation, &dcm_using_roll, i](std::size_t j) {
                 assert(std::abs(std::abs(transformation_using_rotation(i, j)) - std::abs(dcm_using_roll(j, i))) < 1e-6);
-                });
             });
+        });
     }
 
     {
@@ -781,6 +781,33 @@ void test_glsl_transformation() {
         assert(std::abs(rotated.x) < 1e-6);
         assert(std::abs(rotated.y - 2.0f) < 1e-6);
         assert(std::abs(rotated.z) < 1e-6);
+
+        vec4 quat = Transformation::create_quaternion_from_axis_angle(zAxis, angle);
+        vec3 rotated_using_quat = Transformation::rotate_point_using_quaternion(quat, vec3(2.0f, 0.0f, 0.0f));
+        assert(std::abs(rotated_using_quat.x) < 1e-6);
+        assert(std::abs(rotated_using_quat.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated_using_quat.z) < 1e-6);
+
+        quat = Transformation::create_quaternion_from_axis_angle(xAxis, angle);
+        rotated_using_quat = Transformation::rotate_point_using_quaternion(quat, vec3(0.0f, 0.0f, -2.0f));
+        assert(std::abs(rotated_using_quat.x) < 1e-6);
+        assert(std::abs(rotated_using_quat.y - 2.0f) < 1e-6);
+        assert(std::abs(rotated_using_quat.z) < 1e-6);
+    }
+
+    {
+        vec3 axis = GLSL::normalize(vec3(1.0f, 2.0f, 3.0f));
+        float angle{ std::numbers::pi_v<float> / 4.0f };
+
+        vec4 quat = Transformation::create_quaternion_from_axis_angle(axis, angle);
+        mat3 mat = Transformation::create_rotation_matrix_from_quaternion(quat);
+        auto axis_from_mat = Transformation::get_axis_angle_from_rotation_matrix(mat);
+
+        assert(std::abs(angle - std::acos(axis_from_mat.cosine)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(GLSL::abs(axis) - GLSL::abs(axis_from_mat.axis))) < 1e-6);
+
+        vec4 quat_from_mat = Transformation::create_quaternion_from_rotation_matrix(mat);
+        assert(GLSL::max(GLSL::abs(GLSL::abs(quat_from_mat) - GLSL::abs(quat))) < 1e-6);
     }
 }
 
