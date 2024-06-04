@@ -105,4 +105,26 @@ namespace AxisLignedBoundingBox {
 
         return out_t{ c - e, c + e };
     }
+
+    /**
+	* \brief given point cloud - return its axis aligned bounding box
+	* @param {forward_iterator,             in}  iterator to collection first point
+	* @param {forward_iterator,             in}  iterator to collection last point
+	* @param {{IFixedVector, IFixedVector}, out} {aabb min, aabb max}
+	**/
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC>)
+	constexpr auto point_cloud_aabb(const InputIt first, const InputIt last) noexcept {
+        using T = typename VEC::value_type;
+		using out_t = struct { VEC min; VEC max; };
+
+		VEC min(std::numeric_limits<T>::max());
+		VEC maxNegative(std::numeric_limits<T>::max());
+        for (auto it{ first }; it != last; ++it) {
+			min = GLSL::min(min, *it);
+			maxNegative = GLSL::min(maxNegative, -*it);
+		}
+
+		return out_t{ min, -maxNegative };
+	}
 }
