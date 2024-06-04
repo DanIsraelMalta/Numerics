@@ -988,6 +988,13 @@ void test_glsl_axis_aligned_bounding_box() {
         assert(GLSL::max(GLSL::abs(aabb.min - vec3(6.0f, 10.0f, -4.0f))) <= 1e-6);
         assert(GLSL::max(GLSL::abs(aabb.max - vec3(14.0f, 10.0f, 4.0f))) <= 1e-6);
     }
+
+    {
+        std::list<vec2> points{ {vec2(0.0f), vec2(1.0f), vec2(2.0f), vec2(-5.0f), vec2(10.0f), vec2(-17.0f, -3.0f)} };
+        auto aabb = AxisLignedBoundingBox::point_cloud_aabb(points.begin(), points.end());
+        assert(GLSL::max(GLSL::abs(aabb.min - vec2(-17.0f, -5.0f))) <= 1e-6);
+        assert(GLSL::max(GLSL::abs(aabb.max - vec2(10.0f, 10.0f))) <= 1e-6);
+    }
 }
 
 void test_glsl_point_distance() {
