@@ -303,4 +303,55 @@ namespace Extra {
 
         return dot;
     }
+
+    /**
+    * \brief given quaternion, return its rotation angle
+    * @param {Vector4,    in}  quaternion
+    * @param {value_type, out} quaternion angle
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr T get_quaternion_angle(const GLSL::Vector4<T>& quat) {
+        assert(Extra::is_normalized(quat));
+        return static_cast<T>(2) * std::acos(quat.w);
+    }
+
+    /**
+    * \brief given quaternion (normalized), return its rotation angle
+    * @param {Vector4, in}  quaternion (normalized)
+    * @param {Vector3, out} quaternion axis
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector3<T> get_quaternion_axis(const GLSL::Vector4<T>& quat) {
+        assert(Extra::is_normalized(quat));
+        return quat.xyz;
+    }
+
+    /**
+    * \brief return the conjugate of a given quaternion (since quaternion is normalized, its also the inverse)
+    * @param {Vector4, in}  quaternion (normalized)
+    * @param {Vector4, out} quaternion conjugate/inverse
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr GLSL::Vector4<T> get_quaternion_conjugate(const GLSL::Vector4<T>& quat) {
+        return GLSL::Vector4<T>(-quat.x, -quat.y, -quat.z, quat.w);
+    }
+
+    /**
+    * \brief return the cross product of two vectors or quaternions.
+    *        2D operator is based on wedge operator from geometric algebra.
+    * @param {Vector4, in}  quaternion
+    * @param {Vector4, in}  quaternion
+    * @param {Vector4, out} product of two quaternions
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr auto multiply_quaternions(const GLSL::Vector4<T>& x, const GLSL::Vector4<T>& y) noexcept {
+        return GLSL::Vector4<T>(x[0] * y[0] - x[1] * y[1] - x[2] * y[2] - x[3] * y[3],
+                                x[0] * y[1] + x[1] * y[0] - x[2] * y[3] + x[3] * y[2],
+                                x[0] * y[2] + x[1] * y[3] + x[2] * y[0] - x[3] * y[1],
+                                x[0] * y[3] - x[1] * y[2] + x[2] * y[1] + x[3] * y[0]);
+    }
 }
