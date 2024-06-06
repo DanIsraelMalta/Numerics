@@ -206,7 +206,7 @@ namespace Decomposition {
     constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
         using VEC = typename MAT::vector_type;
-        using out_t = struct { MAT eigenvectors; MAT schur; T error; };
+        using out_t = struct { MAT eigenvectors; MAT schur; };
 
         MAT A(mat);
         qr_t QR;
@@ -222,7 +222,22 @@ namespace Decomposition {
             ++i;
         }
 
-        return out_t{ QR.Q, A, err };
+        return out_t{ QR.Q, A };
+    }
+
+    template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
+    constexpr auto Schur(const MAT& mat) {
+        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using out_t = struct { MAT eigenvectors; MAT schur; };
+
+        MAT A(mat);
+        qr_t QR;
+        Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
+            QR = Decomposition::QR_GivensRotation(A);
+            A = QR.R * QR.Q;
+        });
+
+        return out_t{ QR.Q, A };
     }
 };
 
