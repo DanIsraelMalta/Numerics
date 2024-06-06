@@ -194,6 +194,36 @@ namespace Decomposition {
 
         return out_t{ LU, Pivot, Sign };
     }
+
+    /**
+    * \brief using Schur decomposition - return eigenvector and eigenvalues of given matrix.
+    * @param {IFixedCubicMatrix,                                 in}  matrix to decomopse
+    * @param {size_t,                                            in}  maximal number of iterations (default is 10)
+    * @param {value_type,                                        in}  minimal error in iteration to stop calculation (defult is 1e-5)
+    * @param {IFixedCubicMatrix, IFixedCubicMatrix, value_type}, out} {matrix whose columns are eigenvectors, upper triangular matric whose diagonal holds eigenvalues, error in eigenvalue calculation }
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
+        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using VEC = typename MAT::vector_type;
+        using out_t = struct { MAT eigenvectors; MAT schur; T error; };
+
+        MAT A(mat);
+        qr_t QR;
+        T err{ static_cast<T>(10) * tol };
+        std::size_t i{};
+        while ((i < iter) && (err > tol)) {
+            const VEC eigvalues0{ GLSL::trace(A) };
+
+            QR = Decomposition::QR_GivensRotation(A);
+            A = QR.R * QR.Q;
+
+            err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigvalues0));
+            ++i;
+        }
+
+        return out_t{ QR.Q, A, err };
+    }
 };
 
 //
