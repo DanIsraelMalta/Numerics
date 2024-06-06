@@ -932,11 +932,65 @@ void test_glsl_aabb() {
 }
 
 void test_glsl_triangle() {
-    assert(Triangle::is_point_within_triangle(ivec2(0), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
-    assert(!Triangle::is_point_within_triangle(ivec2(0, 2), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+    {
+        assert(Triangle::is_valid(ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+        assert(!Triangle::is_valid(ivec2(-1), ivec2(-1), ivec2(0, 1)));
+    }
 
-    assert(Triangle::is_valid(ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
-    assert(!Triangle::is_valid(ivec2(-1), ivec2(-1), ivec2(0, 1)));
+    {
+        assert(Triangle::is_point_within_triangle(ivec2(0), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+        assert(!Triangle::is_point_within_triangle(ivec2(0, 2), ivec2(-1), ivec2(1, -1), ivec2(0, 1)));
+
+        vec2 a(-1.0f);
+        vec2 b(3.0f, 2.0f);
+        vec2 c(0.0f, 4.0f);
+        assert(Triangle::is_point_within_triangle(vec2(0.0f), a, b, c));
+        assert(Triangle::is_point_within_triangle(vec2(-0.5f), a, b, c));
+        assert(!Triangle::is_point_within_triangle(vec2(-0.5f, 2.0f), a, b, c));
+        assert(!Triangle::is_point_within_triangle(vec2(3.0f, 1.0f), a, b, c));
+        assert(Triangle::is_point_within_triangle(vec2(1.0f, 2.0f), a, b, c));
+    }
+
+    {
+        vec2 a(-1.0f);
+        vec2 b(1.0f, -1.0f);
+        vec2 c(0.0f, 1.0f);
+
+        vec3 bary = Triangle::get_point_in_barycentric(vec2(0.3f, -0.3f), a, b, c);
+        vec2 euclid( bary.x * a + bary.y * b + bary.z * c );
+        assert(std::abs(euclid.x - 0.3f) < 1e-6f);
+        assert(std::abs(euclid.y - -0.3f) < 1e-6f);
+
+        bary = Triangle::get_point_in_barycentric(vec2(-0.2f, -0.1f), a, b, c);
+        euclid = bary.x * a + bary.y * b + bary.z * c;
+        assert(std::abs(euclid.x - -0.2f) < 1e-6f);
+        assert(std::abs(euclid.y - -0.1f) < 1e-6f);
+
+        bary = Triangle::get_point_in_barycentric(vec2(-1.0f), a, b, c);
+        assert(std::abs(bary.x - 1.0f) < 1e-6f);
+        assert(std::abs(bary.y) < 1e-6f);
+        assert(std::abs(bary.z) < 1e-6f);
+
+        bary = Triangle::get_point_in_barycentric(vec2(1.0f, -1.0f), a, b, c);
+        assert(std::abs(bary.x) < 1e-6f);
+        assert(std::abs(bary.y - 1.0f) < 1e-6f);
+        assert(std::abs(bary.z) < 1e-6f);
+
+        bary = Triangle::get_point_in_barycentric(vec2(0.0f, 1.0f), a, b, c);
+        assert(std::abs(bary.x) < 1e-6f);
+        assert(std::abs(bary.y) < 1e-6f);
+        assert(std::abs(bary.z - 1.0f) < 1e-6f);
+    }
+
+    {
+        vec2 a(-1.0f);
+        vec2 b(1.0f, -1.0f);
+        vec2 c(0.0f, 1.0f);
+        vec3 bary = Triangle::barycentric_from_cartesian(a, b, c);
+        assert(std::abs(bary.x - 2.0f) < 1e-6f);
+        assert(std::abs(bary.y - -0.5f) < 1e-6f);
+        assert(std::abs(bary.z - -0.5f) < 1e-6f);
+    }
 }
 
 void test_glsl_axis_aligned_bounding_box() {
