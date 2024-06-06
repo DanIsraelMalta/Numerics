@@ -914,6 +914,20 @@ void test_glsl_solvers() {
         lambda = Solvers::spectral_radius(a2);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 18053u);
     }
+        
+    {
+        auto eig = Decomposition::Schur(a, 20);
+        assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
+        assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -3419);
+        assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1605);
+
+        eig = Decomposition::Schur(GLSL::Matrix3<double>(21.0, 6.0, 14.0,
+                                                         -51.0, -51.0, 24.0,
+                                                         4.0, 24.0, 321.0), 20);
+        assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 32257);
+        assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -4881);
+        assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1723);
+    }
 }
 
 void test_glsl_aabb() {
