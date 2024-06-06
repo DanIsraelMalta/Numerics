@@ -22,9 +22,9 @@ namespace Triangle {
         const VEC v10{ v1 - v0 };
         const VEC v21{ v2 - v1 };
         const VEC v20{ v2 - v0 };
-        std::array<T, 3> sides{ { GLSL::length(v10),
-                                  GLSL::length(v21),
-                                  GLSL::length(v20) } };
+        std::array<T, 3> sides{ { GLSL::length(v1 - v0),
+                                  GLSL::length(v2 - v1),
+                                  GLSL::length(v2 - v0) } };
         if (sides[0] > sides[2]) { Utilities::swap(sides[0], sides[2]); }
         if (sides[0] > sides[1]) { Utilities::swap(sides[0], sides[1]); }
         if (sides[1] > sides[2]) { Utilities::swap(sides[1], sides[2]); }
@@ -42,7 +42,7 @@ namespace Triangle {
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr GLSL::Vector3<T> point_barycentric(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
+    constexpr GLSL::Vector3<T> get_point_in_barycentric(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
         assert(Triangle::is_valid(a, b, c));
 
         const VEC v0{ b - a };
