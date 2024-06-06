@@ -15,7 +15,7 @@
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_point_distance.h"
 #include "Glsl_ray_intersections.h"
-#include "Glsl_transformation.h"
+#include "Glsls_transformation.h"
 
 void test_diamond_angle() {
     // test atan2
