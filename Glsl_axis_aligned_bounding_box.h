@@ -13,7 +13,7 @@ namespace AxisLignedBoundingBox {
     * @param {Vector3,            in}  disk center
     * @param {Vector3,            in}  disk normal (should be normalized)
     * @param {floating_point,     in}  disk radius
-    * @param {[Vector3, Vector3], out} [aabb min, aabb max]
+    * @param {[Vector3, Vector3], out} {aabb min, aabb max}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
@@ -36,7 +36,7 @@ namespace AxisLignedBoundingBox {
     * @param {Vector3,            in}  cylinder edge point #1
     * @param {Vector3,            in}  cylinder edge point #2
     * @param {floating_point,     in}  cylinder radius
-    * @param {[Vector3, Vector3], out} [aabb min, aabb max]
+    * @param {[Vector3, Vector3], out} {aabb min, aabb max}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
@@ -62,7 +62,7 @@ namespace AxisLignedBoundingBox {
     * @param {Vector3,            in}  cone edge point #2
     * @param {floating_point,     in}  cone radius at point #1
     * @param {floating_point,     in}  cone radius at point #2
-    * @param {[Vector3, Vector3], out} [aabb min, aabb max]
+    * @param {[Vector3, Vector3], out} {aabb min, aabb max}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
@@ -90,7 +90,7 @@ namespace AxisLignedBoundingBox {
     * @param {Vector3,            in}  ellipse center
     * @param {Vector3,            in}  vector connecting ellipse edge points along long axis
     * @param {Vector3,            in}  vector connecting ellipse edge points along small axis
-    * @param {[Vector3, Vector3], out} [aabb min, aabb max]
+    * @param {[Vector3, Vector3], out} {aabb min, aabb max}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
@@ -107,24 +107,24 @@ namespace AxisLignedBoundingBox {
     }
 
     /**
-	* \brief given point cloud - return its axis aligned bounding box
-	* @param {forward_iterator,             in}  iterator to collection first point
-	* @param {forward_iterator,             in}  iterator to collection last point
-	* @param {{IFixedVector, IFixedVector}, out} {aabb min, aabb max}
-	**/
-	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-		requires(GLSL::is_fixed_vector_v<VEC>)
-	constexpr auto point_cloud_aabb(const InputIt first, const InputIt last) noexcept {
+    * \brief given point cloud - return its axis aligned bounding box
+    * @param {forward_iterator,             in}  iterator to collection first point
+    * @param {forward_iterator,             in}  iterator to collection last point
+    * @param {{IFixedVector, IFixedVector}, out} {aabb min, aabb max}
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+	requires(GLSL::is_fixed_vector_v<VEC>)
+    constexpr auto point_cloud_aabb(const InputIt first, const InputIt last) noexcept {
         using T = typename VEC::value_type;
-		using out_t = struct { VEC min; VEC max; };
+	using out_t = struct { VEC min; VEC max; };
 
-		VEC min(std::numeric_limits<T>::max());
-		VEC maxNegative(std::numeric_limits<T>::max());
+	VEC min(std::numeric_limits<T>::max());
+	VEC maxNegative(std::numeric_limits<T>::max());
         for (auto it{ first }; it != last; ++it) {
-			min = GLSL::min(min, *it);
-			maxNegative = GLSL::min(maxNegative, -*it);
-		}
-
-		return out_t{ min, -maxNegative };
+	    min = GLSL::min(min, *it);
+	    maxNegative = GLSL::min(maxNegative, -*it);
 	}
+
+	return out_t{ min, -maxNegative };
+    }
 }
