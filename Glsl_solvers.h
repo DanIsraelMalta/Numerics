@@ -73,9 +73,7 @@ namespace Decomposition {
         // decomposition
         MAT R(mat);
         MAT Q;
-        Utilities::static_for<0, 1, N>([&Q](std::size_t i) {
-            Q(i, i) = static_cast<T>(1);
-        });
+        Extra::make_identity(Q);
         for (std::size_t j{}; j < N; ++j) {
             for (std::size_t i{ N - 1 }; i >= j + 1; --i) {
                 const GLSL::Vector3<T> CSR(givensRotation(R(j, i - 1), R(j, i)));
