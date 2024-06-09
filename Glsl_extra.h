@@ -258,7 +258,7 @@ namespace Extra {
     * \brief calculate "left looking" dot product between two vectors
     * @param {VEC,        in}  x
     * @param {VEC,        in}  y
-    * @param {value_type, out} dot product between x and y
+    * @param {value_type, out} left dot product between x and y
     **/
     template<std::size_t N, GLSL::IFixedVector VEC>
         requires(N <= VEC::length())
@@ -282,7 +282,7 @@ namespace Extra {
     /**
     * \brief calculate "left looking" dot product of vector
     * @param {VEC,        in}  vector
-    * @param {value_type, out} dot product of vector
+    * @param {value_type, out} left dot product of vector
     **/
     template<std::size_t N, GLSL::IFixedVector VEC>
         requires(N <= VEC::length())
