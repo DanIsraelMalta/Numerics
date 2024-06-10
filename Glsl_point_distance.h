@@ -134,8 +134,8 @@ namespace PointDistance {
             const GLSL::Vector2<T> b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
             const GLSL::Vector3<bool> c(p.y >= v[i].y,
-                p.y < v[j].y,
-                e.x * w.y > e.y * w.x);
+                                        p.y < v[j].y,
+                                        e.x * w.y > e.y * w.x);
             if (GLSL::all(c) || GLSL::all(GLSL::glsl_not(c))) {
                 s *= static_cast<T>(-1);
             }
@@ -168,7 +168,7 @@ namespace PointDistance {
             else {
                 return (std::atan2(p.x, p.y) % static_cast<T>(2) * an) - an;
             }
-            }();
+        }();
 
         p = GLSL::length(p) * GLSL::Vector2<T>(std::cos(bn), std::abs(std::sin(bn)));
 
@@ -208,7 +208,8 @@ namespace PointDistance {
             const T g{ m + m * n2 };
 
             if (d < T{}) {
-                const T h{ std::acos(q / c3) / static_cast<T>(3) };
+                assert(!Numerics::areEquals(c3, T{}));
+                const T h{ std::acos(Numerics::clamp<static_cast<T>(-1), static_cast<T>(1)>(q / c3)) / static_cast<T>(3) };
                 const T s{ std::cos(h) };
                 const T t{ std::sin(h) * std::sqrt(static_cast<T>(3)) };
                 const T squaredx{ -c * (s + t + static_cast<T>(2)) + m2 };
@@ -219,7 +220,7 @@ namespace PointDistance {
                 const T ry{ std::sqrt(squaredy) };
                 const T rxry{ rx + ry };
 
-                assert(!Numerics::areEquals(rxry, T{}));
+                assert(rxry > T{});
                 return (ry + std::copysign(rx, l) + std::abs(g) / rxry - m) / static_cast<T>(2);
             }
             else {
@@ -232,7 +233,7 @@ namespace PointDistance {
                 const T rxry{ rx * rx + ry * ry };
                 assert(rxry >= T{});
                 const T rm{ std::sqrt(rxry) };
-                assert(!Numerics::areEquals(rm, T{}));
+                assert(rm > T{});
                 const T rmrx{ rm - rx };
                 assert(rmrx >= T{});
                 return ((ry / std::sqrt(rmrx) + static_cast<T>(2) * g / rm - m) / static_cast<T>(2));
@@ -274,7 +275,7 @@ namespace PointDistance {
         const GLSL::Vector3<T> pa(p - a);
         const GLSL::Vector3<T> ba(b - a);
         const T dot{ GLSL::dot(ba)};
-        assert(!Numerics::areEquals(dot, T{}));
+        assert(dot > T{});
         const T h{ Numerics::clamp<T{}, static_cast<T>(1)>(GLSL::dot(pa, ba) / dot)};
         return GLSL::length(pa - ba * h) - r;
     }
@@ -293,7 +294,7 @@ namespace PointDistance {
         const GLSL::Vector3<T> ba(b - a);
         const GLSL::Vector3<T> pa(p - a);
         const T baba{ GLSL::dot(ba, ba) };
-        assert(!Numerics::areEquals(baba, T{}));
+        assert(baba > T{});
         const T paba{ GLSL::dot(pa, ba) };
         const T x{ GLSL::length(pa * baba - ba * paba) - r * baba };
         const T y{ std::abs(paba - static_cast<T>(0.5) * baba) - static_cast<T>(0.5) * baba };
@@ -316,9 +317,9 @@ namespace PointDistance {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr T sdf_to_bound_ellipsoied(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& r) {
-        assert(!Numerics::areEquals(r.x, T{}));
-        assert(!Numerics::areEquals(r.y, T{}));
-        assert(!Numerics::areEquals(r.z, T{}));
+        assert(r.x > T{});
+        assert(r.y > T{});
+        assert(r.z > T{});
 
         const T k0{ GLSL::length(p / r) };
         const T k1{ GLSL::length(p / (r * r)) };
