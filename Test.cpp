@@ -877,8 +877,8 @@ void test_glsl_solvers() {
     }
 
     {
-        const auto det_via_lu = Solvers::determinant_using_lu(a);
-        const auto det_via_qr = Solvers::determinant_using_qr(a);
+        const auto det_via_lu = Decomposition::determinant_using_lu(a);
+        const auto det_via_qr = Decomposition::determinant_using_qr(a);
         const auto det = GLSL::determinant(a);
         assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det_via_qr));
         assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det));
@@ -890,7 +890,7 @@ void test_glsl_solvers() {
                 13.0f, 15.0f, 75.0f, 32.0f,
                 14.0f, 14.0f, -15.0f, 27.0f,
                 15.0f, 13.0f, 5.0f, 5.0f);
-        mat4 dinv = Solvers::inverse(df);
+        mat4 dinv = Decomposition::inverse_using_lu(df);
         mat4 invExpected(0.242363f, -0.290946f, -0.609483f, 0.693781f,
                          -0.292204f, 0.342824f, 0.726677f, -0.741583f,
                          0.004369f, 0.005397f, -0.023901f, 0.014135f,
@@ -903,18 +903,18 @@ void test_glsl_solvers() {
     }
 
     {
-        auto lambda = Solvers::spectral_radius(a, 30);
+        auto lambda = Decomposition::spectral_radius(a, 30);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 1561366u);
 
-        lambda = Solvers::spectral_radius<30>(a);
+        lambda = Decomposition::spectral_radius<30>(a);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 1561366u);
 
 
         dmat3 a2(0.5, 0.5, 0.4, 0.2, 0.8, 0.5, 0.3, 0.9, 1.1);
-        lambda = Solvers::spectral_radius(a2);
+        lambda = Decomposition::spectral_radius(a2);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 18053u);
     }
-        
+
     {
         auto eig = Decomposition::Schur(a, 20);
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
