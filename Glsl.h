@@ -820,9 +820,9 @@ namespace GLSL {
 
     /**
     * \brief perform matrix-matrix multiplication
-    * @param {MAT, in}  matrix #1
-    * @param {MAT, in}  matrix #2
-    * @param {MAT, out} matrix #1 * matrix #2
+    * @param {MAT,            in}  matrix #1
+    * @param {MAT|value_type, in}  matrix #2 | scalar
+    * @param {MAT,            out} matrix #1 * matrix #2
     **/
     template<IFixedCubicMatrix MAT>
     constexpr MAT& operator *= (const MAT& lhs, const MAT& rhs) {
@@ -835,6 +835,17 @@ namespace GLSL {
             Utilities::static_for<0, 1, N>([&r, &rhs, &out, i](std::size_t j) {
                 out(j, i) = dot(r, rhs[j]);
             });
+        });
+
+        return out;
+    }
+    template<IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT& operator *= (const MAT& lhs, const T rhs) {
+        constexpr std::size_t N{ MAT::columns() };
+
+        MAT out(lhs);
+        Utilities::static_for<0, 1, N>([&out, rhs](std::size_t i) {
+            out[i] *= rhs;
         });
 
         return out;
@@ -854,6 +865,17 @@ namespace GLSL {
 
         return lhs;
     }
+    template<IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT& operator *= (MAT& lhs, const T rhs) {
+        constexpr std::size_t N{ MAT::columns() };
+
+        Utilities::static_for<0, 1, N>([&lhs, rhs](std::size_t i) {
+            lhs[i] *= rhs;
+        });
+
+        return lhs;
+    }
+
     template<IFixedCubicMatrix MAT>
     constexpr MAT& operator *= (MAT& lhs, MAT&& rhs) {
         using VEC = typename MAT::vector_type;
@@ -875,8 +897,8 @@ namespace GLSL {
     constexpr MAT operator OP (MAT lhs, const MAT& rhs) {                  \
         return (lhs AOP rhs);                                              \
     }                                                                      \
-    template<IFixedCubicMatrix VEC>                                        \
-    constexpr VEC operator OP (VEC lhs, typename VEC::value_type rhs) {    \
+    template<IFixedCubicMatrix MAT>                                        \
+    constexpr MAT operator OP (MAT lhs, typename MAT::value_type rhs) {    \
         return (lhs AOP rhs);                                              \
     }                                                                      \
     template<IFixedCubicMatrix MAT>                                        \
