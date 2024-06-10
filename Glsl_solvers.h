@@ -3,7 +3,7 @@
 #include "Glsl_extra.h"
 
 //
-// matrix decompositions
+// matrix decompositions and eigenvalue related operations
 // 
 
 namespace Decomposition {
@@ -15,7 +15,7 @@ namespace Decomposition {
     * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    constexpr auto QR_GramSchmidt(const MAT& mat) noexcept {
+    constexpr auto QR_GramSchmidt(const MAT& mat) {
         using out_t = struct { MAT Q; MAT R; };
 
         const MAT Q(Extra::orthonormalize(mat));
@@ -38,7 +38,7 @@ namespace Decomposition {
     * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    constexpr auto QR_GivensRotation(const MAT& mat) noexcept {
+    constexpr auto QR_GivensRotation(const MAT& mat) {
         using out_t = struct { MAT Q; MAT R; };
         using T = typename MAT::value_type;
         constexpr std::size_t N{ MAT::columns() };
@@ -109,7 +109,7 @@ namespace Decomposition {
     * @param {IFixedCubicMatrix, in|out} lower triangular matrix
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    constexpr MAT Cholesky(const MAT& mat) noexcept {
+    constexpr MAT Cholesky(const MAT& mat) {
         using T = typename MAT::value_type;
 
         MAT lower;
@@ -144,7 +144,7 @@ namespace Decomposition {
     * @param {{IFixedCubicMatrix, array, int32_t}, out} {LU matrix (decomposed matrix; upper triangular is U, lower triangular is L, diagnoal is part of U), decomposition pivot vector, pivot sign}
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    [[nodiscard]] constexpr auto LU(const MAT& mat) noexcept {
+    [[nodiscard]] constexpr auto LU(const MAT& mat) {
         constexpr std::size_t N{ MAT::columns() };
         using T = typename MAT::value_type;
         using VEC = typename MAT::vector_type;
@@ -167,7 +167,7 @@ namespace Decomposition {
                     _pivot = r;
                 }
             }
-
+            
             // exchange pivot
             if (_pivot != c) {
                 for (std::size_t cc{}; cc < N; ++cc) {
@@ -195,10 +195,10 @@ namespace Decomposition {
 
     /**
     * \brief using Schur decomposition - return eigenvector and eigenvalues of given matrix.
-    * @param {IFixedCubicMatrix,                                 in}  matrix to decomopse
-    * @param {size_t,                                            in}  maximal number of iterations (default is 10)
-    * @param {value_type,                                        in}  minimal error in iteration to stop calculation (defult is 1e-5)
-    * @param {IFixedCubicMatrix, IFixedCubicMatrix, value_type}, out} {matrix whose columns are eigenvectors, upper triangular matric whose diagonal holds eigenvalues, error in eigenvalue calculation }
+    * @param {IFixedCubicMatrix,                     in}  matrix to decomopse
+    * @param {size_t,                                in}  maximal number of iterations (default is 10)
+    * @param {value_type,                            in}  minimal error in iteration to stop calculation (defult is 1e-5)
+    * @param {IFixedCubicMatrix, IFixedCubicMatrix}, out} {matrix whose columns are eigenvectors, upper triangular matric whose diagonal holds eigenvalues }
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
@@ -237,26 +237,19 @@ namespace Decomposition {
 
         return out_t{ QR.Q, A };
     }
-};
-
-//
-// linear equation system solvers
-// 
-
-namespace Solvers {
 
     /**
     * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
     *        user suuplies two stoppage criterias:
     *        1. maximal amount of iterations (10 by default)
     *        2. minimal value between two consecutive eigenvalue approximation (1e-5 by default).
-    * @param {MAT,        in}  matrix
-    * @param {size_t,     in}  maximal number of iterations (default is 10)
-    * @param {value_type, in{  minimal error in iteration to stop calculation (defult is 1e-5)
-    * @param {value_type, out} spectral radius
+    * @param {IFixedCubicMatrix, in}  matrix
+    * @param {size_t,            in}  maximal number of iterations (default is 10)
+    * @param {value_type,        in}  minimal error in iteration to stop calculation (defult is 1e-5)
+    * @param {value_type,        out} spectral radius
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr T spectral_radius(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) noexcept {
+    constexpr T spectral_radius(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using VEC = typename MAT::vector_type;
 
         // initialize random "eigenvactor"
@@ -279,7 +272,7 @@ namespace Solvers {
             eigenvalue = GLSL::dot(eigenvector_next, eigenvector);
             ++i;
         }
-
+        
         // output
         const T dot{ GLSL::dot(eigenvector) };
         assert(!Numerics::areEquals(dot, T{}));
@@ -318,7 +311,7 @@ namespace Solvers {
     * @param {value_type, out} matrix determinant
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr T determinant_using_lu(const MAT& mat) noexcept {
+    constexpr T determinant_using_lu(const MAT& mat) {
         // LU decomposition
         auto lowerUpper = Decomposition::LU(mat);
         T det{ static_cast<T>(lowerUpper.Sign) };
@@ -338,7 +331,7 @@ namespace Solvers {
     * @param {value_type, out} matrix determinant
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr T determinant_using_qr(const MAT& mat) noexcept {
+    constexpr T determinant_using_qr(const MAT& mat) {
         // QR decomposition
         auto qr = Decomposition::QR_GivensRotation(mat);
         T det{ static_cast<T>(1) };
@@ -353,12 +346,12 @@ namespace Solvers {
     }
 
     /**
-    * \brief invert a matrix
+    * \brief invert a matrix using LU decomposition
     * @param {MAT, in}  matrix
     * @param {MAT, out} matrix inverse
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    constexpr MAT inverse(const MAT& mat) {
+    constexpr MAT inverse_using_lu(const MAT& mat) {
         using T = typename MAT::value_type;
         using VEC = typename MAT::vector_type;
         constexpr std::size_t N{ MAT::columns() };
@@ -392,6 +385,13 @@ namespace Solvers {
         // output
         return out;
     }
+};
+
+//
+// linear equation system solvers using decompositions
+// 
+
+namespace Solvers {
 
     /**
     * \brief solve linear system A*x=b using LU decomposition
@@ -402,7 +402,7 @@ namespace Solvers {
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
-    constexpr VEC SolveLU(const MAT& mat, const VEC& b) noexcept {
+    constexpr VEC SolveLU(const MAT& mat, const VEC& b) {
         using T = typename MAT::value_type;
         constexpr std::size_t N{ MAT::columns() };
 
@@ -445,7 +445,7 @@ namespace Solvers {
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
-    constexpr VEC SolveCholesky(const MAT& A, const VEC& b) noexcept {
+    constexpr VEC SolveCholesky(const MAT& A, const VEC& b) {
         using T = typename MAT::value_type;
         constexpr std::size_t N{ MAT::columns() };
 
@@ -491,7 +491,7 @@ namespace Solvers {
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
-    constexpr VEC SolveQR(const MAT& A, const VEC& b) noexcept {
+    constexpr VEC SolveQR(const MAT& A, const VEC& b) {
         // QR decomposition
         const auto qr = Decomposition::QR_GivensRotation(A);
 
