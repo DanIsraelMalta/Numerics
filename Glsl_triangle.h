@@ -60,7 +60,7 @@ namespace Triangle {
         const T d20{ GLSL::dot(v2, v0) };
         const T d21{ GLSL::dot(v2, v1) };
 
-        [[assume(denom != T{})]]
+        [[assume(denom > T{})]]
         const T v{ (d11 * d20 - d01 * d21) / denom };
         const T w{ (d00 * d21 - d01 * d20) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - v - w, v, w);
