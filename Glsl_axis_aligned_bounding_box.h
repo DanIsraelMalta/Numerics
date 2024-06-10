@@ -26,6 +26,9 @@ namespace AxisLignedBoundingBox {
         assert(one_minus_n2.x >= T{});
         assert(one_minus_n2.y >= T{});
         assert(one_minus_n2.z >= T{});
+        [[assume(one_minus_n2.x >= T{})]];
+        [[assume(one_minus_n2.y >= T{})]];
+        [[assume(one_minus_n2.z >= T{})]];
         const GLSL::Vector3<T> e{ rad * GLSL::sqrt(one_minus_n2) };
 
         return out_t{ c - e , c + e };
@@ -48,9 +51,9 @@ namespace AxisLignedBoundingBox {
         const T dot{ GLSL::dot(a) };
         assert(dot > T{});
         const GLSL::Vector3<T> squared{ one - a * a / dot };
-        assert(squared.x >= T{});
-        assert(squared.y >= T{});
-        assert(squared.z >= T{});
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
         const GLSL::Vector3<T> e{ ra * GLSL::sqrt(one - a * a / dot) };
 
         return out_t{ GLSL::min(pa - e, pb - e), GLSL::max(pa + e, pb + e) };
@@ -74,9 +77,9 @@ namespace AxisLignedBoundingBox {
         const T dot{ GLSL::dot(a) };
         assert(dot > T{});
         const GLSL::Vector3<T> squared{ one - a * a / dot };
-        assert(squared.x >= T{});
-        assert(squared.y >= T{});
-        assert(squared.z >= T{});
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
         const GLSL::Vector3<T> e{ GLSL::sqrt(squared) };
         const GLSL::Vector3<T> era{ e * ra };
         const GLSL::Vector3<T> erb{ e * rb };
@@ -98,9 +101,9 @@ namespace AxisLignedBoundingBox {
         using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
 
         const GLSL::Vector3<T> squared{ u * u + v * v };
-        assert(squared.x >= T{});
-        assert(squared.y >= T{});
-        assert(squared.z >= T{});
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
         const GLSL::Vector3<T> e{ GLSL::sqrt(squared) };
 
         return out_t{ c - e, c + e };
