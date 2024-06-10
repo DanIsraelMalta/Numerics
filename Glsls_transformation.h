@@ -107,6 +107,7 @@ namespace Transformation {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Matrix3<T> rotation_matrix_from_axis_angle(const GLSL::Vector3<T>& axis, const T angle) noexcept {
+	assert(Extra::is_normalized(axis));
         const T sint{ std::sin(angle) };
         const T cost{ std::cos(angle) };
         const T icost{ static_cast<T>(1) - cost };
@@ -127,6 +128,7 @@ namespace Transformation {
         constexpr T sint{ std::sin(angle) };
         constexpr T cost{ std::cos(angle) };
         constexpr T icost{ static_cast<T>(1) - cost };
+	assert(Extra::is_normalized(axis));
         const T axy{ axis.x * axis.y * icost };
         const T axz{ axis.x * axis.z * icost };
         const T ayz{ axis.y * axis.z * icost };
