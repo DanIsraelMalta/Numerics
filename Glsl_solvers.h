@@ -8,6 +8,38 @@
 
 namespace Decomposition {
     /**
+    * \brief return the eigenvalues of 2x2 or 3x3 marix
+    *
+    * @param {IFixedCubicMatrix, in}  input matrix
+    * @param {IFixedVector,      out} vector holding matrix eigenvalues
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type>
+        requires(MAT::columns() <= 3)
+    constexpr VEC eigenvalues(const MAT& mat) {
+        using T = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        if constexpr (N == 2) {
+            const T diff{ mat(0, 0) - mat(1, 1) };
+            const T center{ mat(0, 0) + mat(1, 1) };
+            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
+            assert(deltaSquared >= T{});
+            const T delta{ std::sqrt(deltaSquared) };
+
+            return VEC( (center + delta) / static_cast<T>(2), (center - delta) / static_cast<T>(2) );
+        }
+        else {
+            const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
+            const T det{ GLSL::determinant(mat) };
+            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
+                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
+                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
+            const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
+            return VEC(roots[0], roots[2], roots[4]);
+        }
+    }
+
+    /**
     * \brief perform QR decomposition using gram-schmidt process.
     *         numerically less accureate than QR_GivensRotation.
     *
