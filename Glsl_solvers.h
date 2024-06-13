@@ -8,7 +8,7 @@
 
 namespace Decomposition {
     /**
-    * \brief return the eigenvalues of 2x2 or 3x3 marix
+    * \brief return the eigenvalues of a 2x2 ot 3x3 matrix
     *
     * @param {IFixedCubicMatrix, in}  input matrix
     * @param {IFixedVector,      out} vector holding matrix eigenvalues
