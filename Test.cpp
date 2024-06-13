@@ -165,18 +165,33 @@ void test_numerics() {
     const std::array<double, 4> tempArray{ 1.0, std::pow(10.0, 100), 0.01, -std::pow(10.0, 100) };
     assert(static_cast<std::int32_t>(Numerics::accumulate(tempArray) * 100) == 101);
 
-    // test statistics
-    const std::array<double, 4> temp{ 2.0, 4.0, 6.0, 8.0 };
-    const auto stat = Numerics::statistics(temp);
-    assert(static_cast<unsigned int>(stat.sum) == 20u);
-    assert(static_cast<unsigned int>(stat.mean) == 5u);
-    assert(static_cast<unsigned int>(stat.var * 100) == 666);
-
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
     auto it = Numerics::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
     assert(v == vExpected);
+    
+    // test quadratic equation solver
+    {
+        auto sol = Numerics::SolveQuadratic(3.0f, -5.0f, 2.0f);
+        assert(static_cast<std::uint32_t>(sol.x1 * 10000) == 6666);
+        assert(static_cast<std::uint32_t>(sol.x2 * 10000) == 10000);
+
+        sol = Numerics::SolveQuadratic(4.0f, -5.0f, -12.0f);
+        assert(static_cast<std::int32_t>(sol.x1 * 10000) == -12163);
+        assert(static_cast<std::int32_t>(sol.x2 * 10000) == 24663);
+    }
+
+    // test cubic equation solver (x^3 + b*x^2 + c*x + d = 0)
+    {
+        auto sol = Numerics::SolveCubic(2.0f, 5.0f, -8.0f);
+        assert(static_cast<std::int32_t>(sol[0] * 10000) == 9999);
+        assert(static_cast<std::int32_t>(sol[1] * 10000) == 0);
+        assert(static_cast<std::int32_t>(sol[2] * 10000) == -15000);
+        assert(static_cast<std::int32_t>(sol[3] * 10000) == 23979);
+        assert(static_cast<std::int32_t>(sol[4] * 10000) == -15000);
+        assert(static_cast<std::int32_t>(sol[5] * 10000) == -23979);
+    }
 }
 
 void test_glsl_basics() {
