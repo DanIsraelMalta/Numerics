@@ -832,7 +832,19 @@ void test_glsl_solvers() {
                             -4.0, 24.0, -41.0);
 
     {
-        
+        auto eigs = Decomposition::eigenvalues(a);
+        assert(static_cast<std::int32_t>(eigs[0] * 10000) == -341966);
+        assert(static_cast<std::int32_t>(eigs[1] * 10000) == 1561366);
+        assert(static_cast<std::int32_t>(eigs[2] * 10000) == 160599);
+
+
+        mat2 b(51.0f, 13.0f, -24.0f, 7.0f);
+        auto eigs2 = Decomposition::eigenvalues(b);
+        assert(static_cast<std::int32_t>(eigs[0] * 10000) == 421148);
+        assert(static_cast<std::int32_t>(eigs[1] * 10000) == 158851);
+    }
+    
+    {
         dmat3 QExpected(0.228375, -0.9790593, 0.076125,
                         0.618929, 0.084383, -0.780901,
                         0.751513, 0.225454, 0.619999);
