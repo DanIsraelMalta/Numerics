@@ -470,47 +470,6 @@ namespace Numerics {
     }
 
     /**
-    * \brief given collection of numbers return their sum (numerically exact), mean and variance.
-    *        using Welford’s method (https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm)
-    * @param {forward_iterator,                     in}  iterator to first element to sum
-    * @param {forward_iterator,                     in}  iterator to last element to sum
-    * @param {{arithmetic, arithmetic, arithmetic}, out} {sum of elements, mean of elements, sample variance}
-    **/
-    template<std::forward_iterator InputIt, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(std::is_arithmetic_v<T>)
-    constexpr auto statistics(InputIt first, const InputIt last) {
-        using out_t = struct { T sum; T mean; T var; };
-
-        T sum{};
-        T err{};
-        T mean{};
-        T var{};
-        std::size_t amount{};
-        for (; first != last; ++first) {
-            const T value{ *first };
-            ++amount;
-            
-            // sum
-            const T m{ sum + value };
-            err += (std::abs(sum) >= std::abs(value)) ? (sum - m + value) : (value - m + sum);
-            sum = m;
-
-            // mean
-            const T delta{ value - mean };
-            mean += delta / static_cast<T>(amount);
-
-            // variance
-            var += delta * (value - mean);
-        }
-
-        return out_t{ sum + err, mean, var / static_cast<T>(amount - 1) };
-    }
-    template<Concepts::Iterable COL>
-    constexpr auto statistics(const COL& collection) {
-        return statistics(collection.begin(), collection.end());
-    }
-
-    /**
     * \brief Apply a kernal, in ordererd manner, on variadic amount of random access arithmetic ranges and return the result in a diffrent range.
     *        Although operation will be element wise, kernel should be given in scalar manner.
     * 
@@ -582,5 +541,109 @@ namespace Numerics {
         } else if (std::forward_iterator<It>) {
             return std::partition(first, last, FWD(p));
         }
+    }
+
+    /**
+    * \brief stable numeric solution of a quadratic equation (a*x^2 + b*x + c = 0)
+    * 
+    * @param {floating_point,                         in}  a
+    * @param {floating_point,                         in}  b
+    * @param {floating_point,                         in}  c
+    * @param {{bool, floating_point, floating_point}, out} {true if a solution exists - false otherwise, smaller root, larger root}
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr auto SolveQuadratic(const T a, const T b, const T c) noexcept {
+        using out_t = struct { bool found; T x1; T x2; };
+
+        // trivial solution
+        if (Numerics::areEquals(a, T{}) && Numerics::areEquals(b, T{})) [[unlikely]]  {
+            return out_t{ true, T{}, T{} };
+        }
+
+        const T discriminant{ b * b - static_cast<T>(4) * a * c };
+        if (discriminant < T{}) {
+            return out_t{ false, T{}, T{} };
+        }
+
+        // solution
+        [[assume(discriminant >= T{})]]
+        const T t{ static_cast<T>(-0.5) * (b + Numerics::sign(b) * std::sqrt(discriminant)) };
+        T x1{ t / a };
+        T x2{ c / t };
+        if (x1 > x2) {
+            Utilities::swap(x1, x2);
+        }
+
+        return out_t{ true, x1, x2 };
+    }
+
+    /**
+    * \brief stable numeric solution of a cubic equation (x^3 + b*x^2 + c*x + d = 0)
+    * 
+    * @param {floating_point,            in}  b
+    * @param {floating_point,            in}  c
+    * @param {floating_point,            in}  d
+    * @param {array<floating_point, 6>}, out} 1x6 array holding three paired solutions in the form (real solution #1, imag solution #1, ...)
+    *                                         if 1 real root exists: {real root 1, 0, Re(root 2), Im(root 2), Re(root 3), Im(root 3)}
+    *                                         if 3 real root exists: xo_roots[0] = real root 1, xo_roots[2] = real root 2, xo_roots[4] = real root 3
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr std::array<T, 6> SolveCubic(const T b, const T c, const T d) noexcept {
+        constexpr T ov3{ static_cast<T>(1) / static_cast<T>(3) };
+        constexpr T ov27{ static_cast<T>(1) / static_cast<T>(27) };
+        const T sq3{ static_cast<T>(std::sqrt(3)) };
+        const T ovsqrt27{ static_cast<T>(1) / std::sqrt(static_cast<T>(27)) };
+
+        // housekeeping
+        std::array<T, 6> roots{ { T{} } };
+
+        // transform to: x^3 + p*x + q = 0
+        const T bSqr{ b * b };
+        const T p{ (static_cast<T>(3) * c - bSqr) * ov3 };
+        const T q{ (static_cast<T>(9) * b * c - static_cast<T>(27) * d - static_cast<T>(2) * bSqr * b) * ov27 };
+
+        // single real solution? ( x = w - (p / (3 * w)) -> (w^3)^2 - q*(w^3) - (p^3)/27 = 0)
+        if (T h{ q * q / static_cast<T>(4) + p * p * p * ov27 }; h >= T{}) {
+            [[assume(h >= T{})]];
+            h = std::sqrt(h);
+
+            const T qHalf{ q * static_cast<T>(0.5) };
+            const T bThird{ b * ov3 };
+            const T r{ qHalf + h };
+            const T t{ qHalf - h };
+            const T s{ std::cbrt(r) };
+            const T u{ std::cbrt(t) };
+            const T re{ -(s + u) / static_cast<T>(2) - bThird };
+            const T im{  (s - u) * sq3 / static_cast<T>(2) };
+
+            // real root
+            roots[0] = (s + u) - bThird;
+
+            // first complex root
+            roots[2] = re;
+            roots[3] = im;
+
+            // second complex root
+            roots[4] = re;
+            roots[5] = -im;
+        }  // three real solutions
+        else {
+            [[assume(-p >= T{})]];
+            const T i{ p * std::sqrt(-p) * ovsqrt27 };     // p is negative (since h is positive)
+            const T j{ std::cbrt(i) };
+            const T k{ ov3 * std::acos((q / (static_cast<T>(2) * i))) };
+            const T m{ std::cos(k) };
+            const T n{ std::sin(k) * sq3 };
+            const T s{ -b * ov3 };
+
+            // roots
+            roots[0] = static_cast<T>(2) * j * m + s;
+            roots[2] = -j * (m + n) + s;
+            roots[4] = -j * (m - n) + s;
+        }
+
+        return roots;
     }
 }
