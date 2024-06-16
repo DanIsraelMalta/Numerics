@@ -1160,7 +1160,22 @@ void test_glsl_point_distance() {
         distance = PointDistance::sdf_to_box_at_center(vec2(0.0f, 4.0f), vec2(1.0f, 3.0f));
         assert(std::abs(distance - 1.0f) < 1e-6);
     }
-       
+
+    {
+        float angle = std::numbers::pi_v<float> / 4.0f;
+        float cos{ std::cos(angle) };
+        float sin{ std::sin(angle) };
+        mat2 rot(cos, sin, -sin, cos);
+        float distance = PointDistance::sdf_to_oriented_box_at_center(vec2(0.0f), vec2(0.0f), vec2(1.0f), rot);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_oriented_box_at_center(vec2(2.0f * sin, 2.0f * cos), vec2(0.0f), vec2(2.0f), rot);
+        assert(std::abs(distance) < 1e-6);
+
+        distance = PointDistance::sdf_to_oriented_box_at_center(vec2(-4.0f * sin, -4.0f * cos), vec2(0.0f), vec2(2.0f), rot);
+        assert(std::abs(distance - 2.0f) < 1e-6);
+    }
+	
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
