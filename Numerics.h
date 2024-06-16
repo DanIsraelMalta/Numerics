@@ -306,6 +306,60 @@ namespace Numerics {
     }
 
     /**
+    * \brief return the divison of two integrals, rounded down
+    * @param {integral, in}  numerator
+    * @param {integral, in}  denominator
+    * @param {integral, out} rounded low (numerator / denominator)
+    **/
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T roundedLowDivision(const T num, const T den) {
+        T q{ num / den };
+        if (const T r{ num % den }; (r != T{}) && ((r < T{}) != (den < T{}))) {
+            --q;
+        }
+        return q;
+    }
+    template<auto num, auto den>
+        requires(std::is_integral_v<decltype(num)> && std::is_integral_v<decltype(den)> && den != 0)
+    constexpr auto roundedLowDivision() {
+        using T = decltype(den);
+        T q{ num / den };
+        if (constexpr T r{ num % den }; (r != T{}) && ((r < T{}) != (den < T{}))) {
+            --q;
+        }
+        return q;
+    }
+
+    /**
+    * \brief Default integer division is truncated, not rounded. this operation rounds the division instead of truncating it.
+    *        notice that rounding ties (i.e., result % divisor == 0.5) are rounded up.
+    * @param {integral, in}  numerator
+    * @param {integral, in}  denominator
+    * @param {integral, out} rounded (numerator / denominator)
+    **/
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T roundedivision(const T num, const T den) {
+        if constexpr (std::is_signed_v<T>) {
+            return (num + den / 2) / den;
+        } else {
+            return roundedLowDivision(num, den);
+        }
+    }
+    template<auto num, auto den>
+        requires(std::is_integral_v<decltype(num)> && std::is_integral_v<decltype(den)> && den != 0)
+    constexpr auto roundedivision() {
+        using T = decltype(den);
+        if constexpr (std::is_signed_v<T>) {
+            return (num + den / 2) / den;
+        }
+        else {
+            return roundedLowDivision(num, den);
+        }
+    }
+
+    /**
     * \brief limit a value into a given boundary in a circular manner
     * @param {floating point, in}  value
     * @param {floating point, in}  boundary lower limit
