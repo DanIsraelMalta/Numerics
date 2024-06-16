@@ -76,6 +76,21 @@ namespace PointDistance {
     }
 
     /**
+    * \brief return the signed distance of a point from oriented rectangle/box
+    * @param {Vector2,        in}  point
+    * @param {Vector2,        in}  rectangle center
+    * @param {Vector2,        in}  rectangle/box half extents
+    * @param {Matrix2,        in}  rectangle/box orientation matrix
+    * @param {floating_point, out} signed distance
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T>)
+    constexpr T sdf_to_oriented_box_at_center(const GLSL::Vector2<T>& p, const GLSL::Vector2<T>& c, const GLSL::Vector2<T>& he, const GLSL::Matrix2<T> rot) noexcept {
+        const GLSL::Vector2<T> point{ rot * (p - c) };
+        return sdf_to_box_at_center(point, he);
+    }
+
+    /**
     * \brief return the signed distance of a point from triangle
     * @param {Vector2,        in}  point
     * @param {Vector2,        in}  triangle vertex #0
