@@ -1627,7 +1627,7 @@ namespace GLSL {
 
         // construct from scalar and vector2
         constexpr Vector3(const T x, const Vector2<T>& yz) noexcept : data{ x,     yz[0], yz[1] } {}
-        constexpr Vector3(const Vector2<T>& xy, const T z) noexcept : data{ xy[0], xy[1], z } {}
+        constexpr Vector3(const Vector2<T>& xy, const T z = T{}) noexcept : data{ xy[0], xy[1], z } {}
     };
 
     // Vector3 traits and concept
@@ -2017,7 +2017,7 @@ namespace GLSL {
     public:
         // constructo from scalar and vector3
         constexpr Vector4(const T x, const Vector3<T>& yzw) noexcept : data{ x,      yzw[0], yzw[1], yzw[2] } {}
-        constexpr Vector4(const Vector3<T>& xyz, const T w) noexcept : data{ xyz[0], xyz[1], xyz[2], w } {}
+        constexpr Vector4(const Vector3<T>& xyz, const T w = T{}) noexcept : data{ xyz[0], xyz[1], xyz[2], w } {}
 
         // constructo from two vector2
         constexpr Vector4(const Vector2<T>& xy, const Vector2<T>& zw) noexcept : data{ xy[0], xy[1], zw[0], zw[1] } {}
