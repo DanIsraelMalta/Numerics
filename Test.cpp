@@ -38,15 +38,15 @@ void test_diamond_angle() {
 }
 
 void test_hash() {
-    // test SzudzikValueFromPair
-    //static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
-    //static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
+   // test SzudzikValueFromPair
+   static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
+   static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
 
-    // test SzudzikPairFromValue
-   //assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
-   //assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
-   //assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
-   //assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
+   // test SzudzikPairFromValue
+   assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
+   assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
+   assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
+   assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
 }
 
 void test_variadic() {
