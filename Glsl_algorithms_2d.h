@@ -109,6 +109,24 @@ namespace Algorithms2D {
 			const T t{ ap_dot_ab / ab_dot };
 			return out_t{ a + t * ab, t };
 		}
+
+		/**
+		* \brief given collection of points, return it sorted in clock wise manner
+		* @param {vector<IFixedVector>, in}  cloud of points
+		* @param {IFixedVector,         out} centroid
+		**/
+		template<GLSL::IFixedVector VEC>
+			requires(VEC::length() == 2)
+		constexpr VEC get_centroid(const std::vector<VEC>& points) {
+			using T = typename VEC::value_type;
+
+			VEC centroid;
+			for (const VEC p : points) {
+				centroid += p;
+			}
+
+			return (centroid / static_cast<T>(points.size()));
+		}
 	};
 
 	/**
@@ -257,5 +275,54 @@ namespace Algorithms2D {
 		}
 
 		return inside;
+	}
+
+	/**
+	* \brief given collection of points, return true if they are ordered in clock wise manner
+	* @param {vector<IFixedVector>, in} cloud of points
+	* @param {IFixedVector,         in} points geometric center
+	* @param {bool,                 out} true if point are ordered in clock wise manner, false otherwise
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr bool are_points_ordererd_clock_wise(const std::vector<VEC>& poly, const VEC& centroid) {
+		using T = typename VEC::value_type;
+
+		bool clockwise{ false };
+		for (std::size_t len{ poly.size() }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
+			const VEC a{ poly[i] };
+			const VEC b{ poly[j] };
+			const T angle_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
+			const T angle_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
+
+			clockwise = angle_a > angle_b ? !clockwise : clockwise;
+		}
+
+		return clockwise;
+	}
+
+	/**
+	* \brief given collection of points, return it sorted in clock wise manner
+	* @param {vector<IFixedVector>, in} cloud of points
+	* @param {IFixedVector,         in} points geometric center
+	* @param {vector<IFixedVector>, out} points sorted in clock wise manner
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr std::vector<VEC> sort_points_clock_wise(const std::vector<VEC>& cloud, const VEC& centroid) {
+		using T = typename VEC::value_type;
+
+		// housekeeping
+		std::vector<VEC> points(cloud);
+
+		// sort clock wise
+		std::ranges::sort(points, [&centroid](const VEC& a, const VEC& b) noexcept -> bool {
+			const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
+			const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
+			return angla_a > angla_b;
+		});
+
+		// output
+		return points;
 	}
 }
