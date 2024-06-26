@@ -233,4 +233,29 @@ namespace Algorithms2D {
 
 		return out_t{ p0, p1, p2, p3 };
 	}
+
+	/**
+	* \brief given polygon and a point - check if point is inside polygon
+	*        (see: https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html)
+	* @param {vector<IFixedVector>, in}  polygon
+	* @param {IFixedVector,         in}  point
+	* @param {bool,                 out} true if point is inside polygon, false otherwise
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr bool is_point_inside_polygon(const std::vector<VEC>& poly, const VEC& point) {
+		using T = typename VEC::value_type;
+
+		bool inside{ false };
+		const std::size_t len{ poly.size() };
+		for (std::size_t i{}, j{ len - 2 }; i < len - 1; j = i++) {
+			const VEC pi{ poly[i] };
+			const VEC pj{ poly[j] };
+			const bool intersects{ pi.y > point.y != pj.y > point.y &&
+				                   point.x < ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y) + pi.x };
+			inside = intersects ? !inside : inside;
+		}
+
+		return inside;
+	}
 }
