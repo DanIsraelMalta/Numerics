@@ -1488,6 +1488,18 @@ void test_GLSL_algorithms_2D() {
         assert(GLSL::max(GLSL::abs(vec2(1.0f, 10.0f) - obb.p1)) < 1e-6);
         assert(GLSL::max(GLSL::abs(vec2(1.0f, 1.0f) - obb.p2)) < 1e-6);
         assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p3)) < 1e-6);
+
+	    // point inside polygon
+        bool inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 6.0f));
+        assert(inside == false);
+        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 8.0f));
+        assert(inside);
+        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(1.0f, 1.0f));
+        assert(inside == false);
+        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(1.5f, 7.0f));
+        assert(inside == false);
+        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(2.0f, 9.0f));
+        assert(inside);
     }
 }
 
