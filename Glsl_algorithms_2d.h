@@ -157,7 +157,6 @@ namespace Algorithms2D {
 		requires(VEC::length() == 2)
 	constexpr auto get_convex_hull_minimum_area_bounding_rectangle(const std::vector<VEC>& hull) {
 		using T = typename VEC::value_type;
-		using pair_t = std::array<std::size_t, 2>;
 		using out_t = struct { VEC p0; VEC p1; VEC p2; VEC p3; };
 
 		// iterate over all convex hull edges and find minimal area bounding rectangke
