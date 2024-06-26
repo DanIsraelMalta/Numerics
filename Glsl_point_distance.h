@@ -9,10 +9,10 @@ namespace PointDistance {
 
     /**
     * \brief return the unsigned distance between point and segment
-    * @param {Vector2|Vector3, in}  point
-    * @param {Vector2|Vector3, in}  segment point #0
-    * @param {Vector2|Vector3, in}  segment point #1
-    * @param {floating_point,  out} distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  segment point #0
+    * @param {IFixedVector, in}  segment point #1
+    * @param {value_type,   out} distance
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
@@ -26,10 +26,10 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of a point from segment
-    * @param {Vector2,        in}  point
-    * @param {Vector2,        in}  segment point #1
-    * @param {Vector2,        in}  segment point #2
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  segment point #1
+    * @param {IFixedVector, in}  segment point #2
+    * @param {value_type,   out} signed distance
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
@@ -44,10 +44,10 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of a point from circle/sphere
-    * @param {Vector2|Vector3, in}  point
-    * @param {Vector2|Vector3, in}  circle/sphere center
-    * @param {floating_point,  in}  circle/sphere radius
-    * @param {floating_point,  out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  circle/sphere center
+    * @param {value_type,   in}  circle/sphere radius
+    * @param {value_type,   out} signed distance
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(std::is_floating_point_v<T> && (VEC::length() <= 3))
@@ -57,9 +57,9 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of a point from rectangle/box at center
-    * @param {Vector2,        in}  point
-    * @param {Vector2,        in}  rectangle/box extents
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  rectangle/box extents
+    * @param {value_type,   out} signed distance
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(std::is_floating_point_v<T> && (VEC::length() <= 3))
@@ -92,19 +92,19 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of a point from triangle
-    * @param {Vector2,        in}  point
-    * @param {Vector2,        in}  triangle vertex #0
-    * @param {Vector2,        in}  triangle vertex #1
-    * @param {Vector2,        in}  triangle vertex #2
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  triangle vertex #0
+    * @param {IFixedVector, in}  triangle vertex #1
+    * @param {IFixedVector, in}  triangle vertex #2
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_triangle(const GLSL::Vector2<T>& p, const GLSL::Vector2<T>& p0, const GLSL::Vector2<T>& p1, const GLSL::Vector2<T>& p2) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
+    constexpr T sdf_to_triangle(const VEC& p, const VEC& p0, const VEC& p1, const VEC& p2) {
         constexpr T one{ static_cast<T>(1) };
-        const GLSL::Vector2<T> e0{ p1 - p0 };
-        const GLSL::Vector2<T> e1{ p2 - p1 };
-        const GLSL::Vector2<T> e2{ p0 - p2 };
+        const VEC e0{ p1 - p0 };
+        const VEC e1{ p2 - p1 };
+        const VEC e2{ p0 - p2 };
         const T dot0{ GLSL::dot(e0) };
         const T dot1{ GLSL::dot(e1) };
         const T dot2{ GLSL::dot(e2) };
@@ -112,41 +112,41 @@ namespace PointDistance {
         assert(dot0 != T{});
         assert(dot0 != T{});
 
-        const GLSL::Vector2<T> v0{ p - p0 };
-        const GLSL::Vector2<T> v1{ p - p1 };
-        const GLSL::Vector2<T> v2{ p - p2 };
-        const GLSL::Vector2<T> pq0{ v0 - e0 * Numerics::clamp<T{}, one>(GLSL::dot(v0, e0) / dot0) };
-        const GLSL::Vector2<T> pq1{ v1 - e1 * Numerics::clamp<T{}, one>(GLSL::dot(v1, e1) / dot1) };
-        const GLSL::Vector2<T> pq2{ v2 - e2 * Numerics::clamp<T{}, one>(GLSL::dot(v2, e2) / dot2) };
+        const VEC v0{ p - p0 };
+        const VEC v1{ p - p1 };
+        const VEC v2{ p - p2 };
+        const VEC pq0{ v0 - e0 * Numerics::clamp<T{}, one>(GLSL::dot(v0, e0) / dot0) };
+        const VEC pq1{ v1 - e1 * Numerics::clamp<T{}, one>(GLSL::dot(v1, e1) / dot1) };
+        const VEC pq2{ v2 - e2 * Numerics::clamp<T{}, one>(GLSL::dot(v2, e2) / dot2) };
 
         const T s{ Numerics::sign(GLSL::cross(e0, e2)) };
-        const GLSL::Vector2<T> d{ GLSL::min(GLSL::min(GLSL::Vector2<T>(GLSL::dot(pq0), s * GLSL::cross(v0, e0)),
-                                                      GLSL::Vector2<T>(GLSL::dot(pq1), s * GLSL::cross(v1, e1))),
-                                                      GLSL::Vector2<T>(GLSL::dot(pq2), s * GLSL::cross(v2, e2))) };
+        const VEC d{ GLSL::min(GLSL::min(VEC(GLSL::dot(pq0), s * GLSL::cross(v0, e0)),
+                                         VEC(GLSL::dot(pq1), s * GLSL::cross(v1, e1))),
+                                         VEC(GLSL::dot(pq2), s * GLSL::cross(v2, e2))) };
         assert(d.x >= T{});
         return -std::sqrt(d.x) * Numerics::sign(d.y);
     }
 
     /**
     * \brief return the signed distance of closed polygon
-    * @param {array<Vector2>, in}  polygon points
-    * @param {Vector2,        in}  point
-    * @param {floating_point, out} signed distance
+    * @param {array<IFixedVector>, in}  polygon points
+    * @param {IFixedVector,        in}  point
+    * @param {value_type,          out} signed distance
     **/
-    template<std::size_t N, typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_polygon(const std::array<GLSL::Vector2<T>, N>& v, const GLSL::Vector2<T>& p) {
+    template<std::size_t N, GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
+    constexpr T sdf_to_polygon(const std::array<VEC, N>& v, const VEC& p) {
         constexpr T one{ static_cast<T>(1) };
         T d{ GLSL::dot(p - v[0]) };
         T s{ one };
 
         for (std::size_t i{}, j{ N - 1 }; i < N; j = i, i++) {
-            const GLSL::Vector2<T> e{ v[j] - v[i] };
-            const GLSL::Vector2<T> w{ p - v[i] };
+            const VEC e{ v[j] - v[i] };
+            const VEC w{ p - v[i] };
             const T dot{ GLSL::dot(e) };
             assert(!Numerics::areEquals(dot, T{}));
 
-            const GLSL::Vector2<T> b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
             const GLSL::Vector3<bool> c(p.y >= v[i].y,
                                         p.y < v[j].y,
@@ -162,18 +162,18 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of n-star polygon located around center
-    * @param {Vector2,        in}  point
-    * @param {floating_point, in}  polygon radius
-    * @param {integral,       in}  polygon number of vertices
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {value_type,   in}  polygon radius
+    * @param {integral,     in}  polygon number of vertices
+    * @param {value_type,   out} signed distance
     **/
-    template<typename U, typename T>
-        requires(std::is_integral_v<U>&& std::is_floating_point_v<T>)
-    constexpr T sdf_to_regular_poygon(GLSL::Vector2<T> p, const T r, const U n) {
+    template<GLSL::IFixedVector VEC, typename U, class T = typename VEC::value_type>
+        requires(std::is_integral_v<U> && std::is_floating_point_v<T> && (VEC::length() == 2))
+    constexpr T sdf_to_regular_poygon(VEC p, const T r, const U n) {
         assert(n > 0);
         // these 4 lines can be precomputed for a given shape
         const T an{ std::numbers::pi_v<T> / static_cast<T>(n) };
-        const GLSL::Vector2<T> cs(std::cos(an), std::sin(an));
+        const VEC cs(std::cos(an), std::sin(an));
 
         // reduce to first sector
         const T bn = [&]() {
@@ -185,7 +185,7 @@ namespace PointDistance {
             }
         }();
 
-        p = GLSL::length(p) * GLSL::Vector2<T>(std::cos(bn), std::abs(std::sin(bn)));
+        p = GLSL::length(p) * VEC(std::cos(bn), std::abs(std::sin(bn)));
 
         // line sdf
         p -= r * cs;
@@ -195,15 +195,15 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of ellipse located at center
-    * @param {Vector2,        in}  point
-    * @param {Vector2,        in}  {ellipse radii along x, ellipse radii along y}
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  {ellipse radii along x, ellipse radii along y}
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_ellipse(const GLSL::Vector2<T> p, const GLSL::Vector2<T> ab) {
-        GLSL::Vector2<T> _p{ GLSL::abs(p) };
-        GLSL::Vector2<T> _ab{ ab };
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
+    constexpr T sdf_to_ellipse(const VEC p, const VEC ab) {
+        VEC _p{ GLSL::abs(p) };
+        VEC _ab{ ab };
         if (_p.x > _p.y) {
             _p = _p.yx;
             _ab = _ab.yx;
@@ -257,8 +257,8 @@ namespace PointDistance {
 
         const T coo{ static_cast<T>(1) - co * co };
         assert(coo >= T{});
-        GLSL::Vector2<T> cocoo{{ co, std::sqrt(coo) }};
-        const GLSL::Vector2<T> r{ _ab * cocoo };
+        const VEC cocoo{{ co, std::sqrt(coo) }};
+        const VEC r{ _ab * cocoo };
         return std::copysign(GLSL::length(r - _p), _p.y - r.y);
     }
 
@@ -278,17 +278,17 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of capsule
-    * @param {Vector3,        in}  point
-    * @param {Vector3,        in}  capsule point #1
-    * @param {Vector3,        in}  capsule point #2
-    * @param {floating_point, in}  capsule radius
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  capsule point #1
+    * @param {IFixedVector, in}  capsule point #2
+    * @param {value_type,   in}  capsule radius
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_capsule(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const T r) {
-        const GLSL::Vector3<T> pa(p - a);
-        const GLSL::Vector3<T> ba(b - a);
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr T sdf_to_capsule(const VEC& p, const VEC& a, const VEC& b, const T r) {
+        const VEC pa(p - a);
+        const VEC ba(b - a);
         const T dot{ GLSL::dot(ba)};
         assert(dot > T{});
         const T h{ Numerics::clamp<T{}, static_cast<T>(1)>(GLSL::dot(pa, ba) / dot)};
@@ -297,17 +297,17 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of capped cylinder
-    * @param {Vector3,        in}  point
-    * @param {Vector3,        in}  capped cylinder point #1
-    * @param {Vector3,        in}  capped cylinder point #2
-    * @param {floating_point, in}  capped cylinder radius
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  capped cylinder point #1
+    * @param {IFixedVector, in}  capped cylinder point #2
+    * @param {value_type,   in}  capped cylinder radius
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_capped_cylinder(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const T r) {
-        const GLSL::Vector3<T> ba(b - a);
-        const GLSL::Vector3<T> pa(p - a);
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr T sdf_to_capped_cylinder(const VEC& p, const VEC& a, const VEC& b, const T r) {
+        const VEC ba(b - a);
+        const VEC pa(p - a);
         const T baba{ GLSL::dot(ba, ba) };
         assert(baba > T{});
         const T paba{ GLSL::dot(pa, ba) };
@@ -325,13 +325,13 @@ namespace PointDistance {
     /**
     * \brief return the signed distance of bound ellipsoid located at center.
     *        this calculation is not exact, but is useful for checking if points is inside ellipsoied bounding box.
-    * @param {Vector3,        in}  point
-    * @param {Vector3,        in}  ellipsoid radii
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  ellipsoid radii
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T sdf_to_bound_ellipsoied(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& r) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr T sdf_to_bound_ellipsoied(const VEC& p, const VEC& r) {
         assert(r.x > T{});
         assert(r.y > T{});
         assert(r.z > T{});
@@ -349,23 +349,23 @@ namespace PointDistance {
 
     /**
     * \brief return the unsigned distance of triangle. point inside the triange will be returned as zero.
-    * @param {Vector3,        in}  point
-    * @param {Vector3,        in}  vertex #0
-    * @param {Vector3,        in}  vertex #1
-    * @param {Vector3,        in}  vertex #2
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  vertex #0
+    * @param {IFixedVector, in}  vertex #1
+    * @param {IFixedVector, in}  vertex #2
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr auto udf_to_triangle(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const GLSL::Vector3<T>& c) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr auto udf_to_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
         constexpr T one{ static_cast<T>(1) };
-        const GLSL::Vector3<T> ba(b - a);
-        const GLSL::Vector3<T> pa(p - a);
-        const GLSL::Vector3<T> cb(c - b);
-        const GLSL::Vector3<T> pb(p - b);
-        const GLSL::Vector3<T> ac(a - c);
-        const GLSL::Vector3<T> pc(p - c);
-        const GLSL::Vector3<T> nor(cross(ba, ac));
+        const VEC ba(b - a);
+        const VEC pa(p - a);
+        const VEC cb(c - b);
+        const VEC pb(p - b);
+        const VEC ac(a - c);
+        const VEC pc(p - c);
+        const VEC nor(cross(ba, ac));
 
         // is point "outside" the triangle?
         if (Numerics::sign(GLSL::dot(GLSL::cross(ba, nor), pa)) +
@@ -397,26 +397,26 @@ namespace PointDistance {
 
     /**
     * \brief return the unsigned distance of quad. point inside the quad will be returned as zero.
-    * @param {Vector3,        in}  point
-    * @param {Vector3,        in}  vertex #0
-    * @param {Vector3,        in}  vertex #1
-    * @param {Vector3,        in}  vertex #2
-    * @param {Vector3,        in}  vertex #3
-    * @param {floating_point, out} signed distance
+    * @param {IFixedVector, in}  point
+    * @param {IFixedVector, in}  vertex #0
+    * @param {IFixedVector, in}  vertex #1
+    * @param {IFixedVector, in}  vertex #2
+    * @param {IFixedVector, in}  vertex #3
+    * @param {value_type,   out} signed distance
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr auto udf_to_quad(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const GLSL::Vector3<T>& c, const GLSL::Vector3<T>& d) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr auto udf_to_quad(const VEC& p, const VEC& a, const VEC& b, const VEC& c, const VEC& d) {
         constexpr T one{ static_cast<T>(1) };
-        const GLSL::Vector3<T> ba(b - a);
-        const GLSL::Vector3<T> pa(p - a);
-        const GLSL::Vector3<T> cb(c - b);
-        const GLSL::Vector3<T> pb(p - b);
-        const GLSL::Vector3<T> dc(d - c);
-        const GLSL::Vector3<T> pc(p - c);
-        const GLSL::Vector3<T> ad(a - d);
-        const GLSL::Vector3<T> pd(p - d);
-        const GLSL::Vector3<T> nor(GLSL::cross(ba, ad));
+        const VEC ba(b - a);
+        const VEC pa(p - a);
+        const VEC cb(c - b);
+        const VEC pb(p - b);
+        const VEC dc(d - c);
+        const VEC pc(p - c);
+        const VEC ad(a - d);
+        const VEC pd(p - d);
+        const VEC nor(GLSL::cross(ba, ad));
 
         // point "outside" the quad?
         if (Numerics::sign(GLSL::dot(GLSL::cross(ba, nor), pa)) +
