@@ -16,6 +16,7 @@
 #include "Glsl_point_distance.h"
 #include "Glsl_ray_intersections.h"
 #include "Glsl_transformation.h"
+#include "GLSL_algorithms_2D.h"
 
 
 void test_diamond_angle() {
@@ -1418,6 +1419,78 @@ void test_glsl_ray_intersection() {
     }
 }
 
+void test_GLSL_algorithms_2D() {
+    {
+        auto ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f), vec2(0.0f));
+        assert(static_cast<int>(ccw) == 0);
+
+        ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f, 1.0f), vec2(0.5f));
+        assert(ccw > 0);
+
+        ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f, 1.0f), vec2(-0.5f));
+        assert(ccw < 0);
+    }
+
+    {
+        auto left = Algorithms2D::Internals::is_point_left_of(vec2(0.0f), vec2(0.0f));
+        assert(!left);
+
+        left = Algorithms2D::Internals::is_point_left_of(vec2(1.0f), vec2(0.0f));
+        assert(!left);
+
+        left = Algorithms2D::Internals::is_point_left_of(vec2(0.0f), vec2(1.0f));
+        assert(left);
+    }
+
+    {
+        auto area = Algorithms2D::Internals::triangle_area(vec2(0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 0.0f));
+        assert(static_cast<int>(area * 10) == 5);
+    }
+
+    {
+        auto point = Algorithms2D::Internals::get_rays_intersection_point(vec2(0.0f, 1.0f), vec2(1.0f, 0.0f), vec2(1.0f, 0.0f), vec2(0.0f, 1.0f));
+        assert(static_cast<int>(point.x) == 1);
+        assert(static_cast<int>(point.y) == 1);
+
+        point = Algorithms2D::Internals::get_rays_intersection_point(vec2(0.0f, 0.0f), GLSL::normalize(vec2(1.0f)), vec2(1.0f, 0.0f), GLSL::normalize(vec2(-1.0f, 1.0f)));
+        assert(static_cast<int>(point.x * 10) == 5);
+        assert(static_cast<int>(point.y * 10) == 5);
+    }
+
+    {
+        auto projected = Algorithms2D::Internals::project_point_on_segment(vec2(0.0f), vec2(0.0f, 1.0f), vec2(0.5f, 10.0f));
+        assert(static_cast<int>(projected.point.x) == 0);
+        assert(static_cast<int>(projected.point.y) == 10);
+        assert(static_cast<int>(projected.t) == 10);
+
+        projected = Algorithms2D::Internals::project_point_on_segment(vec2(1.0f, 0.0f), vec2(1.0f, 5.0f), vec2(2.0f, -10.0f));
+        assert(static_cast<int>(projected.point.x) == 1);
+        assert(static_cast<int>(projected.point.y) == -10);
+        assert(static_cast<int>(projected.t) == -2);
+    }
+    {
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                    vec2(1.0f, 2.0f)} };
+
+        // convex hull test
+        const auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
+        const std::vector<vec2> expected_convex{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
+                                                  vec2(10.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f)} };
+        assert(expected_convex.size() == convex.size());
+        for (std::size_t i{}; i < expected_convex.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(expected_convex[i] - convex[i])) < 1e-6);
+        }
+
+        // obb test
+        const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
+        assert(GLSL::max(GLSL::abs(vec2(10.0f, 10.0f) - obb.p0)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(1.0f, 10.0f) - obb.p1)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(1.0f, 1.0f) - obb.p2)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p3)) < 1e-6);
+    }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -1432,5 +1505,6 @@ int main() {
     test_glsl_axis_aligned_bounding_box();
     test_glsl_point_distance();
     test_glsl_ray_intersection();
-	return 1;
+    test_GLSL_algorithms_2D();
+    return 1;
 }
