@@ -1500,7 +1500,26 @@ void test_GLSL_algorithms_2D() {
         assert(inside == false);
         inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(2.0f, 9.0f));
         assert(inside);
+
+        const vec2 centroid = Algorithms2D::Internals::get_centroid(std::vector<vec2>{{obb.p0, obb.p1, obb.p2, obb.p3}});
+        assert(GLSL::max(GLSL::abs(vec2(5.5f) - centroid)) < 1e-6);
     }
+
+   {
+       std::vector<vec2> points;
+       for (std::size_t i{}; i < 50; ++i) {
+           points.emplace_back(vec2(static_cast<float>(rand() % 100 - 50),
+                                    static_cast<float>(rand() % 100 - 50)));
+       }
+
+       const vec2 centroid = Algorithms2D::Internals::get_centroid(points);
+       bool is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points, centroid);
+       assert(!is_clockwise);
+
+       std::vector<vec2> sorted_points = Algorithms2D::sort_points_clock_wise(points, centroid);
+       is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(sorted_points, centroid);
+       assert(is_clockwise);
+   }
 }
 
 int main() {
