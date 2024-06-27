@@ -158,6 +158,36 @@ namespace PointDistance {
     }
 
     /**
+    * \brief return the signed distance of closed polygon
+    * @param {vector<IFixedVector>, in}  polygon points
+    * @param {IFixedVector,         in}  point
+    * @param {value_type,           out} signed distance
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
+    constexpr T sdf_to_polygon(const std::vector<VEC>& v, const VEC& p) {
+        constexpr T one{ static_cast<T>(1) };
+        T d{ GLSL::dot(p - v[0]) };
+        T s{ one };
+        const std::size_t N{ v.size() };
+        for (std::size_t i{}, j{ N - 1 }; i < N; j = i, i++) {
+            const VEC e{ v[j] - v[i] };
+            const VEC w{ p - v[i] };
+            const T dot{ GLSL::dot(e) };
+            assert(!Numerics::areEquals(dot, T{}));
+
+            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            d = Numerics::min(d, GLSL::dot(b));
+            if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
+                s *= static_cast<T>(-1);
+            }
+        }
+
+        [[assume(d >= T{})]];
+        return (s * std::sqrt(d));
+    }
+
+    /**
     * \brief return the signed distance of n-star polygon located around center
     * @param {IFixedVector, in}  point
     * @param {value_type,   in}  polygon radius
