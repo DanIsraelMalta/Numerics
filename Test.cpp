@@ -1180,10 +1180,13 @@ void test_glsl_point_distance() {
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
-        float distance = PointDistance::sdf_to_polygon(polygon, vec2(2.0f, 0.0f));
+        float distance = PointDistance::sdf_to_polygon<5>(polygon, vec2(2.0f, 0.0f));
         assert(std::abs(distance - 1.0f) < 1e-6);
 
-        distance = PointDistance::sdf_to_polygon(polygon, vec2(3.0f, 1.5f));
+        distance = PointDistance::sdf_to_polygon<5>(polygon, vec2(3.0f, 1.5f));
+        assert(std::abs(distance - -0.5f) < 1e-6);
+
+        distance = PointDistance::sdf_to_polygon(std::vector<vec2>(polygon.begin(), polygon.end()), vec2(3.0f, 1.5f));
         assert(std::abs(distance - -0.5f) < 1e-6);
     }
 
