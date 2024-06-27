@@ -146,7 +146,7 @@ namespace PointDistance {
             const T dot{ GLSL::dot(e) };
             assert(!Numerics::areEquals(dot, T{}));
 
-            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            const VEC b{ w - e * Numerics::clamp<T{}, one> (GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
             if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
                 s *= static_cast<T>(-1);
@@ -176,7 +176,7 @@ namespace PointDistance {
             const T dot{ GLSL::dot(e) };
             assert(!Numerics::areEquals(dot, T{}));
 
-            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            const VEC b{ w - e * Numerics::clamp<T{}, one> (GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
             if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
                 s *= static_cast<T>(-1);
