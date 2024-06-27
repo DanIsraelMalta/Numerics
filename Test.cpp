@@ -1118,17 +1118,28 @@ void test_glsl_point_distance() {
     {
         vec2 p{ 5.0f, 5.0f };
 
-        float distance = PointDistance::sdf_to_segment(p, vec2(0.0f), vec2(10.0f));
+        float distance = PointDistance::udf_to_segment(p, vec2(0.0f), vec2(10.0f));
         assert(std::abs(distance) < 1e-6);
 
-        distance = PointDistance::sdf_to_segment(p, vec2(6.0f, 6.0f), vec2(10.0f, 10.0f));
+        distance = PointDistance::udf_to_segment(p, vec2(6.0f, 6.0f), vec2(10.0f, 10.0f));
         assert(std::abs(distance - std::sqrt(2)) < 1e-6);
 
-        distance = PointDistance::sdf_to_segment(p, vec2(0.0f, 0.0f), vec2(0.0f, 10.0f));
+        distance = PointDistance::udf_to_segment(p, vec2(0.0f, 0.0f), vec2(0.0f, 10.0f));
         assert(std::abs(distance - 5.0f) < 1e-6);
 
-        distance = PointDistance::sdf_to_segment(p, vec2(10.0f, 0.0f), vec2(10.0f, 10.0f));
+        distance = PointDistance::udf_to_segment(p, vec2(10.0f, 0.0f), vec2(10.0f, 10.0f));
         assert(std::abs(distance - 5.0f) < 1e-6);
+    }
+    
+    {
+        float distanceSquared = PointDistance::squared_udf_to_segment(vec2(1.0f, 0.0f), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(std::abs(distanceSquared - 1) < 1e-6);
+
+        distanceSquared = PointDistance::squared_udf_to_segment(vec2(-1.0f, 0.0f), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(std::abs(distanceSquared - 1) < 1e-6);
+
+        distanceSquared = PointDistance::squared_udf_to_segment(vec2(-2.0f), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(std::abs(distanceSquared - 8) < 1e-6);
     }
 
     {
