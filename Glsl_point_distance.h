@@ -148,10 +148,7 @@ namespace PointDistance {
 
             const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
-            const GLSL::Vector3<bool> c(p.y >= v[i].y,
-                                        p.y < v[j].y,
-                                        e.x * w.y > e.y * w.x);
-            if (GLSL::all(c) || GLSL::all(GLSL::glsl_not(c))) {
+            if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
                 s *= static_cast<T>(-1);
             }
         }
