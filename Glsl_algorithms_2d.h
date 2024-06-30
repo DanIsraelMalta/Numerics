@@ -1,9 +1,11 @@
 #pragma once
 #include "Glsl.h"
 #include "Glsl_extra.h"
+#include "DiamondAngle.h"
 #include <limits>
 #include <vector>
 #include <algorithm>
+#include <random>
 
 //
 // collection of algorithms for 2D points and shapes
@@ -43,18 +45,18 @@ namespace Algorithms2D {
 		}
 
 		/**
-		* \brief return triangle area
+		* \brief return twice a triangle area
 		* @param {IFixedVector, in}  point a
 		* @param {IFixedVector, in}  point b
 		* @param {IFixedVector, in}  point c
-		* @param {floating,     out} triangle area
+		* @param {floating,     out} twice triangle area
 		**/
 		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
 			requires(VEC::length() == 2)
-		constexpr T triangle_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
+		constexpr T triangle_twice_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
 			const VEC v1{ a - c };
 			const VEC v2{ b - c };
-			return std::abs(v1.x * v2.y - v1.y * v2.x) / static_cast<T>(2);
+			return std::abs(v1.x * v2.y - v1.y * v2.x);
 		}
 
 		/**
@@ -108,6 +110,33 @@ namespace Algorithms2D {
 
 			const T t{ ap_dot_ab / ab_dot };
 			return out_t{ a + t * ab, t };
+		}
+
+		/**
+		* \brief get the circumcircle of two points
+		* @param {IFixedVector,               in}  point #1
+		* @param {IFixedVector,               in}  point #2
+		* @param {IFixedVector,               in}  point #3 (optional)
+		* @param {{IFixedVector, value_type}, out} {circumcircle center, circumcircle squared radius}
+		**/
+		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+			requires(VEC::length() == 2)
+		constexpr auto get_circumcircle(const VEC& a, const VEC& b) noexcept {
+			using out_t = struct { VEC center; T radius_squared; };
+			return out_t{ (a + b) / static_cast<T>(2), GLSL::dot(a - b) / static_cast<T>(4) };
+		}
+		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+			requires(VEC::length() == 2)
+		constexpr auto get_circumcircle(const VEC& a, const VEC& b, const VEC& c) noexcept {
+			using out_t = struct { VEC center; T radius_squared; };
+
+			const VEC ba{ b - a };
+			const VEC ca{ c - a };
+			const T B{ GLSL::dot(ba) };
+			const T C{ GLSL::dot(ca) };
+			const T D{ GLSL::cross(ba, ca) };
+			const VEC center{ a + VEC(ca.y * B - ba.y * C, ba.x * C - ca.x * B) / (static_cast<T>(2) * D) };
+			return out_t{ center, GLSL::dot(center - a) };
 		}
 
 		/**
@@ -251,6 +280,56 @@ namespace Algorithms2D {
 
 		return out_t{ p0, p1, p2, p3 };
 	}
+	
+	/**
+	* \brief given convex hull of collection of points, return its diameter
+	* @param {vector<IFixedVector>,           in}  points convex hull
+	* @param {{value_type, array<size_t, 2>}, out} {squared diameter, <index of anti podal oint #1, index of anti podal point #2>}
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr auto get_convex_diameter(const std::vector<VEC>& hull) {
+		using T = typename VEC::value_type;
+		using out_t = struct { T diamater_squared; std::array<std::size_t, 2> indices; };
+
+		// housekeeping
+		const std::size_t N{ hull.size() };
+		out_t out{
+			.diamater_squared = T{},
+			.indices = std::array<std::size_t, 2>{{0, 0}}
+		};
+		const auto checkPoints = [N, &out, &hull](const std::size_t i, const std::size_t j) {
+			const VEC a{ hull[i % N] };
+			const VEC b{ hull[j % N] };
+			const T furthest{ GLSL::dot(a - b) };
+			const bool update{ furthest > out.diamater_squared };
+			out.diamater_squared = update ? furthest : out.diamater_squared;
+			out.indices = update ? std::array<std::size_t, 2>{{i, j}} : out.indices;
+		};
+
+		std::size_t k{ 1 };
+		const VEC hull_0{ hull[0] };
+		const VEC hull_n1{ hull[N - 1] };
+		while (Internals::triangle_twice_area(hull_n1, hull_0, hull[(k + 1) % N]) >
+			   Internals::triangle_twice_area(hull_n1, hull_0, hull[k])) {
+			++k;
+			checkPoints(N - 1, k);
+		}
+
+		for (std::size_t i{}, j{ k }; i <= k && j < N; ++i) {
+			const VEC hull_i{ hull[i] };
+			const VEC hull_i_1{ hull[(i + 1) % N] };
+
+			while (j < N &&
+				   Internals::triangle_twice_area(hull_i, hull_i_1, hull[(j + 1) % N]) >
+				   Internals::triangle_twice_area(hull_i, hull_i_1, hull[j])) {
+				checkPoints(i, (j + 1) % N);
+				++j;
+			}
+		}
+
+		return out;
+	}
 
 	/**
 	* \brief given polygon and a point - check if point is inside polygon
@@ -265,8 +344,7 @@ namespace Algorithms2D {
 		using T = typename VEC::value_type;
 
 		bool inside{ false };
-		const std::size_t len{ poly.size() };
-		for (std::size_t i{}, j{ len - 2 }; i < len - 1; j = i++) {
+		for (std::size_t len{ poly.size() }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
 			const VEC pi{ poly[i] };
 			const VEC pj{ poly[j] };
 			const bool intersects{ pi.y > point.y != pj.y > point.y &&
