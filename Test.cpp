@@ -1457,8 +1457,8 @@ void test_GLSL_algorithms_2D() {
     }
 
     {
-        auto area = Algorithms2D::Internals::triangle_area(vec2(0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 0.0f));
-        assert(static_cast<int>(area * 10) == 5);
+        auto area = Algorithms2D::Internals::triangle_twice_area(vec2(0.0f), vec2(0.0f, 1.0f), vec2(1.0f, 0.0f));
+        assert(static_cast<int>(area * 10) == 10);
     }
 
     {
@@ -1482,6 +1482,30 @@ void test_GLSL_algorithms_2D() {
         assert(static_cast<int>(projected.point.y) == -10);
         assert(static_cast<int>(projected.t) == -2);
     }
+
+    {
+        auto circumCircle = Algorithms2D::Internals::get_circumcircle(vec2(5.0f), vec2(10.0f));
+        assert(static_cast<int>(circumCircle.center.x * 10) == 75);
+        assert(static_cast<int>(circumCircle.center.y * 10) == 75);
+        assert(static_cast<int>(circumCircle.radius_squared * 10) == 125);
+
+        circumCircle = Algorithms2D::Internals::get_circumcircle(vec2(-5.0f), vec2(0.0f));
+        assert(static_cast<int>(circumCircle.center.x * 10) == -25);
+        assert(static_cast<int>(circumCircle.center.y * 10) == -25);
+        assert(static_cast<int>(circumCircle.radius_squared * 10) == 125);
+
+        auto circumCircle3 = Algorithms2D::Internals::get_circumcircle(vec2(-5.0f, 0.0f), vec2(5.0f, 0.0f), vec2(0.0f, 5.0f));
+        assert(static_cast<int>(circumCircle3.center.x) == 0);
+        assert(static_cast<int>(circumCircle3.center.y) == 0);
+        assert(static_cast<int>(circumCircle3.radius_squared) == 25);
+
+        circumCircle3 = Algorithms2D::Internals::get_circumcircle(vec2(-5.0f, 2.0f), vec2(5.0f, 0.0f), vec2(2.0f, 5.0f));
+        assert(static_cast<int>(circumCircle3.center.x * 1e5) == -13636);
+        assert(static_cast<int>(circumCircle3.center.y * 1e5) == 31818);
+        assert(static_cast<int>(circumCircle3.radius_squared * 1e4) == 264834);
+        
+    }
+
     {
         std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
@@ -1503,7 +1527,7 @@ void test_GLSL_algorithms_2D() {
         assert(GLSL::max(GLSL::abs(vec2(1.0f, 1.0f) - obb.p2)) < 1e-6);
         assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p3)) < 1e-6);
 
-	    // point inside polygon
+        // point inside polygon
         bool inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 6.0f));
         assert(inside == false);
         inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 8.0f));
@@ -1517,6 +1541,11 @@ void test_GLSL_algorithms_2D() {
 
         const vec2 centroid = Algorithms2D::Internals::get_centroid(std::vector<vec2>{{obb.p0, obb.p1, obb.p2, obb.p3}});
         assert(GLSL::max(GLSL::abs(vec2(5.5f) - centroid)) < 1e-6);
+
+
+        const auto antipodal = Algorithms2D::get_convex_diameter(convex);
+        assert(antipodal.indices[0] == 0);
+        assert(antipodal.indices[1] == 4);
     }
 
    {
