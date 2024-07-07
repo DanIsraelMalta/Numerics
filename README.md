@@ -15,4 +15,5 @@ useful numerical algorithms and operations with focus on linear algebra and geom
 + Glsl_axis_aligned_bounding_box.h - axis aligned bounding boxes functions of various geometric primitives using GLSL vectors and matrices.
 + Glsl_point_distance.h - euclidean unsigned/signed distance functions of a point from a primitive using GLSL vectors and matrices.
 + Glsl_ray_intersections.h - ray-primitive intersection functions using GLSL vectors and matrices.
++ Glsl_algorithms_2D.h - collection of algorithms for 2D cloud points and shapes
 + Test.cpp - basic testing for the various files in this repository.
