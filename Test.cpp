@@ -1503,7 +1503,6 @@ void test_GLSL_algorithms_2D() {
         assert(static_cast<int>(circumCircle3.center.x * 1e5) == -13636);
         assert(static_cast<int>(circumCircle3.center.y * 1e5) == 31818);
         assert(static_cast<int>(circumCircle3.radius_squared * 1e4) == 264834);
-        
     }
 
     {
@@ -1539,13 +1538,23 @@ void test_GLSL_algorithms_2D() {
         inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(2.0f, 9.0f));
         assert(inside);
 
+        // centroid
         const vec2 centroid = Algorithms2D::Internals::get_centroid(std::vector<vec2>{{obb.p0, obb.p1, obb.p2, obb.p3}});
         assert(GLSL::max(GLSL::abs(vec2(5.5f) - centroid)) < 1e-6);
 
-
+        // convex hull diamater
         const auto antipodal = Algorithms2D::get_convex_diameter(convex);
         assert(antipodal.indices[0] == 0);
         assert(antipodal.indices[1] == 4);
+
+        // convex hull minimal bounding circle
+        const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
+        assert(static_cast<std::int32_t>(circle.center.x * 100) == 511);
+        assert(static_cast<std::int32_t>(circle.center.y * 100) == 600);
+        assert(static_cast<std::int32_t>(circle.radius_squared * 100) == 3290);
+        for (const auto& p : convex) {
+            assert(GLSL::dot(p - circle.center) <= circle.radius_squared);
+        }
     }
 
    {
