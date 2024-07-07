@@ -8,7 +8,7 @@
 #include <random>
 
 //
-// collection of algorithms for 2D points and shapes
+// collection of algorithms for 2D cloud points and shapes
 //
 namespace Algorithms2D {
 
@@ -113,11 +113,12 @@ namespace Algorithms2D {
 		}
 
 		/**
-		* \brief get the circumcircle of two points
+		* \brief get the circumcircle of two/three points
 		* @param {IFixedVector,               in}  point #1
 		* @param {IFixedVector,               in}  point #2
 		* @param {IFixedVector,               in}  point #3 (optional)
 		* @param {{IFixedVector, value_type}, out} {circumcircle center, circumcircle squared radius}
+		*                                          center will be at center and squared radius will be negative in case of invalid calculation.
 		**/
 		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
 			requires(VEC::length() == 2)
@@ -128,15 +129,51 @@ namespace Algorithms2D {
 		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
 			requires(VEC::length() == 2)
 		constexpr auto get_circumcircle(const VEC& a, const VEC& b, const VEC& c) noexcept {
-			using out_t = struct { VEC center; T radius_squared; };
+			using out_t = decltype(Algorithms2D::Internals::get_circumcircle(a, b));
 
 			const VEC ba{ b - a };
 			const VEC ca{ c - a };
 			const T B{ GLSL::dot(ba) };
 			const T C{ GLSL::dot(ca) };
 			const T D{ GLSL::cross(ba, ca) };
+			if (Numerics::areEquals(D, T{})) {
+				return out_t{ VEC(), static_cast<T>(-1) };
+			}
 			const VEC center{ a + VEC(ca.y * B - ba.y * C, ba.x * C - ca.x * B) / (static_cast<T>(2) * D) };
 			return out_t{ center, GLSL::dot(center - a) };
+		}
+		template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+			requires(VEC::length() == 2)
+		constexpr auto get_circumcircle(const VEC& a, const VEC& b, const VEC& c, const VEC& d) noexcept {
+			using out_t = decltype(Algorithms2D::Internals::get_circumcircle(a, b));
+
+			// does 'abc' circle include 'd'?
+			out_t circle{ Internals::get_circumcircle(a, b, c) };
+			bool inside{ GLSL::dot(d - circle.center) <= circle.radius_squared };
+			if (inside) {
+				return circle;
+			}
+
+			// does 'abd' circle include 'c'?
+			circle = Internals::get_circumcircle(a, b, d);
+			inside = GLSL::dot(c - circle.center) <= circle.radius_squared;
+			if (inside) {
+				return circle;
+			}
+
+			// does 'acd' circle include 'b'?
+			circle = Internals::get_circumcircle(a, c, d);
+			inside = GLSL::dot(b - circle.center) <= circle.radius_squared;
+			if (inside) {
+				return circle;
+			}
+
+			// does 'bcd' circle include 'a'?
+			circle = Internals::get_circumcircle(b, c, d);
+			inside = GLSL::dot(a - circle.center) <= circle.radius_squared;
+			if (inside) {
+				return circle;
+			}
 		}
 
 		/**
@@ -155,6 +192,30 @@ namespace Algorithms2D {
 			}
 
 			return (centroid / static_cast<T>(points.size()));
+		}
+
+		/**
+		* \brief given a point and collection of points, return the index of point in collection which is furthest from given point
+		* @param {vector<IFixedVector>, in}  cloud of points
+		* @param {IFixedVector,         in}  point
+		* @param {size_t,               out} index of point in cloud which is furthest from given point
+		**/
+		template<GLSL::IFixedVector VEC>
+			requires(VEC::length() == 2)
+		constexpr std::size_t get_index_of_furthest_point(const std::vector<VEC>& cloud, VEC point) noexcept {
+			using T = typename VEC::value_type;
+
+			const std::size_t N{ cloud.size() };
+			std::size_t index{};
+			T distSquared{};
+			for (std::size_t i{}; i < N; ++i) {
+				const T dist2{ GLSL::dot(point - cloud[i]) };
+				const bool furthest{ dist2 > distSquared };
+				distSquared = furthest ? dist2 : distSquared;
+				index = furthest ? i : index;
+			}
+
+			return index;
 		}
 	};
 
@@ -329,6 +390,108 @@ namespace Algorithms2D {
 		}
 
 		return out;
+	}
+
+	/**
+	* \brief given convex hull of collection of points, return the minimal bounding circle (circumcircle).
+	*        based on https://www.cise.ufl.edu/~sitharam/COURSES/CG/kreveldnbhd.pdf.
+	* @param {vector<IFixedVector>,       in}  points convex hull
+	* @param {{IFixedVector, value_type}, out} {minimal bounding circle center, minimal bounding circle squared radius}
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr auto get_minimal_bounding_circle(const std::vector<VEC>& hull) {
+		using T = typename VEC::value_type;
+		using out_t = decltype(Algorithms2D::Internals::get_circumcircle(hull[0], hull[0]));
+
+		// is hulll composed of two/three/four points?
+		const std::size_t N{ hull.size() };
+		if (N == 2) {
+			return Internals::get_circumcircle(hull[0], hull[1]);
+		} else if (N == 3) {
+			return Internals::get_circumcircle(hull[0], hull[1], hull[2]);
+		} else if (N == 4) {
+			return Internals::get_circumcircle(hull[0], hull[1], hull[2], hull[3]);
+		}
+
+		// lambda to check if a given point is inside given circle
+		const auto is_point_in_circle = [](const out_t& circle, const VEC& point) -> bool {
+			return GLSL::dot(point - circle.center) <= circle.radius_squared;
+		};
+
+		// find minimal bounding circle of set of points using two points
+		const auto make_bounding_circle_two_points = [&hull, &is_point_in_circle](const std::size_t end, const VEC& p, const VEC& q) -> out_t {
+			out_t circ{ Internals::get_circumcircle(p, q) };
+			out_t left{ VEC(), static_cast<T>(-1) };
+			out_t right{ VEC(), static_cast<T>(-1) };
+
+			const VEC pq{ q - p };
+			for (std::size_t i{}; i < end; ++i) {
+				const VEC r{ hull[i] };
+				if (is_point_in_circle(circ, r)) {
+					continue;
+				}
+
+				const out_t c{ Internals::get_circumcircle(p, q, r) };
+				if (c.radius_squared <= T{}) {
+					continue;
+				}
+
+				const T cross{ GLSL::cross(pq, r - p) };
+				const T pq_cross{ GLSL::cross(pq, c.center - p) };
+				if (cross > T{} && (left.radius_squared < T{} || pq_cross > GLSL::cross(pq, left.center - p))) {
+					left.center = c.center;
+					left.radius_squared = c.radius_squared;
+				}
+				else if (cross < T{} && (right.radius_squared < T{} || pq_cross < GLSL::cross(pq, right.center - p))) {
+					right.center = c.center;
+					right.radius_squared = c.radius_squared;
+				}
+			}
+
+			if (left.radius_squared <= T{} && right.radius_squared <= T{}) {
+				return circ;
+			}
+			else if (left.radius_squared < T{}) {
+				return right;
+			}
+			else if (right.radius_squared < T{}) {
+				return left;
+			}
+			else {
+				return (left.radius_squared <= right.radius_squared) ? left : right;
+			}
+		};
+
+		// find minimal bounding circle of set of points using one point
+		const auto make_bounding_circle_one_points = [&hull, &is_point_in_circle, &make_bounding_circle_two_points, N](const std::size_t end, const VEC& p) -> out_t {
+			out_t circle{ p, static_cast<T>(-1) };
+
+			for (std::size_t i{}; i < end; ++i) {
+				const VEC q{ hull[i] };
+
+				if (!is_point_in_circle(circle, q)) {
+					if (circle.radius_squared <= T{}) {
+						circle = Internals::get_circumcircle(p, q);
+					} else {
+						circle = make_bounding_circle_two_points(Numerics::min(i + 1, N), p, q);
+					}
+				}
+			}
+
+			return circle;
+		};
+
+		// iterate over remaining points and find minimal enclosling circle
+		out_t circle{ Internals::get_circumcircle(hull[0], hull[1], hull[2], hull[3]) };
+		for (std::size_t i{ 4 }; i < N; ++i) {
+			const VEC p{ hull[i] };
+			if (!is_point_in_circle(circle, p)) {
+				circle = make_bounding_circle_one_points(Numerics::min(i + 1, N), p);
+			}
+		}
+
+		return circle;
 	}
 
 	/**
