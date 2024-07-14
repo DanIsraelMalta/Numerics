@@ -735,6 +735,13 @@ void test_glsl_extra() {
         assert(Extra::left_dot<3>(a, b) == 20);
         assert(Extra::left_dot<2>(b) == 13);
     }
+    
+    {
+        ivec3 a(1, 2, 3);
+        ivec3 b(3, 2, 3);
+        assert(!Extra::are_vectors_identical(a, b, 1));
+        assert(Extra::are_vectors_identical(a, b, 3));
+    }
 }
 
 void test_glsl_transformation() {
