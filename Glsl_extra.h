@@ -88,6 +88,22 @@ namespace Extra {
     }
 
     /**
+    * \brief test if two vector are numerically equal
+    * @param {IFixedVector, in}  vector #1
+    * @param {IFixedVector, in}  vector #2
+    * @param {value_type,   in}  allowed tolerance for vector elements (default is 1e-5)
+    * @param {bool,         out} true if vectors are identical
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr bool are_vectors_identical(const VEC& a, const VEC& b, const T tol = static_cast<T>(1e-5)) noexcept {
+        bool identical{ true };
+        Utilities::static_for<0, 1, VEC::length()>([&a, &b, &identical, tol](std::size_t i) {
+            identical &= std::abs(a[i] - b[i]) <= tol;
+        });
+        return identical;
+    }
+
+    /**
     * \brief tests if a given matrix is symmetric
     * @param {IFixedCubicMatrix, in}  matrix which will be testd for symmetry
     * @param {bool,              out} true if matrix is symmetrical
@@ -95,8 +111,8 @@ namespace Extra {
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr bool is_symmetric(const MAT& mat, const T tol = static_cast<T>(1e-5)) noexcept {
         bool symmetric{ true };
-        Utilities::static_for<0, 1, 3>([&mat, &symmetric, tol](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&mat, &symmetric, tol, i](std::size_t j) {
+        Utilities::static_for<0, 1, MAT::columns()>([&mat, &symmetric, tol](std::size_t i) {
+            Utilities::static_for<0, 1, MAT::columns()>([&mat, &symmetric, tol, i](std::size_t j) {
                 symmetric &= mat(i, j) - mat(j, i) <= tol;
             });
         });
@@ -105,12 +121,12 @@ namespace Extra {
 
     /**
     * \brief tests if a given 3x3 matrix is direct cosine matrix (DCM)
-    * @param {Matrix3, in}  tested matrix
-    * @param {bool,    out} true if matrix is DCM
+    * @param {IFixedCubicMatrix, in}  3x3 matrix
+    * @param {bool,              out} true if matrix is DCM
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr bool is_dcm_matrix(const GLSL::Matrix3<T>& mat) noexcept {
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+        requires(MAT::columns() == 3)
+    constexpr bool is_dcm_matrix(const MAT& mat) noexcept {
         bool is_dcm{ true };
         is_dcm &= Extra::is_normalized(mat[0]);
         is_dcm &= Extra::is_normalized(mat[1]);
