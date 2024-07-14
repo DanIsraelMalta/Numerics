@@ -12,7 +12,7 @@ namespace PointDistance {
     * @param {IFixedVector, in}  point
     * @param {IFixedVector, in}  segment point #1
     * @param {IFixedVector, in}  segment point #2
-    * @param {value_type,   out} signed distance
+    * @param {value_type,   out} unsigned distance, negative value if segment is a point
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
@@ -20,7 +20,10 @@ namespace PointDistance {
         const VEC pa{ p - a };
         const VEC ba{ b - a };
         const T dot{ GLSL::dot(ba) };
-        assert(!Numerics::areEquals(dot, T{}));
+        if (Numerics::areEquals(dot, T{})) {
+            return T{};
+        }
+        [[assume(dot > T{})]];
         const T h{ Numerics::clamp<T{}, static_cast<T>(1)>(GLSL::dot(pa, ba) / dot) };
         return GLSL::length(pa - ba * h);
     }
@@ -30,7 +33,7 @@ namespace PointDistance {
     * @param {IFixedVector, in}  point
     * @param {IFixedVector, in}  segment point #1
     * @param {IFixedVector, in}  segment point #2
-    * @param {value_type,   out} signed distance
+    * @param {value_type,   out} unsigned squared distance, negative value if segment is a point
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires((VEC::length() == 2) || (VEC::length() == 3))
@@ -38,7 +41,10 @@ namespace PointDistance {
         const VEC pa{ p - a };
         const VEC ba{ b - a };
         const T dot{ GLSL::dot(ba) };
-        assert(!Numerics::areEquals(dot, T{}));
+        if (Numerics::areEquals(dot, T{})) {
+            return T{};
+        }
+        [[assume(dot > T{})]];
         const T h{ Numerics::clamp<T{}, static_cast<T>(1)>(GLSL::dot(pa, ba) / dot) };
         return GLSL::dot(pa - ba * h);
     }
