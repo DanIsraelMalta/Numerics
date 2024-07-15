@@ -1562,6 +1562,20 @@ void test_GLSL_algorithms_2D() {
         for (const auto& p : convex) {
             assert(GLSL::dot(p - circle.center) <= circle.radius_squared);
         }
+
+	    // concave hull
+        const auto concave0 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.0f);
+        for (std::size_t i{}; i < expected_convex.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(expected_convex[i] - concave0[i])) < 1e-6);
+        }
+
+        const auto concave2 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.3f);
+        const std::vector<vec2> expected_concave{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
+                                                   vec2(10.0f, 9.0f), vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f),
+                                                   vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f)} };
+        for (std::size_t i{}; i < expected_concave.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(expected_concave[i] - concave2[i])) < 1e-6);
+        }
     }
 
    {
