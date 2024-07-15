@@ -1,6 +1,7 @@
 #pragma once
 #include "Glsl.h"
 #include "Glsl_extra.h"
+#include "Glsl_point_distance.h"
 #include "DiamondAngle.h"
 #include <limits>
 #include <vector>
@@ -174,6 +175,9 @@ namespace Algorithms2D {
 			if (inside) {
 				return circle;
 			}
+
+			// shouldn't reach this point
+			assert(0 == 1);
 		}
 
 		/**
@@ -191,31 +195,49 @@ namespace Algorithms2D {
 				centroid += p;
 			}
 
+			assert(points.size() > 0);
 			return (centroid / static_cast<T>(points.size()));
 		}
 
 		/**
-		* \brief given a point and collection of points, return the index of point in collection which is furthest from given point
-		* @param {vector<IFixedVector>, in}  cloud of points
+		* \brief given a point and collection of points whice define segments, return the indices of points which define the segment which is closest to the point
+		* @param {vector<IFixedVector>, in}  cloud of points, each two consecutive points define a segment
 		* @param {IFixedVector,         in}  point
-		* @param {size_t,               out} index of point in cloud which is furthest from given point
+		* @param {{value_type, size_t}, out} {squared distance, index of point #1 in collection which define closest segment}
 		**/
 		template<GLSL::IFixedVector VEC>
 			requires(VEC::length() == 2)
-		constexpr std::size_t get_index_of_furthest_point(const std::vector<VEC>& cloud, VEC point) noexcept {
+		constexpr auto get_index_of_closest_segment(const std::vector<VEC>& segments, VEC point) noexcept {
 			using T = typename VEC::value_type;
+			using out_t = struct { T distance_squared; std::size_t index; };
 
-			const std::size_t N{ cloud.size() };
+			// housekeeping
 			std::size_t index{};
-			T distSquared{};
-			for (std::size_t i{}; i < N; ++i) {
-				const T dist2{ GLSL::dot(point - cloud[i]) };
-				const bool furthest{ dist2 > distSquared };
-				distSquared = furthest ? dist2 : distSquared;
-				index = furthest ? i : index;
+			T distSquared{ std::numeric_limits<T>::max() };
+			const auto update_point = [&point, &index, &distSquared](const VEC& a, const VEC& b, const std::size_t i) {
+				const T dist2{ PointDistance::squared_udf_to_segment(point, a, b) };
+				const bool closest{ dist2 > T{} && dist2 < distSquared };
+				distSquared = closest ? dist2 : distSquared;
+				index = closest ? i : index;
+			};
+
+			// iterate over all segments
+			const std::size_t N{ segments.size() };
+			for (std::size_t i{}; i < N - 1; ++i) {
+				if (!Extra::are_vectors_identical(point, segments[i]) &&
+					!Extra::are_vectors_identical(point, segments[i + 1])) {
+					update_point(segments[i], segments[i + 1], i);
+				}
 			}
 
-			return index;
+			// check "closed segment"
+			if (!Extra::are_vectors_identical(point, segments[0]) &&
+				!Extra::are_vectors_identical(point, segments[N - 1])) {
+				update_point(segments[0], segments[N - 1], N - 1);
+			}
+
+			// output
+			return out_t{ distSquared, index };
 		}
 	};
 
@@ -253,6 +275,61 @@ namespace Algorithms2D {
 			hull.push_back(*it++);
 		}
 
+		return hull;
+	}
+
+	/**
+	* \brief calculate the concave hull of collection of 2D points (using Graham scan algorithm).
+	*
+	* @param {forward_iterator,     in}  iterator to point cloud collection first point
+	* @param {forward_iterator,     in}  iterator to point cloud collection last point
+	* @param {value_type,           in}  concave threshold. point will be added to concave hull if the length of edge segment
+	*                                    divided by the length of the segment divided at given point will be larger than this value.
+	*                                    the smaller - the more points are added to concave.
+	*                                    negative value will result in calculating the convex hull.
+	* @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
+	**/
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+		requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
+	constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const T concave_threshold) {
+		// get convex hull
+		std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
+		if (concave_threshold <= T{}) {
+			return hull;
+		}
+
+		// "dig" into convex hull to create concave hull
+		bool finished{ false };
+		while (!finished) {
+			// find closest point to hull
+			VEC closest_point;
+			std::size_t segment_index_start{};
+			T distance_squared{ std::numeric_limits<T>::max() };
+			for (auto it{ first }; it != last; ++it) {
+				const VEC p{ *it };
+				auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
+				if (closest.distance_squared < distance_squared) {
+					distance_squared = closest.distance_squared;
+					segment_index_start = closest.index + 1;
+					closest_point = p;
+				}
+			}
+
+			// should point be part of concave hull?
+			const std::size_t segment_index_end{ (segment_index_start + 1) % hull.size()};
+			const T segment_length{ GLSL::distance(hull[segment_index_start], hull[segment_index_end]) };
+			const T new_segment_length{ GLSL::distance(closest_point, hull[segment_index_end]) +
+										GLSL::distance(hull[segment_index_start], closest_point) };
+			assert(segment_length > T{});
+			[[assume(segment_length > T{})]];
+			if (segment_length / new_segment_length >= concave_threshold) {
+				hull.insert(hull.begin() + segment_index_start, closest_point);
+			} else {
+				finished = true;
+			}
+		}
+
+		// output
 		return hull;
 	}
 
