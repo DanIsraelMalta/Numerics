@@ -643,4 +643,45 @@ namespace Algorithms2D {
 		// output
 		return points;
 	}
+
+	/**
+	* \brief given collection of points, estimate main principle axis
+	* @param {vector<IFixedVector>,  in}  cloud of points
+	* @param {IFixedVector,          out} normalized axis estimating cloud point principle direction
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr VEC get_principle_axis(const std::vector<VEC>& cloud) {
+		using T = typename VEC::value_type;
+
+		// housekeeping
+		const VEC centroid{ Internals::get_centroid(cloud) };
+		const std::size_t N{ cloud.size() - 1 };
+
+		// calculate covariance matrix elements
+		T cov_xx{};
+		T cov_yy{};
+		T cov_xy{};
+		for (const VEC p : cloud) {
+			const VEC d{ p - centroid };
+			cov_xx += p.x * p.x;
+			cov_yy += p.y * p.y;
+			cov_xy += p.x * p.y;
+		}
+		cov_xx /= N;
+		cov_yy /= N;
+		cov_xy /= N;
+		
+		// find covariance matrix largest eigenvalue
+		// (see Decomposition::eigenvalues from 'Glsl_solvers.h' for reference)
+		const T diff{ cov_xx - cov_yy };
+        const T center{ cov_xx + cov_yy };
+        const T deltaSquared{ diff * diff + static_cast<T>(4) * cov_xy * cov_xy };
+        [[assume(deltaSquared >= T{})]];
+        const T delta{ std::sqrt(deltaSquared) };
+		const T eigenvalue{ (center + delta) / static_cast<T>(2) };
+
+		// principle component
+		return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
+	}
 }
