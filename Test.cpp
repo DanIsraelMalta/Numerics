@@ -1624,6 +1624,21 @@ void test_GLSL_algorithms_2D() {
        is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(sorted_points, centroid);
        assert(is_clockwise);
    }
+	
+   {
+       for (std::size_t angle{}; angle < 180; angle += 5) {
+           std::vector<vec2> points;
+           const float tanAngle{ std::tan(static_cast<float>(angle) * 3.141592653589f / 180.0f) };
+           float sign{ 1.0f };
+           for (std::size_t x{}; x < 100; ++x) {
+               points.emplace_back(vec2(static_cast<float>(x), tanAngle * static_cast<float>(x) + sign * static_cast<float>(rand()) / RAND_MAX));
+               sign *= -1.0f;
+           }
+
+           const vec2 direction{ Algorithms2D::get_principle_axis(points) };
+           assert(std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) <= 0.1f);
+       }
+   }
 }
 
 int main() {
