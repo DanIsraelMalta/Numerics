@@ -7,6 +7,7 @@
 // 
 
 namespace Decomposition {
+
     /**
     * \brief return the eigenvalues of a 2x2 ot 3x3 matrix
     *
@@ -87,20 +88,20 @@ namespace Decomposition {
             else if (std::abs(a) > std::abs(b)) {
                 [[assume(a != T{})]];
                 const T t{ b / a };
-                const T u{ Numerics::sign(a) * std::sqrt(t * t + static_cast<T>(1) ) };
+                const T u{ Numerics::sign(a) * std::sqrt(t * t + static_cast<T>(1)) };
                 [[assume(u != T{})]];
                 const T c{ static_cast<T>(1) / u };
-                return std::array<T, 3>{{c, t * c, a * u}};
+                return std::array<T, 3>{{c, t* c, a* u}};
             }
             else {
                 [[assume(b != T{})]];
-                const T t{ a / b};
+                const T t{ a / b };
                 const T u{ Numerics::sign(b) * std::sqrt(t * t + static_cast<T>(1)) };
                 [[assume(u != T{})]];
                 const T s{ static_cast<T>(1) / u };
-                return std::array<T, 3>{{t * s, s, b * u}};
+                return std::array<T, 3>{{t* s, s, b* u}};
             }
-        };
+            };
 
         // decomposition
         MAT R(mat);
@@ -114,8 +115,8 @@ namespace Decomposition {
                 for (std::size_t x{}; x < N; ++x) {
                     const T temp1{ R(x, i - 1) };
                     const T temp2{ R(x, i) };
-                    R(x, i - 1) =  temp1 * CSR[0] + temp2 * CSR[1];
-                    R(x, i)     = -temp1 * CSR[1] + temp2 * CSR[0];
+                    R(x, i - 1) = temp1 * CSR[0] + temp2 * CSR[1];
+                    R(x, i) = -temp1 * CSR[1] + temp2 * CSR[0];
                 }
                 R(j, i - 1) = CSR[2];
                 R(j, i) = T{};
@@ -124,13 +125,13 @@ namespace Decomposition {
                 for (std::size_t x{}; x < N; ++x) {
                     const T temp1{ Q(i - 1, x) };
                     const T temp2{ Q(i,     x) };
-                    Q(i - 1, x) =  temp1 * CSR[0] + temp2 * CSR[1];
-                    Q(i, x)     = -temp1 * CSR[1] + temp2 * CSR[0];
+                    Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
+                    Q(i, x) = -temp1 * CSR[1] + temp2 * CSR[0];
                 }
             }
         }
 
-        return out_t{Q, R};
+        return out_t{ Q, R };
     }
 
     /**
@@ -176,7 +177,7 @@ namespace Decomposition {
     * @param {{IFixedCubicMatrix, array, int32_t}, out} {LU matrix (decomposed matrix; upper triangular is U, lower triangular is L, diagnoal is part of U), decomposition pivot vector, pivot sign}
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-    [[nodiscard]] constexpr auto LU(const MAT& mat) {
+    constexpr auto LU(const MAT& mat) {
         constexpr std::size_t N{ MAT::columns() };
         using T = typename MAT::value_type;
         using VEC = typename MAT::vector_type;
@@ -199,7 +200,7 @@ namespace Decomposition {
                     _pivot = r;
                 }
             }
-            
+
             // exchange pivot
             if (_pivot != c) {
                 for (std::size_t cc{}; cc < N; ++cc) {
@@ -304,7 +305,7 @@ namespace Decomposition {
             eigenvalue = GLSL::dot(eigenvector_next, eigenvector);
             ++i;
         }
-        
+
         // output
         const T dot{ GLSL::dot(eigenvector) };
         assert(!Numerics::areEquals(dot, T{}));
@@ -329,7 +330,7 @@ namespace Decomposition {
             assert(!Numerics::areEquals(max, T{}));
             eigenvector /= max;
         });
-        
+
         // output
         const T dot{ GLSL::dot(eigenvector) };
         assert(!Numerics::areEquals(dot, T{}));
@@ -417,6 +418,79 @@ namespace Decomposition {
         // output
         return out;
     }
+
+    /**
+    * \brief given non singular matrix, return the rotation matrix of its polar decomposition.
+    *        in general, polar decomposition decompose a matrix to R*P where:
+    *        > R is an orthogonal unitary matrix repsresenting rotation.
+    *        > P is a positive semidefinite symmetric matrix represents deformation/scaling.
+    *          (P might have negative sign for small magnitude singular values)
+    *        here, we only return R. P can be calculated by the user (MAT * Rinv)
+    * @param {IFixedCubicMatrix, in}  matrix to decomopse
+    * @param {size_t,            in}  maximal number of iterations (default is 10)
+    * @param {value_type,        in}  minimal rotation matrix squated frobenius norm for calculation to halt.
+    *                                 since orthogonal matrix frobenius norm is 1, the tolerance should be larger than 1.
+    *                                 default is 1.1.
+    * @param {IFixedCubicMatrix, out} rotation matrix of polar decomposition
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT PD_rotation(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1.1)) {
+        if constexpr (MAT::columns() == 2) {
+            const T x0{ mat(0, 0) + mat(1, 1) };
+            const T x1{ mat(0, 1) - mat(1, 0) };
+            const T den{ std::sqrt(x0 * x0 + x1 * x1) };
+            assert(den > T{});
+            const T c{  x0 / den };
+            const T s{ -x1 / den };
+
+            return MAT( c, s,
+                       -s, c);
+        }
+        else {
+            MAT R(mat);
+            std::size_t i{};
+            T frobSquared{ std::numeric_limits<T>::max() };
+            while ((i < iter) && (frobSquared > tol)) {
+                const MAT Rinv(GLSL::transpose(Decomposition::inverse_using_lu(R)));
+                R = (R + Rinv) / static_cast<T>(2);
+
+                Utilities::static_for<0, 1, MAT::columns()>([&R, &frobSquared](std::size_t i) {
+                    frobSquared += dot(R[i]);
+                });
+
+                ++i;
+            }
+
+            // output
+            return R;
+        }
+    }
+    template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
+    constexpr MAT PD_rotation(const MAT& mat) {
+        using T = typename MAT::value_type;
+
+        if constexpr (MAT::columns() == 2) {
+            const T x0{ mat(0, 0) + mat(1, 1) };
+            const T x1{ mat(0, 1) - mat(1, 0) };
+            const T den{ std::sqrt(x0 * x0 + x1 * x1) };
+            assert(den > T{});
+            const T c{ x0 / den };
+            const T s{ -x1 / den };
+
+            return MAT( c, s,
+                       -s, c);
+        }
+        else {
+            MAT R(mat);
+            Utilities::static_for<0, 1, N>([&R](std::size_t i) {
+                const MAT Rinv(GLSL::transpose(Decomposition::inverse_using_lu(R)));
+                R = (R + Rinv) / static_cast<T>(2);
+            });
+
+            // output
+            return R;
+        }
+    }
 };
 
 //
@@ -445,7 +519,7 @@ namespace Solvers {
         VEC x;
         Utilities::static_for<0, 1, N>([&x, &lowerUpper, &b](std::size_t i) {
             x[i] = b[static_cast<std::size_t>(lowerUpper.Pivot[i])];
-        });
+            });
 
         // Solve L*Y = b(pivoted)
         for (std::size_t k{}; k < N; ++k) {
@@ -537,5 +611,3 @@ namespace Solvers {
         return SolveLU(lowerUpper.LU, C);
     }
 };
-
-    
