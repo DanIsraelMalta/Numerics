@@ -852,7 +852,38 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eigs2[0] * 10000) == 421148);
         assert(static_cast<std::int32_t>(eigs2[1] * 10000) == 158851);
     }
+    
+    {
+        dmat3 polarExpected1( 0.853312, -0.416067, -0.31424,
+                              0.325196,  0.89579,  -0.302999,
+                             -0.407561, -0.156363, -0.899692);
+        auto polar1 = Decomposition::PD_rotation(a, 50);
+        assert(Extra::is_normalized(polar1[0]));
+        assert(Extra::is_normalized(polar1[1]));
+        assert(Extra::is_normalized(polar1[2]));
+        Utilities::static_for<0, 1, 3>([&polar1, &polarExpected1](std::size_t i) {
+            assert(Extra::are_vectors_identical(polar1[i], polarExpected1[i]));
+        });
 
+        auto polar1_f = Decomposition::PD_rotation<50>(a);
+        assert(Extra::is_normalized(polar1_f[0]));
+        assert(Extra::is_normalized(polar1_f[1]));
+        assert(Extra::is_normalized(polar1_f[2]));
+        Utilities::static_for<0, 1, 3>([&polar1_f, &polarExpected1](std::size_t i) {
+            assert(Extra::are_vectors_identical(polar1_f[i], polarExpected1[i]));
+        });
+
+        dmat2 b(51.0, 13.0, -24.0, 7.0);
+        dmat2 polarExpected2(0.843062, -0.537816,
+                             0.537816, 0.843062);
+        dmat2 polar2 = Decomposition::PD_rotation(b);
+        assert(Extra::is_normalized(polar2[0]));
+        assert(Extra::is_normalized(polar2[1]));
+        Utilities::static_for<0, 1, 2>([&polar2, &polarExpected2](std::size_t i) {
+            assert(Extra::are_vectors_identical(polar2[i], polarExpected2[i]));
+        });
+    }
+    
     {   
         dmat3 QExpected(0.228375, -0.9790593, 0.076125,
                         0.618929, 0.084383, -0.780901,
