@@ -694,17 +694,4 @@ namespace Algorithms2D {
 		// principle component
 		return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
 	}
-
-	/**
-	* \brief given a closed polygon, return its pole of inaccessibility (the most distance internal opint from polygon outline)
-	* @param {vector<IFixedVector>, in}  polygon
-	* @param {IFixedVector,         out} pole of inaccessibility
-	**/
-	template<GLSL::IFixedVector VEC>
-		requires(VEC::length() == 2)
-	constexpr VEC get_pole_of_inaccessibility(const std::vector<VEC>& poly) {
-		using T = typename VEC::value_type;
-	}
-	
-	// all shamous operations...
 }
