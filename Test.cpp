@@ -1565,19 +1565,20 @@ void test_GLSL_algorithms_2D() {
         assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p3)) < 1e-6);
 
         // point inside polygon
-        bool inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 6.0f));
+        bool inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(7.0f, 6.0f));
         assert(inside == false);
-        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(7.0f, 8.0f));
+        inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(7.0f, 8.0f));
         assert(inside);
-        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(1.0f, 1.0f));
+        inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(1.0f, 1.0f));
         assert(inside == false);
-        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(1.5f, 7.0f));
+        inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(1.5f, 7.0f));
         assert(inside == false);
-        inside = Algorithms2D::is_point_inside_polygon(polygon, vec2(2.0f, 9.0f));
+        inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(2.0f, 9.0f));
         assert(inside);
 
         // centroid
-        const vec2 centroid = Algorithms2D::Internals::get_centroid(std::vector<vec2>{{obb.p0, obb.p1, obb.p2, obb.p3}});
+        std::vector<vec2> cents{ obb.p0, obb.p1, obb.p2, obb.p3 };
+        const vec2 centroid = Algorithms2D::Internals::get_centroid(cents.cbegin(), cents.cend());
         assert(GLSL::max(GLSL::abs(vec2(5.5f) - centroid)) < 1e-6);
 
         // convex hull diamater
@@ -1594,7 +1595,7 @@ void test_GLSL_algorithms_2D() {
             assert(GLSL::dot(p - circle.center) <= circle.radius_squared);
         }
 
-	    // concave hull
+        // concave hull
         const auto concave0 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.0f);
         for (std::size_t i{}; i < expected_convex.size(); ++i) {
             assert(GLSL::max(GLSL::abs(expected_convex[i] - concave0[i])) < 1e-6);
@@ -1616,15 +1617,15 @@ void test_GLSL_algorithms_2D() {
                                     static_cast<float>(rand() % 100 - 50)));
        }
 
-       const vec2 centroid = Algorithms2D::Internals::get_centroid(points);
-       bool is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points, centroid);
+       const vec2 centroid = Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend());
+       bool is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid);
        assert(!is_clockwise);
 
-       std::vector<vec2> sorted_points = Algorithms2D::sort_points_clock_wise(points, centroid);
-       is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(sorted_points, centroid);
+       Algorithms2D::sort_points_clock_wise(points.begin(), points.end(), centroid);
+       is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid);
        assert(is_clockwise);
    }
-	
+
    {
        for (std::size_t angle{}; angle < 180; angle += 5) {
            std::vector<vec2> points;
@@ -1635,7 +1636,7 @@ void test_GLSL_algorithms_2D() {
                sign *= -1.0f;
            }
 
-           const vec2 direction{ Algorithms2D::get_principle_axis(points) };
+           const vec2 direction{ Algorithms2D::get_principle_axis(points.cbegin(), points.cend()) };
            assert(std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) <= 0.1f);
        }
    }
