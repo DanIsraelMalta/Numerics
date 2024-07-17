@@ -5,6 +5,7 @@
 #include "DiamondAngle.h"
 #include <limits>
 #include <vector>
+#include <iterator>
 #include <algorithm>
 #include <random>
 
@@ -182,33 +183,38 @@ namespace Algorithms2D {
 
 		/**
 		* \brief given collection of points, return it sorted in clock wise manner
-		* @param {vector<IFixedVector>, in}  cloud of points
-		* @param {IFixedVector,         out} centroid
+		* @param {forward_iterator, in}  iterator to first point in collection
+		* @param {forward_iterator, in}  iterator to last point in collection
+		* @param {IFixedVector,     out} centroid
 		**/
-		template<GLSL::IFixedVector VEC>
-			requires(VEC::length() == 2)
-		constexpr VEC get_centroid(const std::vector<VEC>& points) {
+		template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+			requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+		constexpr VEC get_centroid(const InputIt first, const InputIt last) {
 			using T = typename VEC::value_type;
+			assert(std::distance(first, last) > 0);
 
 			VEC centroid;
-			for (const VEC p : points) {
-				centroid += p;
+			for (auto it{ first }; it != last; ++it) {
+				centroid += *it;
 			}
 
-			assert(points.size() > 0);
-			return (centroid / static_cast<T>(points.size()));
+			return (centroid / static_cast<T>(std::distance(first, last)));
 		}
 
 		/**
-		* \brief given a point and collection of points whice define segments, return the indices of points which define the segment which is closest to the point
+		* \brief given a collection of points whice define segments of closed polygon and a point, return the indices of points which define the segment which is closest to the point
 		* @param {vector<IFixedVector>, in}  cloud of points, each two consecutive points define a segment
+		* @param {forward_iterator,     in}  iterator to polygon first point
+		* @param {forward_iterator,     in}  iterator to polygon last point
 		* @param {IFixedVector,         in}  point
 		* @param {{value_type, size_t}, out} {squared distance, index of point #1 in collection which define closest segment}
 		**/
-		template<GLSL::IFixedVector VEC>
-			requires(VEC::length() == 2)
-		constexpr auto get_index_of_closest_segment(const std::vector<VEC>& segments, VEC point) noexcept {
+		template<std::forward_iterator InputIt, 
+			     class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+			requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+		constexpr auto get_index_of_closest_segment(const InputIt first, const InputIt last, VEC point) noexcept {
 			using T = typename VEC::value_type;
+			using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 			using out_t = struct { T distance_squared; std::size_t index; };
 
 			// housekeeping
@@ -222,18 +228,21 @@ namespace Algorithms2D {
 			};
 
 			// iterate over all segments
-			const std::size_t N{ segments.size() };
-			for (std::size_t i{}; i < N - 1; ++i) {
-				if (!Extra::are_vectors_identical(point, segments[i]) &&
-					!Extra::are_vectors_identical(point, segments[i + 1])) {
-					update_point(segments[i], segments[i + 1], i);
+			const iter_size_t N{ std::distance(first, last) };
+			assert(N > 0);
+			for (iter_size_t i{}; i < N - 1; ++i) {
+				const VEC a(*(first + i));
+				const VEC b(*(first + i + 1));
+				if (!Extra::are_vectors_identical(point, a) &&
+					!Extra::are_vectors_identical(point, b)) {
+					update_point(a, b, i);
 				}
 			}
 
 			// check "closed segment"
-			if (!Extra::are_vectors_identical(point, segments[0]) &&
-				!Extra::are_vectors_identical(point, segments[N - 1])) {
-				update_point(segments[0], segments[N - 1], N - 1);
+			if (const VEC a(*first), b(*(last - 1));
+				!Extra::are_vectors_identical(point, a) && !Extra::are_vectors_identical(point, b)) {
+				update_point(a, b, N - 1);
 			}
 
 			// output
@@ -307,7 +316,7 @@ namespace Algorithms2D {
 			T distance_squared{ std::numeric_limits<T>::max() };
 			for (auto it{ first }; it != last; ++it) {
 				const VEC p{ *it };
-				auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
+				auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull.cbegin(), hull.cend(), p);
 				if (closest.distance_squared < distance_squared) {
 					distance_squared = closest.distance_squared;
 					segment_index_start = closest.index + 1;
@@ -572,21 +581,24 @@ namespace Algorithms2D {
 	}
 
 	/**
-	* \brief given polygon and a point - check if point is inside polygon
+	* \brief given closed polygon and a point - check if point is inside polygon
 	*        (see: https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html)
-	* @param {vector<IFixedVector>, in}  polygon
-	* @param {IFixedVector,         in}  point
-	* @param {bool,                 out} true if point is inside polygon, false otherwise
+	*        should be faster than PointDistance::sdf_to_polygon function in "Glsl_point_distance.h"
+	* @param {forward_iterator, in}  iterator to polygon first point
+    * @param {forward_iterator, in}  iterator to polygon last point
+	* @param {IFixedVector,     in}  point
+	* @param {bool,             out} true if point is inside polygon, false otherwise
 	**/
-	template<GLSL::IFixedVector VEC>
-		requires(VEC::length() == 2)
-	constexpr bool is_point_inside_polygon(const std::vector<VEC>& poly, const VEC& point) {
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+	constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
 		using T = typename VEC::value_type;
+		using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
 		bool inside{ false };
-		for (std::size_t len{ poly.size() }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
-			const VEC pi{ poly[i] };
-			const VEC pj{ poly[j] };
+		for (iter_size_t len{ std::distance(first, last) }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
+			const VEC pi{ *(first + i) };
+			const VEC pj{ *(first + j) };
 			const bool intersects{ pi.y > point.y != pj.y > point.y &&
 				                   point.x < ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y) + pi.x };
 			inside = intersects ? !inside : inside;
@@ -597,19 +609,21 @@ namespace Algorithms2D {
 
 	/**
 	* \brief given collection of points, return true if they are ordered in clock wise manner
-	* @param {vector<IFixedVector>, in} cloud of points
-	* @param {IFixedVector,         in} points geometric center
-	* @param {bool,                 out} true if point are ordered in clock wise manner, false otherwise
+	* @param {forward_iterator, in}  iterator to cloud points collection first point
+    * @param {forward_iterator, in}  iterator to cloud points collection last point
+	* @param {IFixedVector,     in}  points geometric center
+	* @param {bool,             out} true if point are ordered in clock wise manner, false otherwise
 	**/
-	template<GLSL::IFixedVector VEC>
-		requires(VEC::length() == 2)
-	constexpr bool are_points_ordererd_clock_wise(const std::vector<VEC>& poly, const VEC& centroid) {
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+	constexpr bool are_points_ordererd_clock_wise(const InputIt first, const InputIt last, const VEC& centroid) {
 		using T = typename VEC::value_type;
+		using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
 		bool clockwise{ false };
-		for (std::size_t len{ poly.size() }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
-			const VEC a{ poly[i] };
-			const VEC b{ poly[j] };
+		for (iter_size_t len{ std::distance(first, last) }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
+			const VEC a{ *(first + i) };
+			const VEC b{ *(first + j) };
 			const T angle_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
 			const T angle_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
 
@@ -620,53 +634,49 @@ namespace Algorithms2D {
 	}
 
 	/**
-	* \brief given collection of points, return it sorted in clock wise manner
-	* @param {vector<IFixedVector>, in} cloud of points
-	* @param {IFixedVector,         in} points geometric center
+	* \brief given collection of points, sort them in clock wise manner
+	* @param {forward_iterator,     in}  iterator to point collection first point
+    * @param {forward_iterator,     in}  iterator to point collection last point
+	* @param {IFixedVector,         in}  points geometric center
 	* @param {vector<IFixedVector>, out} points sorted in clock wise manner
 	**/
-	template<GLSL::IFixedVector VEC>
-		requires(VEC::length() == 2)
-	constexpr std::vector<VEC> sort_points_clock_wise(const std::vector<VEC>& cloud, const VEC& centroid) {
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+	constexpr void sort_points_clock_wise(InputIt first, InputIt last, VEC centroid) {
 		using T = typename VEC::value_type;
 
-		// housekeeping
-		std::vector<VEC> points(cloud);
-
-		// sort clock wise
-		std::ranges::sort(points, [&centroid](const VEC& a, const VEC& b) noexcept -> bool {
+		std::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
 			const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
 			const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
 			return angla_a > angla_b;
 		});
-
-		// output
-		return points;
 	}
 
 	/**
 	* \brief given collection of points, estimate main principle axis
-	* @param {vector<IFixedVector>,  in}  cloud of points
-	* @param {IFixedVector,          out} normalized axis estimating cloud point principle direction
+	* @param {forward_iterator, in}  iterator to first point in collection
+    * @param {forward_iterator, in}  iterator to last point in collection
+	* @param {IFixedVector,     out} normalized axis estimating cloud point principle direction
 	**/
-	template<GLSL::IFixedVector VEC>
-		requires(VEC::length() == 2)
-	constexpr VEC get_principle_axis(const std::vector<VEC>& cloud) {
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+	constexpr VEC get_principle_axis(const InputIt first, const InputIt last) {
 		using T = typename VEC::value_type;
+		using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
 		// housekeeping
-		const VEC centroid{ Internals::get_centroid(cloud) };
-		const std::size_t N{ cloud.size() - 1 };
+		const VEC centroid{ Internals::get_centroid(first, last) };
+		const iter_size_t N{ std::distance(first, last) - 1};
 
 		// calculate covariance matrix elements
 		T cov_xx{};
 		T cov_yy{};
 		T cov_xy{};
-		for (const VEC p : cloud) {
-			const VEC d{ p - centroid };
-			cov_xx += p.x * p.x;
-			cov_yy += p.y * p.y;
-			cov_xy += p.x * p.y;
+		for (auto it{ first }; it != last; ++it) {
+			const VEC d{ *it - centroid };
+			cov_xx += d.x * d.x;
+			cov_yy += d.y * d.y;
+			cov_xy += d.x * d.y;
 		}
 		cov_xx /= N;
 		cov_yy /= N;
@@ -684,4 +694,17 @@ namespace Algorithms2D {
 		// principle component
 		return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
 	}
+
+	/**
+	* \brief given a closed polygon, return its pole of inaccessibility (the most distance internal opint from polygon outline)
+	* @param {vector<IFixedVector>, in}  polygon
+	* @param {IFixedVector,         out} pole of inaccessibility
+	**/
+	template<GLSL::IFixedVector VEC>
+		requires(VEC::length() == 2)
+	constexpr VEC get_pole_of_inaccessibility(const std::vector<VEC>& poly) {
+		using T = typename VEC::value_type;
+	}
+	
+	// all shamous operations...
 }
