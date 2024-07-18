@@ -428,9 +428,9 @@ namespace Decomposition {
     *        here, we only return R. P can be calculated by the user (MAT * Rinv)
     * @param {IFixedCubicMatrix, in}  matrix to decomopse
     * @param {size_t,            in}  maximal number of iterations (default is 10)
-    * @param {value_type,        in}  minimal rotation matrix squated frobenius norm for calculation to halt.
+    * @param {value_type,        in}  minimal rotation matrix squared frobenius norm for calculation to halt.
     *                                 since orthogonal matrix frobenius norm is 1, the tolerance should be larger than 1.
-    *                                 default is 1.1.
+    *                                 default is 1.1 - meaning operation will stop when squared frobenius norm will be smaller than 1.1.
     * @param {IFixedCubicMatrix, out} rotation matrix of polar decomposition
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
