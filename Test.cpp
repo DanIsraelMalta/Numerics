@@ -17,7 +17,7 @@
 #include "Glsl_ray_intersections.h"
 #include "Glsl_transformation.h"
 #include "GLSL_algorithms_2D.h"
-
+#include "Glsl_space_partitioning.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -1642,6 +1642,85 @@ void test_GLSL_algorithms_2D() {
    }
 }
 
+void test_glsl_space_partitioning() {
+    // 1000 points randomly created inside rectangle [0,0] to [100,100]
+    std::vector<vec2> points;
+    for (std::size_t i{}; i < 10000; ++i) {
+        points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 100.0f,
+                                 static_cast<float>(rand()) / RAND_MAX * 100.0f));
+    }
+
+    {
+        // construction
+        SpacePartitioning::KDTree<vec2> kdtree;
+        kdtree.construct(points.begin(), points.end());
+
+        // search nearest neighbours in cube
+        {
+            const vec2 center(50.0f);
+            const float extent{ 5.0f };
+
+            auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Manhattan, center, extent);
+
+            for (std::size_t i{}; i < pointsInCube.size(); ++i) {
+                assert(GLSL::max(GLSL::abs(pointsInCube[i].first - center)) <= extent);
+            }
+
+            std::size_t amount_of_points_in_rectangle{};
+            for (vec2 p : points) {
+                if (GLSL::max(GLSL::abs(p - center)) <= extent) {
+                    ++amount_of_points_in_rectangle;
+                }
+            }
+            assert(amount_of_points_in_rectangle == pointsInCube.size());
+        }
+
+        // search nearest neighbours in radius
+        {
+            const vec2 center(50.0f);
+            const float radius{ 5.0f };
+
+            auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, center, radius);
+
+            for (std::size_t i{}; i < pointsInCube.size(); ++i) {
+                assert(pointsInCube[i].second <= radius * radius);
+                auto a = GLSL::dot(pointsInCube[i].first - center);
+                assert(a <= radius * radius);
+            }
+
+            std::size_t amount_of_points_in_sphere{};
+            for (vec2 p : points) {
+                if (GLSL::dot(p - center) <= radius * radius) {
+                    ++amount_of_points_in_sphere;
+                }
+            }
+            assert(amount_of_points_in_sphere == pointsInCube.size());
+        }
+
+        // search k nearest neighbours in cube
+        {
+            const vec2 center(50.0f);
+            std::vector<float> closest;
+            for (const vec2 p : points) {
+                closest.emplace_back(GLSL::dot(center - p));
+            }
+            std::ranges::sort(closest, std::less<float>());
+
+
+            const std::size_t len{ 19 };
+            const auto nearest10 = kdtree.nearest_neighbors_query(center, len);
+
+            for (std::size_t i{}; i < len; ++i) {
+                assert(std::abs(closest[i] - nearest10[i].second) < std::numeric_limits<float>::min());
+            }
+        }
+
+        // destruction
+        kdtree.clear();
+        assert(sizeof(kdtree) == sizeof(vec2(0.0f)));
+    }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -1657,5 +1736,6 @@ int main() {
     test_glsl_point_distance();
     test_glsl_ray_intersection();
     test_GLSL_algorithms_2D();
+    test_glsl_space_partitioning();
     return 1;
 }
