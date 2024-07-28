@@ -105,24 +105,23 @@ namespace SpacePartitioning {
         * @param {vector<{point_t, coordinate_t}>, out} collection of pairs {point in range, squared distance between current point and queried points}
         **/
         constexpr vector_pairs_t range_query(const RangeSearchType type, const point_t point, const coordinate_t distance) const {
+            // housekeeping
+            const coordinate_t distance_criteria{ type == RangeSearchType::Manhattan ? distance : distance * distance };
+            auto metric_function = (type == RangeSearchType::Manhattan)                ?
+                          this->distance_metric<RangeSearchType::Manhattan>() :
+                          this->distance_metric<RangeSearchType::Radius>();
             vector_pairs_t out{};
+
+            // search kd-tree
             std::stack<Node*> stack;
             stack.push(this->root.get());
-
             while (!stack.empty()) {
                 const Node* node = stack.top();
                 stack.pop();
 
                 const point_t diff{ point - node->point };
-                if (type == RangeSearchType::Manhattan) {
-                    if (GLSL::max(GLSL::abs(diff)) <= distance) {
-                        out.push_back(std::make_pair(node->point, GLSL::dot(diff)));
-                    }
-                }
-                else if (type == RangeSearchType::Radius) {
-                    if (const coordinate_t d2{ GLSL::dot(diff) }; d2 <= distance * distance) {
-                        out.push_back(std::make_pair(node->point, d2));
-                    }
+                if (metric_function(diff) <= distance_criteria) {
+                    out.push_back(std::make_pair(node->point, GLSL::dot(diff)));
                 }
 
                 const std::size_t split{ node->splitAxis };
@@ -157,9 +156,11 @@ namespace SpacePartitioning {
         * @param {vector<{point_t, coordinate_t}>, out} collection of 'k' nearest pairs {point in range, squared distance between current point and queried points}
         **/
         constexpr vector_pairs_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
+            // housekeeping
             std::priority_queue<pair_t, vector_pairs_t, less_pair_t> kMaxHeap;
             coordinate_t minDistance{ GLSL::dot(point - this->root->point) };
 
+            // search kd-tree
             std::stack<Node*> stack;
             stack.push(this->root.get());
             while (!stack.empty()) {
@@ -281,7 +282,20 @@ namespace SpacePartitioning {
              struct less_pair_t {
                  constexpr bool operator()(const pair_t& a, const pair_t& b) const { return a.second < b.second; }
              };
-             
+
+             /**
+             * \brief given range query type - return metric used in searching
+             * @param {invocable, out} distance metric used for range query
+             **/
+             template<RangeSearchType TYPE>
+             constexpr auto distance_metric() const {
+                 if constexpr (TYPE == RangeSearchType::Manhattan) {
+                     return [](const point_t a) -> coordinate_t { return GLSL::max(GLSL::abs(a)); };
+                 }
+                 else if constexpr (TYPE == RangeSearchType::Radius) {
+                     return [](const point_t a) -> coordinate_t { return GLSL::dot(a); };
+                 }
+             }             
     };
 
     static_assert(ISpacePartitioning<KDTree<vec2>, vec2, std::vector<vec2>::iterator>);
