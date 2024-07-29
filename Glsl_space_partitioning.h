@@ -86,7 +86,7 @@ namespace SpacePartitioning {
             }
             std::vector<std::int32_t> indices(len);
             std::iota(indices.begin(), indices.end(), 0);
-            this->root = MOV(this->build_tree(f, 0, MOV(indices)));
+            this->root = this->build_tree(f, 0, indices);
         }
 
         /**
@@ -107,7 +107,7 @@ namespace SpacePartitioning {
         constexpr vector_pairs_t range_query(const RangeSearchType type, const point_t point, const coordinate_t distance) const {
             // housekeeping
             const coordinate_t distance_criteria{ type == RangeSearchType::Manhattan ? distance : distance * distance };
-            auto metric_function = (type == RangeSearchType::Manhattan)                ?
+            auto metric_function = (type == RangeSearchType::Manhattan) ?
                           this->distance_metric<RangeSearchType::Manhattan>() :
                           this->distance_metric<RangeSearchType::Radius>();
             vector_pairs_t out{};
@@ -118,6 +118,9 @@ namespace SpacePartitioning {
             while (!stack.empty()) {
                 const Node* node = stack.top();
                 stack.pop();
+                if (!node) {
+                    continue;
+                }
 
                 const point_t diff{ point - node->point };
                 if (metric_function(diff) <= distance_criteria) {
@@ -126,23 +129,11 @@ namespace SpacePartitioning {
 
                 const std::size_t split{ node->splitAxis };
                 const coordinate_t dist_per_split{ diff[split] };
+                const bool inside{ dist_per_split <= coordinate_t{} };
 
-                if (node->left && dist_per_split <= coordinate_t{}) {
-                    stack.push(node->left.get());
-                }
-                else if (node->right && dist_per_split > coordinate_t{}) {
-                    stack.push(node->right.get());
-                }
-
-                if (std::abs(dist_per_split) > distance) {
-                    continue;
-                }
-
-                if (node->right && dist_per_split <= coordinate_t{}) {
-                    stack.push(node->right.get());
-                }
-                else if (node->left && dist_per_split > coordinate_t{}) {
-                    stack.push(node->left.get());
+                stack.push(inside ? node->left.get() : node->right.get());
+                if (std::abs(dist_per_split) < distance) {
+                    stack.push(inside ? node->right.get() : node->left.get());
                 }
             }
 
@@ -150,7 +141,7 @@ namespace SpacePartitioning {
         }
 
         /**
-        * \brief given point, 'k' of its nearest neighbors
+        * \brief given point, 'k' of its nearest neighbors. notice that this method is recursive.
         * @param {point_t,                         in}  point to search around
         * @paran {size_t,                          in}  amount of closest points
         * @param {vector<{point_t, coordinate_t}>, out} collection of 'k' nearest pairs {point in range, squared distance between current point and queried points}
@@ -158,48 +149,41 @@ namespace SpacePartitioning {
         constexpr vector_pairs_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
             // housekeeping
             std::priority_queue<pair_t, vector_pairs_t, less_pair_t> kMaxHeap;
-            coordinate_t minDistance{ GLSL::dot(point - this->root->point) };
+            coordinate_t minDistance{ std::numeric_limits<coordinate_t>::max() };
 
-            // search kd-tree
-            std::stack<Node*> stack;
-            stack.push(this->root.get());
-            while (!stack.empty()) {
-                const Node* node = stack.top();
-                stack.pop();
+            // lambda implementing nearest neighbors query logic for one node
+            auto nearest_neighbors_query_recursive = [&kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) {
+                if (!node) {
+                    return;
+                }
                 if (kMaxHeap.size() == k) {
-                    minDistance = kMaxHeap.top().second;
+                    mindistance = kMaxHeap.top().second;
                 }
 
                 const point_t diff{ point - node->point };
-                if (const coordinate_t distance{ GLSL::dot(point - node->point) }; distance < minDistance) {
+                if (const coordinate_t distance{ GLSL::dot(diff) }; distance < mindistance) {
                     while (kMaxHeap.size() >= k) {
                         kMaxHeap.pop();
                     }
                     kMaxHeap.emplace(std::make_pair(node->point, distance));
-                    minDistance = distance;
                 }
 
                 const std::size_t split{ node->splitAxis };
                 const coordinate_t dist_per_split{ diff[split] };
+                const bool inside{ dist_per_split <= coordinate_t{} };
 
-                if (node->left && dist_per_split <= coordinate_t{}) {
-                    stack.push(node->left.get());
+                recursive_driver(inside ? node->left.get() : node->right.get(), mindistance, recursive_driver);
+                if (kMaxHeap.size() < k || std::abs(dist_per_split) < mindistance) {
+                    recursive_driver(inside ? node->right.get() : node->left.get(), mindistance, recursive_driver);
                 }
-                else if (node->right && dist_per_split > coordinate_t{}) {
-                    stack.push(node->right.get());
-                }
+            };
 
-                if (node->right && dist_per_split <= coordinate_t{}) {
-                    stack.push(node->right.get());
-                }
-                else if (node->left && dist_per_split > coordinate_t{}) {
-                    stack.push(node->left.get());
-                }
-            }
+            // find k nearest neighbors
+            nearest_neighbors_query_recursive(this->root.get(), minDistance, nearest_neighbors_query_recursive);
 
             // output
             vector_pairs_t out(k);
-            std::size_t i{k-1};
+            std::size_t i{ k-1 };
             for (; !kMaxHeap.empty(); kMaxHeap.pop()) {
                 out[i] = kMaxHeap.top();
                 --i;
@@ -207,96 +191,95 @@ namespace SpacePartitioning {
             return out;
         }
         
-         // internals
-         private:
+        // internals
+        private:
         
-             // KDTree node
-             struct Node {
-                 VEC point;
-                 std::unique_ptr<Node> left;
-                 std::unique_ptr<Node> right;
-                 std::size_t splitAxis{};
-             };
-             
-             // tree root
-             std::unique_ptr<Node> root;
+            // KDTree node
+            struct Node {
+                VEC point;
+                std::unique_ptr<Node> left;
+                std::unique_ptr<Node> right;
+                std::size_t splitAxis{};
+            };
+            
+            // tree root
+            std::unique_ptr<Node> root;
         
-             /**
-             * \brief spatially divide the collection of points in recursive manner.
-             * @param {forward_iterator, in} iterator to point cloud collection first point
-             * @param {size_t,           in} node depth
-             * @param {vector<int32_t>,  in} cloud points vector of indices
-             **/
-             template<std::forward_iterator InputIt>
-                 requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
-             constexpr std::unique_ptr<Node> build_tree(const InputIt first, std::size_t depth, std::vector<std::int32_t>&& indices) {
-                 constexpr std::size_t N{ point_t::length() };
-                 if (indices.empty()) {
-                     return nullptr;
-                 }
+            /**
+            * \brief spatially divide the collection of points in recursive manner.
+            * @param {forward_iterator, in} iterator to point cloud collection first point
+            * @param {size_t,           in} node depth
+            * @param {vector<int32_t>,  in} cloud points vector of indices
+            **/
+            template<std::forward_iterator InputIt>
+                requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
+            constexpr std::unique_ptr<Node> build_tree(const InputIt first, std::size_t depth, std::vector<std::int32_t> indices) {
+                constexpr std::size_t N{ point_t::length() };
+                if (indices.empty()) {
+                    return nullptr;
+                }
         
-                 // partition range according to its first coordinate
-                 const std::size_t medianIndex{ indices.size() / 2 };
-                 const std::size_t axis{ depth % N };
-                 std::ranges::nth_element(indices.begin(),
-                                          indices.begin() + medianIndex,
-                                          indices.end(),
-                     [&](std::int32_t a, std::int32_t b) {
-                         const point_t point_a(*(first + a));
-                         const point_t point_b(*(first + b));
-                         return (point_a[axis] < point_b[axis]);
-                     });
+                // partition range according to its first coordinate
+                const std::size_t medianIndex{ indices.size() / 2 };
+                const std::size_t axis{ depth % N };
+                std::ranges::nth_element(indices.begin(),
+                                         indices.begin() + medianIndex,
+                                         indices.end(),
+                    [&](std::int32_t a, std::int32_t b) {
+                        const point_t point_a(*(first + a));
+                        const point_t point_b(*(first + b));
+                        return (point_a[axis] < point_b[axis]);
+                    });
 
-                 // build and return node
-                 return std::make_unique<Node>(Node{
-                     .point = *(first + indices[medianIndex]),
-                     .left = this->build_tree(first, depth + 1, MOV(std::vector<std::int32_t>(indices.begin(), indices.begin() + medianIndex))),
-                     .right = this->build_tree(first, depth + 1, MOV(std::vector<std::int32_t>(indices.begin() + medianIndex + 1, indices.end()))),
-                     .splitAxis = axis
-                 });
-             }
+                // build and return node
+                return std::make_unique<Node>(Node{
+                    .point = *(first + indices[medianIndex]),
+                    .left = this->build_tree(first, depth + 1, std::vector<std::int32_t>(indices.begin(), indices.begin() + medianIndex)),
+                    .right = this->build_tree(first, depth + 1, std::vector<std::int32_t>(indices.begin() + medianIndex + 1, indices.end())),
+                    .splitAxis = axis
+                });
+            }
         
-             /**
-             * \brief erase a given node and all its children
-             * @param {Node*, in} node to delete
-             **/
-             constexpr void clear_node(std::unique_ptr<Node> node) {
-                 if (!node) {
-                     return;
-                 }
+            /**
+            * \brief erase a given node and all its children
+            * @param {Node*, in} node to delete
+            **/
+            constexpr void clear_node(std::unique_ptr<Node> node) {
+                if (!node) {
+                    return;
+                }
         
-                 if (node->left) {
-                     this->clear_node(MOV(node.get()->left));
-                 }
+                if (node->left) {
+                    this->clear_node(MOV(node.get()->left));
+                }
         
-                 if (node->right) {
-                     this->clear_node(MOV(node.get()->right));
-                 }
+                if (node->right) {
+                    this->clear_node(MOV(node.get()->right));
+                }
         
-                 node.release();
-             }
+                node.release();
+            }
 
-             /**
-             * \brief std::less override for 'pair_t' type
-             **/
-             struct less_pair_t {
-                 constexpr bool operator()(const pair_t& a, const pair_t& b) const { return a.second < b.second; }
-             };
+            /**
+            * \brief std::less override for 'pair_t' type
+            **/
+            struct less_pair_t {
+                constexpr bool operator()(const pair_t& a, const pair_t& b) const { return a.second < b.second; }
+            };
 
-             /**
-             * \brief given range query type - return metric used in searching
-             * @param {invocable, out} distance metric used for range query
-             **/
-             template<RangeSearchType TYPE>
-             constexpr auto distance_metric() const {
-                 if constexpr (TYPE == RangeSearchType::Manhattan) {
-                     return [](const point_t a) -> coordinate_t { return GLSL::max(GLSL::abs(a)); };
-                 }
-                 else if constexpr (TYPE == RangeSearchType::Radius) {
-                     return [](const point_t a) -> coordinate_t { return GLSL::dot(a); };
-                 }
-             }             
+            /**
+            * \brief given range query type - return metric used in searching
+            * @param {invocable, out} distance metric used for range query
+            **/
+            template<RangeSearchType TYPE>
+            constexpr auto distance_metric() const {
+                if constexpr (TYPE == RangeSearchType::Manhattan) {
+                    return [](const point_t a) -> coordinate_t { return GLSL::max(GLSL::abs(a)); };
+                }
+                else if constexpr (TYPE == RangeSearchType::Radius) {
+                    return [](const point_t a) -> coordinate_t { return GLSL::dot(a); };
+                }
+            }
     };
-
     static_assert(ISpacePartitioning<KDTree<vec2>, vec2, std::vector<vec2>::iterator>);
 }
