@@ -116,7 +116,7 @@ namespace SpacePartitioning {
             std::stack<Node*> stack;
             stack.push(this->root.get());
             while (!stack.empty()) {
-                const Node* node = stack.top();
+                const Node* node{ stack.top() };
                 stack.pop();
 
                 const point_t diff{ point - node->point };
