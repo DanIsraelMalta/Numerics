@@ -1663,7 +1663,8 @@ void test_glsl_space_partitioning() {
             auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Manhattan, center, extent);
 
             for (std::size_t i{}; i < pointsInCube.size(); ++i) {
-                assert(GLSL::max(GLSL::abs(pointsInCube[i].first - center)) <= extent);
+                assert(GLSL::max(GLSL::abs(pointsInCube[i].point - center)) <= extent);
+                assert(GLSL::distance(pointsInCube[i].point, points[pointsInCube[i].index]) < std::numeric_limits<float>::min());
             }
 
             std::size_t amount_of_points_in_rectangle{};
@@ -1683,9 +1684,10 @@ void test_glsl_space_partitioning() {
             auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, center, radius);
 
             for (std::size_t i{}; i < pointsInCube.size(); ++i) {
-                assert(pointsInCube[i].second <= radius * radius);
-                auto a = GLSL::dot(pointsInCube[i].first - center);
+                assert(pointsInCube[i].distanceSquared <= radius * radius);
+                auto a = GLSL::dot(pointsInCube[i].point - center);
                 assert(a <= radius * radius);
+                assert(GLSL::distance(pointsInCube[i].point, points[pointsInCube[i].index]) < std::numeric_limits<float>::min());
             }
 
             std::size_t amount_of_points_in_sphere{};
@@ -1711,7 +1713,7 @@ void test_glsl_space_partitioning() {
             const auto nearest10 = kdtree.nearest_neighbors_query(center, len);
 
             for (std::size_t i{}; i < len; ++i) {
-                assert(std::abs(closest[i] - nearest10[i].second) < std::numeric_limits<float>::min());
+                assert(std::abs(closest[i] - nearest10[i].distanceSquared) < std::numeric_limits<float>::min());
             }
         }
 
