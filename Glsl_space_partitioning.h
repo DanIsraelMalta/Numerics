@@ -118,9 +118,6 @@ namespace SpacePartitioning {
             while (!stack.empty()) {
                 const Node* node = stack.top();
                 stack.pop();
-                if (!node) {
-                    continue;
-                }
 
                 const point_t diff{ point - node->point };
                 if (metric_function(diff) <= distance_criteria) {
@@ -131,9 +128,12 @@ namespace SpacePartitioning {
                 const coordinate_t dist_per_split{ diff[split] };
                 const bool inside{ dist_per_split <= coordinate_t{} };
 
-                stack.push(inside ? node->left.get() : node->right.get());
-                if (std::abs(dist_per_split) < distance) {
-                    stack.push(inside ? node->right.get() : node->left.get());
+                std::array<Node*, 2> nodes{ {node->right.get(), node->left.get()} };
+                if (nodes[inside]) {
+                    stack.push(nodes[inside]);
+                }
+                if (nodes[!inside] && std::abs(dist_per_split) < distance) {
+                    stack.push(nodes[!inside]);
                 }
             }
 
@@ -149,32 +149,29 @@ namespace SpacePartitioning {
         constexpr vector_pairs_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
             // housekeeping
             std::priority_queue<pair_t, vector_pairs_t, less_pair_t> kMaxHeap;
-            coordinate_t minDistance{ std::numeric_limits<coordinate_t>::max() };
+            coordinate_t minDistance{ GLSL::dot(this->root->point - point) };
 
             // lambda implementing nearest neighbors query logic for one node
-            auto nearest_neighbors_query_recursive = [&kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) {
-                if (!node) {
-                    return;
-                }
-                if (kMaxHeap.size() == k) {
-                    mindistance = kMaxHeap.top().second;
-                }
-
+            auto nearest_neighbors_query_recursive = [&kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) -> void {
                 const point_t diff{ point - node->point };
                 if (const coordinate_t distance{ GLSL::dot(diff) }; distance < mindistance) {
                     while (kMaxHeap.size() >= k) {
                         kMaxHeap.pop();
                     }
                     kMaxHeap.emplace(std::make_pair(node->point, distance));
+                    mindistance = kMaxHeap.top().second;
                 }
 
                 const std::size_t split{ node->splitAxis };
                 const coordinate_t dist_per_split{ diff[split] };
-                const bool inside{ dist_per_split <= coordinate_t{} };
+                const std::size_t inside{ dist_per_split <= coordinate_t{} };
 
-                recursive_driver(inside ? node->left.get() : node->right.get(), mindistance, recursive_driver);
-                if (kMaxHeap.size() < k || std::abs(dist_per_split) < mindistance) {
-                    recursive_driver(inside ? node->right.get() : node->left.get(), mindistance, recursive_driver);
+                std::array<Node*, 2> nodes{ {node->right.get(), node->left.get()} };
+                if (nodes[inside]) {
+                    recursive_driver(nodes[inside], mindistance, recursive_driver);
+                }
+                if (nodes[!inside] && std::abs(dist_per_split) <= mindistance) {
+                    recursive_driver(nodes[!inside], mindistance, recursive_driver);
                 }
             };
 
