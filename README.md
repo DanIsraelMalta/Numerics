@@ -19,4 +19,5 @@ useful numerical algorithms and operations with focus on linear algebra and geom
 + Glsl_ray_intersections.h - ray-primitive intersection functions using GLSL vectors and matrices.
 + Glsl_algorithms_2D.h - collection of algorithms for 2D cloud points and shapes using GLSL vectors.
 + Glsl_space_partitioning.h - collection of Euclidean space partitioning data structure using GLSL vectors and matrices.
++ Glsl_clustering.h - collection of clustering algorithms using GLSL vectors and matrices.
 + Test.cpp - basic testing for the various files in this repository.
