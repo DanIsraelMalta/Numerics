@@ -20,23 +20,6 @@ namespace SpacePartitioning {
     };
 
     /**
-    * SpacePartitioningQueryNode is a structure which holds three parameters of ISpacePartitioning query:
-    * > 'point' - value of point
-    * > 'distanceSquared' - squared Euclidean distance from queried point to this point
-    * > 'index' - position of this point in the collection from which ISpacePartitioning was built.
-    *
-    * example: if  we queries something relative to point 'P' then the following holds:
-    * > GLSL::dot(P - SpacePartitioningQueryNode.point) = SpacePartitioningQueryNode.distanceSquared
-    * > SpacePartitioningQueryNode.point = *(it + SpacePartitioningQueryNode.index), where 'it' is iterator to first point collection (as used in 'construct' method
-    **/
-    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-    struct SpacePartitioningQueryNode {
-        VEC point;
-        T distanceSquared;
-        std::size_t index;
-    };
-
-    /**
     * concept of a Euclidean space partitioning data structure for static scenes, i.e. - you cant add points after its construction.
     **/
     template<class SP, typename VEC, typename ITER>
@@ -58,25 +41,29 @@ namespace SpacePartitioning {
 
             /**
             * \brief given point and query type, return all its neighbors within this area/volume whose extent/radius is 't'
-            * @param {RangeSearchType,                 in}  type of range query
-            * @param {point_t,                         in}  point to search around
-            * @param {coordinate_t,                    in}  extent of search cube around point
-            * @param {vector<{point_t, coordinate_t}>, out} collection of SpacePartitioningQueryNode's
+            * @param {RangeSearchType,                 in} type of range query
+            * @param {point_t,                         in} point to search around
+            * @param {coordinate_t,                    in} extent of search cube around point
+            * @param {vector<{coordinate_t, size_t}>, out} collection of pairs of {squared Euclidean distance from 'point' to point in this pair,
+            *                                                                      index of this point in the collection from which ISpacePartitioning was built}
+            *                                              if  we queries something relative to point 'P' then the following holds: GLSL::dot(P - *(it + second)) = first
             **/
-            { sp.range_query(type, point, t) } -> std::same_as<std::vector<SpacePartitioningQueryNode<VEC>>>;
+            { sp.range_query(type, point, t) } -> std::same_as<std::vector<std::pair<typename VEC::value_type, std::size_t>>>;
 
             /**
             * \brief given point, 'i' of its nearest neighbors
-            * @param {point_t,                         in}  point to search around
-            * @param {size_t,                          in}  amount of closest points
-            * @param {vector<{point_t, coordinate_t}>, out} collection of SpacePartitioningQueryNode's
+            * @param {point_t,                         in} point to search around
+            * @param {size_t,                          in} amount of closest points
+            * @param {vector<{coordinate_t, size_t}>, out} collection of pairs of {squared Euclidean distance from 'point' to point in this pair,
+            *                                                                      index of this point in the collection from which ISpacePartitioning was built}
+            *                                              if  we queries something relative to point 'P' then the following holds: GLSL::dot(P - *(it + second)) = first
             **/
-            { sp.nearest_neighbors_query(point, i) } -> std::same_as<std::vector<SpacePartitioningQueryNode<VEC>>>;
+            { sp.nearest_neighbors_query(point, i) } -> std::same_as<std::vector<std::pair<typename VEC::value_type, std::size_t>>>;
     };
 
     /**
     * \brief balanced KD-tree for GLSL::IFixedVector objects.
-    *
+    *        notice that tree doesn't hold the points themselvs, rather it points to their position in their original structure.
     * @param {IFixedVector} point held in tree
     **/
     template<GLSL::IFixedVector VEC>
@@ -84,7 +71,8 @@ namespace SpacePartitioning {
         // aliases
         using point_t = VEC;
         using coordinate_t = typename VEC::value_type;
-        using vector_queries_t = std::vector<SpacePartitioningQueryNode<point_t>>;
+        using pair_t = std::pair<typename VEC::value_type, std::size_t>;
+        using vector_queries_t = std::vector<pair_t>;
 
         /**
         * \brief given iterators to collection of points - construct kd-tree in recursive manner using median partitioning
@@ -93,16 +81,11 @@ namespace SpacePartitioning {
         **/
         template<std::forward_iterator InputIt>
             requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
-        constexpr void construct(const InputIt first, const InputIt last) {
-            InputIt f(first);
-            InputIt l(last);
-            const auto len{ std::distance(f, l) };
-            if (len < 0) {
-                std::swap(f, l);
-            }
-            std::vector<std::size_t> indices(len);
+        constexpr void construct(const InputIt begin, const InputIt end) {
+            this->first = std::addressof(*begin);
+            std::vector<std::size_t> indices(static_cast<std::size_t>(std::distance(begin, end)));
             std::iota(indices.begin(), indices.end(), 0);
-            this->root = this->build_tree(f, 0, indices);
+            this->root = this->build_tree(0, indices);
         }
 
         /**
@@ -115,10 +98,10 @@ namespace SpacePartitioning {
 
         /**
         * \brief given point and query type, return all its neighbors within a specific enclosing area/volume around it
-        * @param {RangeSearchType,                    in} query type
-        * @param {point_t,                            in} point to search around
-        * @param {coordinate_t,                       in} extent/radius of search area/volume around point
-        * @param {vector<SpacePartitioningQueryNode>, out} collection of points in range
+        * @param {RangeSearchType,              in} query type
+        * @param {point_t,                      in} point to search around
+        * @param {coordinate_t,                 in} extent/radius of search area/volume around point
+        * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
         **/
         constexpr vector_queries_t range_query(const RangeSearchType type, const point_t point, const coordinate_t distance) const {
             // housekeeping
@@ -135,9 +118,10 @@ namespace SpacePartitioning {
                 const Node* node{ stack.top() };
                 stack.pop();
 
-                const point_t diff{ point - node->point };
+                const point_t nodePoint(*(this->first + node->index));
+                const point_t diff{ point - nodePoint };
                 if (metric_function(diff) <= distance_criteria) {
-                    out.emplace_back(SpacePartitioningQueryNode{ node->point, GLSL::dot(diff), node->index });
+                    out.emplace_back(std::make_pair(GLSL::dot(diff), node->index));
                 }
 
                 const std::size_t split{ node->splitAxis };
@@ -158,24 +142,25 @@ namespace SpacePartitioning {
 
         /**
         * \brief given point, 'k' of its nearest neighbors. notice that this method is recursive.
-        * @param {point_t,                            in}  point to search around
-        * @paran {size_t,                             in}  amount of closest points
-        * @param {vector<SpacePartitioningQueryNode>, out} collection of 'k' nearest points
+        * @param {point_t,                      in}  point to search around
+        * @paran {size_t,                       in}  amount of closest points
+        * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
         **/
         constexpr vector_queries_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
             // housekeeping
-            std::priority_queue<SpacePartitioningQueryNode<point_t>, vector_queries_t, less_query_t> kMaxHeap;
-            coordinate_t minDistance{ GLSL::dot(this->root->point - point) };
+            std::priority_queue<pair_t, vector_queries_t, less_pair_t> kMaxHeap;
+            coordinate_t minDistance{ GLSL::dot(*(this->first + this->root->index) - point) };
 
             // lambda implementing nearest neighbors query logic for one node
-            const auto nearest_neighbors_query_recursive = [&kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) -> void {
-                const point_t diff{ point - node->point };
+            const auto nearest_neighbors_query_recursive = [this, &kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) -> void {
+                const point_t nodePoint(*(this->first + node->index));
+                const point_t diff{ point - nodePoint };
                 if (const coordinate_t distance{ GLSL::dot(diff) }; distance < mindistance) {
                     while (kMaxHeap.size() >= k) {
                         kMaxHeap.pop();
                     }
-                    kMaxHeap.emplace(SpacePartitioningQueryNode{ node->point, distance, node->index });
-                    mindistance = kMaxHeap.top().distanceSquared;
+                    kMaxHeap.emplace(std::make_pair(distance, node->index));
+                    mindistance = kMaxHeap.top().first;
                 }
 
                 const std::size_t split{ node->splitAxis };
@@ -209,25 +194,22 @@ namespace SpacePartitioning {
 
             // KDTree node
             struct Node {
-                VEC point;
-                std::unique_ptr<Node> left;
-                std::unique_ptr<Node> right;
                 std::size_t index{};
                 std::size_t splitAxis{};
+                std::unique_ptr<Node> left;
+                std::unique_ptr<Node> right;
             };
             
-            // tree root
-            std::unique_ptr<Node> root;
+            // properties
+            std::unique_ptr<Node> root;   // tree root
+            point_t* first = nullptr;  // iterator for point cloud start
         
             /**
             * \brief spatially divide the collection of points in recursive manner.
-            * @param {forward_iterator, in} iterator to point cloud collection first point
             * @param {size_t,           in} node depth
             * @param {vector<int32_t>,  in} cloud points vector of indices
             **/
-            template<std::forward_iterator InputIt>
-                requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
-            constexpr std::unique_ptr<Node> build_tree(const InputIt first, std::size_t depth, std::vector<std::size_t> indices) {
+            constexpr std::unique_ptr<Node> build_tree(std::size_t depth, std::vector<std::size_t> indices) {
                 constexpr std::size_t N{ point_t::length() };
                 if (indices.empty()) {
                     return nullptr;
@@ -240,19 +222,18 @@ namespace SpacePartitioning {
                                          indices.begin() + medianIndex,
                                          indices.end(),
                     [&](std::size_t a, std::size_t b) {
-                        const point_t point_a(*(first + a));
-                        const point_t point_b(*(first + b));
+                        const point_t point_a(*(this->first + a));
+                        const point_t point_b(*(this->first + b));
                         return (point_a[axis] < point_b[axis]);
                     });
 
                 // build and return node
                 const std::size_t nodeIndex{ indices[medianIndex] };
                 return std::make_unique<Node>(Node{
-                    .point = *(first + nodeIndex),
-                    .left = this->build_tree(first, depth + 1, std::vector<std::size_t>(indices.begin(), indices.begin() + medianIndex)),
-                    .right = this->build_tree(first, depth + 1, std::vector<std::size_t>(indices.begin() + medianIndex + 1, indices.end())),
                     .index = nodeIndex,
-                    .splitAxis = axis
+                    .splitAxis = axis,
+                    .left = this->build_tree(depth + 1, std::vector<std::size_t>(indices.begin(), indices.begin() + medianIndex)),
+                    .right = this->build_tree(depth + 1, std::vector<std::size_t>(indices.begin() + medianIndex + 1, indices.end()))
                 });
             }
         
@@ -277,11 +258,11 @@ namespace SpacePartitioning {
             }
 
             /**
-            * \brief std::less override for 'SpacePartitioningQueryNode' type
+            * \brief std::less override for 'pair_t' type
             **/
-            struct less_query_t {
-                constexpr bool operator()(const SpacePartitioningQueryNode<point_t>& a, const SpacePartitioningQueryNode<point_t>& b) const {
-                    return a.distanceSquared < b.distanceSquared;
+            struct less_pair_t {
+                constexpr bool operator()(const pair_t& a, const pair_t& b) const {
+                    return a.first < b.first;
                 }
             };
 
