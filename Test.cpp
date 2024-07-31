@@ -18,6 +18,7 @@
 #include "Glsl_transformation.h"
 #include "GLSL_algorithms_2D.h"
 #include "Glsl_space_partitioning.h"
+#include "GLSL_clustering.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -1719,6 +1720,49 @@ void test_glsl_space_partitioning() {
     }
 }
 
+void test_GLSL_clustering() {
+   std::vector<vec2> points;
+   float sign{ 0.5 };
+
+   // cluster #1
+   const vec2 center(20.0f, 12.0f);
+   const float radius{ 3.0f };
+   for (std::size_t i{}; i < 60; ++i) {
+       float fi{ static_cast<float>(i) };
+       points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+       sign *= -1.0f;
+   }
+
+   // clster #2
+   for (std::size_t i{}; i < 40; ++i) {
+       float fi{ static_cast<float>(i) };
+       float x{ fi + sign * static_cast<float>(rand()) / RAND_MAX };
+       points.emplace_back(vec2(x, std::sqrt(x) + sign * static_cast<float>(rand()) / RAND_MAX));
+       sign *= -1.0f;
+   }
+
+   // noise
+   for (std::size_t i{}; i < 10; ++i) {
+       points.emplace_back(vec2(50.0f * static_cast<float>(rand()) / RAND_MAX,
+                                50.0f * static_cast<float>(rand()) / RAND_MAX));
+   }
+
+   // dbscan
+   {
+       SpacePartitioning::KDTree<vec2> kdtree;
+       const auto clusterIds0 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, 1.0f, 10);
+       assert(clusterIds0.empty());
+
+       kdtree.clear();
+       const auto clusterIds1 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius, 4);
+       assert(clusterIds1.size() == 2);
+       assert(clusterIds1[0].size() == 60);
+       assert(clusterIds1[1].size() == 40);
+   }
+   
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -1735,5 +1779,6 @@ int main() {
     test_glsl_ray_intersection();
     test_GLSL_algorithms_2D();
     test_glsl_space_partitioning();
+    test_GLSL_clustering();
     return 1;
 }
