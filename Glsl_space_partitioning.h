@@ -201,8 +201,8 @@ namespace SpacePartitioning {
             };
             
             // properties
-            std::unique_ptr<Node> root;   // tree root
-            point_t* first = nullptr;  // iterator for point cloud start
+            std::unique_ptr<Node> root;       // tree root
+            const point_t* first{ nullptr };  // iterator for point cloud start
         
             /**
             * \brief spatially divide the collection of points in recursive manner.
