@@ -7,25 +7,28 @@
 //
 // collection of clustering algorithms
 //
-
 namespace Clustering {
 
 	/**
 	* \brief perform density-based spatial clustering of applications with noise (DBSCAN)
 	*        on collection of points using Euclidean distance as metric.
 	*        notice that this function uses ISpacePartitioning object from "Glsl_space_partitioning.h" for neighbour query.
-	* @param {forward_iterator,         in}  iterator to point cloud collection first point
-	* @param {forward_iterator,         in}  iterator to point cloud collection last point
-	* @param {ISpacePartitioning,       in}  space partitioning object for neighbour query
-	* @param {value_type,               in}  minimal distance between two points to be considered in same cluster
-	* @param {size_t,                   in}  minimal amount of points for a cluster to be formed
-	* @param {vector<vector<integral>>, out} vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i)
+	* @param {forward_iterator,                             in}  iterator to point cloud collection first point
+	* @param {forward_iterator,                             in}  iterator to point cloud collection last point
+	* @param {ISpacePartitioning,                           in}  space partitioning object for neighbour query
+	* @param {value_type,                                   in}  minimal distance between two points to be considered in same cluster
+	* @param {size_t,                                       in}  minimal amount of points for a cluster to be formed
+	* @param {{vector<vector<integral>>, vector<integral>}, out} {vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i),
+	*                                                             vector of indices of points which are noise}
 	**/
 	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type,
 	         SpacePartitioning::ISpacePartitioning<VEC, InputIt> SP>
 		requires(GLSL::is_fixed_vector_v<VEC>)
-	constexpr std::vector<std::vector<std::size_t>> get_density_based_clusters(const InputIt first, const InputIt last, SP& spacePartition,
-		                                                                       const T minimal_distance, const std::size_t minimal_points) {
+	constexpr auto get_density_based_clusters(const InputIt first, const InputIt last, SP& spacePartition,
+		                                      const T minimal_distance, const std::size_t minimal_points) {
+		using query_t = decltype(spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, *first, minimal_distance));
+		using out_t = struct { std::vector<std::vector<std::size_t>> clusters; std::vector<std::size_t> noise; };
+
 		// partition space
 		spacePartition.construct(first, last);
 
@@ -41,7 +44,7 @@ namespace Clustering {
 
 			visited[i] = true;
 			const VEC point{ *(first + i) };
-			const auto neighbors = spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, point, minimal_distance);
+			const query_t neighbors{ spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, point, minimal_distance) };
 			if (neighbors.size() < minimal_points) {
 				noise[i] = true;
 			}
@@ -69,7 +72,7 @@ namespace Clustering {
 						lastCluster.emplace_back(curIdx);
 
 						const VEC curPoint{ *(first + curIdx) };
-						const auto curNeighbors = spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, curPoint, minimal_distance);
+						const query_t curNeighbors{ spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, curPoint, minimal_distance) };
 						if (curNeighbors.size() < minimal_points) {
 							continue;
 						}
@@ -82,7 +85,15 @@ namespace Clustering {
 			}
 		}
 
+		// accumelate noise
+		std::vector<std::size_t> notClusters;
+		for (std::size_t i{}; i < len; ++i) {
+			if (noise[i]) {
+				notClusters.emplace_back(i);
+			}
+		}
+
 		// output
-		return clusterIndices;
+		return out_t{ clusterIndices, notClusters };
 	}
 }
