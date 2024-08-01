@@ -94,6 +94,7 @@ namespace SpacePartitioning {
         constexpr void clear() noexcept {
             this->clear_node(MOV(this->root));
             this->root.release();
+            this->first = nullptr;
         }
 
         /**
@@ -194,10 +195,10 @@ namespace SpacePartitioning {
 
             // KDTree node
             struct Node {
-                std::size_t index{};
-                std::size_t splitAxis{};
-                std::unique_ptr<Node> left;
-                std::unique_ptr<Node> right;
+                std::size_t index{};         // node position in original cloud point, i.e. - at *(first + index)
+                std::size_t splitAxis{};     // dimension along which this node was split
+                std::unique_ptr<Node> left;  // pointer to left child
+                std::unique_ptr<Node> right; // pointer to right child
             };
             
             // properties
