@@ -170,15 +170,8 @@ namespace Algorithms2D {
 				return circle;
 			}
 
-			// does 'bcd' circle include 'a'?
-			circle = Internals::get_circumcircle(b, c, d);
-			inside = GLSL::dot(a - circle.center) <= circle.radius_squared;
-			if (inside) {
-				return circle;
-			}
-
-			// shouldn't reach this point
-			assert(0 == 1);
+			// 'bcd' circle must include 'a'...
+            return Internals::get_circumcircle(b, c, d);
 		}
 
 		/**
@@ -666,7 +659,7 @@ namespace Algorithms2D {
 
 		// housekeeping
 		const VEC centroid{ Internals::get_centroid(first, last) };
-		const iter_size_t N{ std::distance(first, last) - 1};
+		const T N{ static_cast<T>(std::distance(first, last) - 1)};
 
 		// calculate covariance matrix elements
 		T cov_xx{};
