@@ -1016,6 +1016,14 @@ void test_glsl_aabb() {
     const auto expanded = Aabb::expand(ivec2(0), ivec2(1), ivec2(2));
     assert(GLSL::equal(expanded.min, ivec2(0)));
     assert(GLSL::equal(expanded.max, ivec2(2)));
+    
+    auto closest = Aabb::closest_point(vec2(1.0f, 1.0f), vec2(0.0f, 3.0f), vec2(3.0f, 5.0f));
+    assert(std::abs(closest.x - 1.0) < 1e-6);
+    assert(std::abs(closest.y - 3.0) < 1e-6);
+
+    closest = Aabb::closest_point(vec2(4.0f, 7.0f), vec2(0.0f, 3.0f), vec2(3.0f, 5.0f));
+    assert(std::abs(closest.x - 3.0) < 1e-6);
+    assert(std::abs(closest.y - 5.0) < 1e-6);
 }
 
 void test_glsl_triangle() {
