@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2016, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
