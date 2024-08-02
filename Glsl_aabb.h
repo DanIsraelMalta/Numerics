@@ -100,4 +100,30 @@ namespace Aabb {
 
         return out_t{ cntr + mmax , cntr - mmax };
     }
+
+    /**
+    * \brief given a point and aabb, return point on aabb closest to the point
+    * @param {Vector2|Vector3,  in} point
+    * @param {Vector2|Vector3,  in} aabb min
+    * @param {Vector2|Vector3,  in} aabb max
+    * @param {Vector2|Vector3, out} closest corner
+    **/
+    template<GLSL::IFixedVector VEC>
+        requires((VEC::length() == 2) || (VEC::length() == 3))
+    constexpr auto closest_point(const VEC& p, const VEC& min, const VEC& max) noexcept {
+        using T = typename VEC::value_type;
+
+        VEC corner;
+        Utilities::static_for<0, 1, VEC::length()>([&corner, &p, &min, &max](std::size_t i) {
+            T v{ p[i] };
+            if (v < min[i]) {
+                v = min[i];
+            } else if (v > max[i]) {
+                v = max[i];
+            }
+            corner[i] = v;
+        });
+
+        return corner;
+    }
 }
