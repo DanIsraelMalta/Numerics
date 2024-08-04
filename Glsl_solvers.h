@@ -515,6 +515,49 @@ namespace Decomposition {
             return R;
         }
     }
+
+    /**
+    * \brief calculate the eigenvalues and eigenvectors of cubic 3x3 symmetric matrix.
+    *        notice that this calculation is correct only in cases where the eigenvalues are real and "well seperated".
+    * @param {IFixedCubicMatrix,                 in}  matrix
+    * @param {IFixedCubicMatrix, IFixedVector}, out} {matrix whose columns are eigenvectors, vector whose elements are eigenvalues }
+    **/
+    template<GLSL::IFixedCubicMatrix MAT>
+        requires(MAT::columns() == 3)
+    constexpr auto EigenSymmetric3x3(const MAT& mat) {
+        using VEC = typename MAT::vector_type;
+        using T = typename MAT::value_type;
+        using out_t = struct { MAT eigenvectors; VEC eigenvalues; };
+
+        assert(Extra::is_symmetric(mat));
+        
+        // eigenvalues
+        const VEC eigenvalues{ Decomposition::eigenvalues(mat) };
+        
+        // eigenvectors
+        MAT eigenvectors(T{});
+        Utilities::static_for<0, 1, 3>([&mat, &eigenvectors, eigenvalues](std::size_t i) {
+            const VEC r1(mat(0, 0) - eigenvalues[i], mat(0, 1),                  mat(0, 2));
+            const VEC r2(mat(0, 1),                  mat(1, 1) - eigenvalues[i], mat(1, 2));
+            const VEC r3(mat(0, 2),                  mat(1, 2),                  mat(2, 2) - eigenvalues[i]);
+            const VEC e1{ GLSL::cross(r1, r2) };
+            VEC e2{ GLSL::cross(r2, r3) };
+            VEC e3{ GLSL::cross(r3, r1) };
+
+            // make e2 and e2 point in the direction of e1
+            if (GLSL::dot(e1, e2) < T{}) {
+                e2 *= static_cast<T>(-1);
+            }
+            if (GLSL::dot(e1, e3) < T{}) {
+                e3 *= static_cast<T>(-1);
+            }
+
+            eigenvectors[i] = GLSL::normalize(e1 + e2 + e3);
+        });
+
+        // output
+        return out_t{ eigenvectors, eigenvalues };
+    }
 };
 
 //
