@@ -1086,6 +1086,23 @@ void test_glsl_triangle() {
         assert(std::abs(bary.y - -0.5f) < 1e-6f);
         assert(std::abs(bary.z - -0.5f) < 1e-6f);
     }
+
+    {
+        vec2 a(-1.0f);
+        vec2 b(1.0f, -1.0f);
+        vec2 c(0.0f, 1.0f);
+        auto closest = Triangle::closest_point(vec2(0.0f, 2.0f), a, b, c);
+        assert(std::abs(closest.x) < 1e-6f);
+        assert(std::abs(closest.y - 1.0f) < 1e-6f);
+
+        closest = Triangle::closest_point(vec2(0.0f, -2.0f), a, b, c);
+        assert(std::abs(closest.x) < 1e-6f);
+        assert(std::abs(closest.y - -1.0f) < 1e-6f);
+
+        closest = Triangle::closest_point(vec2(2.0f, -1.0f), a, b, c);
+        assert(std::abs(closest.x - 1.0f) < 1e-6f);
+        assert(std::abs(closest.y - -1.0f) < 1e-6f);
+    }
 }
 
 void test_glsl_axis_aligned_bounding_box() {
