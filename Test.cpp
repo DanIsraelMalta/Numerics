@@ -907,6 +907,19 @@ void test_glsl_solvers() {
     }
 
     {
+        const mat3 a(13.0f, 21.0f, 92.0f,
+                     21.0f, 5.0f, 57.0f,
+                     92.0f, 57.0f, 72.0f);
+        auto eigen = Decomposition::EigenSymmetric3x3(a);
+        Utilities::static_for<0, 1, 3>([&a, &eigen](std::size_t i) {
+            const vec3 lhs{ a * eigen.eigenvectors[i] };
+            const vec3 rhs{ eigen.eigenvalues[i] * eigen.eigenvectors[i] };
+            const auto a = std::abs(GLSL::length(lhs) - GLSL::length(rhs));
+            assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
+        });
+    }
+    
+    {
         dvec3 b(70.0, 12.0, 50.0);
         auto solution = Solvers::SolveLU(a, b);
 
