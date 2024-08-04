@@ -149,4 +149,68 @@ namespace Triangle {
         const T z{ (daa * dcb - dab * dca) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - y - z, y, z);
     }
+
+    /**
+    * \brief given a point and triangle, return point on triangle closest to the point
+    * @param {Vector2|Vector3,  in} point
+    * @param {Vector2|Vector3, in}  triangle vertex #0
+    * @param {Vector2|Vector3, in}  triangle vertex #1
+    * @param {Vector2|Vector3, in}  triangle vertex #2
+    * @param {Vector2|Vector3, out} closest corner
+    **/
+    template<GLSL::IFixedVector VEC>
+        requires((VEC::length() == 2) || (VEC::length() == 3))
+    constexpr VEC closest_point(const VEC& p, const VEC& a, const VEC& b, const VEC& c) noexcept {
+        using T = typename VEC::value_type;
+
+        const VEC ab{ b - a };
+        const VEC ac{ c - a };
+        const VEC ap{ p - a };
+
+        const T d1{ GLSL::dot(ab, ap) };
+        const T d2{ GLSL::dot(ac, ap) };
+        if (d1 <= T{} && d2 <= T{}) {
+            return a;
+        }
+
+        const VEC bp{ p - b };
+        const T d3{ GLSL::dot(ab, bp) };
+        const T d4{ GLSL::dot(ac, bp) };
+        if (d3 >= T{} && d4 <= d3) {
+            return b;
+        }
+
+        const T vc{ d1 * d4 - d3 * d2 };
+        if (vc <= T{} && d1 >= T{} && d3 <= T{}) {
+            const T den{ d1 - d3 };
+            [[asseume(den > T{})]];
+            return a + (d1 / (d1 - d3)) * ab;
+        }
+
+        const VEC cp{ p - c };
+        const T d5{ GLSL::dot(ab, cp) };
+        const T d6{ GLSL::dot(ac, cp) };
+        if (d6 >= T{} && d5 <= d6) {
+            return c;
+        }
+
+        const T vb{ d5 * d2 - d1 * d6 };
+        if (vb <= T{} && d2 >= T{} && d6 <= T{}) {
+            const T den{ d2 - d6 };
+            [[asseume(den > T{})]];
+            return a + (d2 / den) * ac;
+        }
+
+        const T va{ d3 * d6 - d5 * d4 };
+        if (va <= T{} && (d4 - d3) >= T{} && (d5 - d6) >= T{}) {
+            const T den{ (d4 - d3) + (d5 - d6) };
+            [[asseume(den > T{})]];
+            return b + ((d4 - d3) / den) * (c - b);
+        }
+
+        const T den{ va + vb + vc };
+        [[asseume(den > T{})]];
+        const T denom{ static_cast<T>(1) / den };
+        return a + ab * vb * denom + ac * vc * denom;
+    }
 }
