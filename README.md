@@ -1,5 +1,5 @@
 # Numerics
-useful numerical algorithms and operations with focus on linear algebra and geometry (requires c++23)
+useful numerical algorithms and operations with focus on linear algebra and computational geometry (requires c++23)
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
