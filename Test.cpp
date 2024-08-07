@@ -1689,6 +1689,7 @@ void test_glsl_space_partitioning() {
                                  static_cast<float>(rand()) / RAND_MAX * 100.0f));
     }
 
+    // kd-tree
     {
         // construction
         SpacePartitioning::KDTree<vec2> kdtree;
@@ -1719,11 +1720,15 @@ void test_glsl_space_partitioning() {
             const vec2 center(50.0f);
             const float radius{ 5.0f };
 
-            auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, center, radius);
+            auto pointsInSphere = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, center, radius);
+            auto max_point = std::ranges::max_element(pointsInSphere, [](const auto& a, const auto& b) {
+                return (a.first < b.first);
+            });
+            assert((*max_point).first <= radius * radius);
 
-            for (std::size_t i{}; i < pointsInCube.size(); ++i) {
-                assert(pointsInCube[i].first <= radius * radius);
-                assert(GLSL::dot(points[pointsInCube[i].second] - center) <= radius * radius);
+            for (std::size_t i{}; i < pointsInSphere.size(); ++i) {
+                assert(pointsInSphere[i].first <= radius * radius);
+                assert(GLSL::dot(points[pointsInSphere[i].second] - center) <= radius * radius);
             }
 
             std::size_t amount_of_points_in_sphere{};
@@ -1732,7 +1737,7 @@ void test_glsl_space_partitioning() {
                     ++amount_of_points_in_sphere;
                 }
             }
-            assert(amount_of_points_in_sphere == pointsInCube.size());
+            assert(amount_of_points_in_sphere == pointsInSphere.size());
         }
 
         // search k nearest neighbours in cube
@@ -1754,7 +1759,80 @@ void test_glsl_space_partitioning() {
 
         // destruction
         kdtree.clear();
-        assert(sizeof(kdtree) == 2* sizeof(std::size_t));
+        assert(sizeof(kdtree) == 2 * sizeof(std::size_t));
+    }
+
+    // grid
+    {
+        // construction
+        SpacePartitioning::Grid<vec2> grid;
+        grid.construct(points.begin(), points.end());
+
+        // search nearest neighbours in cube
+        {
+            const vec2 center(50.0f);
+            const float extent{ 5.0f };
+
+            auto pointsInCube = grid.range_query(SpacePartitioning::RangeSearchType::Manhattan, center, extent);
+
+            for (std::size_t i{}; i < pointsInCube.size(); ++i) {
+                assert(GLSL::max(GLSL::abs(points[pointsInCube[i].second] - center)) <= extent);
+            }
+
+            std::size_t amount_of_points_in_rectangle{};
+            for (vec2 p : points) {
+                if (GLSL::max(GLSL::abs(p - center)) <= extent) {
+                    ++amount_of_points_in_rectangle;
+                }
+            }
+            assert(amount_of_points_in_rectangle == pointsInCube.size());
+        }
+
+        // search nearest neighbours in radius
+        {
+            const vec2 center(50.0f);
+            const float radius{ 5.0f };
+
+            auto pointsInSphere = grid.range_query(SpacePartitioning::RangeSearchType::Radius, center, radius);
+            auto max_point = std::ranges::max_element(pointsInSphere, [](const auto& a, const auto& b) {
+                return (a.first < b.first);
+            });
+            assert((*max_point).first <= radius * radius);
+
+            for (std::size_t i{}; i < pointsInSphere.size(); ++i) {
+                assert(pointsInSphere[i].first <= radius * radius);
+                assert(GLSL::dot(points[pointsInSphere[i].second] - center) <= radius * radius);
+            }
+
+            std::size_t amount_of_points_in_sphere{};
+            for (vec2 p : points) {
+                if (GLSL::dot(p - center) <= radius * radius) {
+                    ++amount_of_points_in_sphere;
+                }
+            }
+            assert(amount_of_points_in_sphere == pointsInSphere.size());
+        }
+
+        // search k nearest neighbours in cube
+        {
+            const vec2 center(50.0f);
+            std::vector<float> closest;
+            for (const vec2 p : points) {
+                closest.emplace_back(GLSL::dot(center - p));
+            }
+            std::ranges::sort(closest, std::less<float>());
+
+            const std::size_t len{ 19 };
+            const auto nearest10 = grid.nearest_neighbors_query(center, len);
+
+            for (std::size_t i{}; i < len; ++i) {
+                assert(std::abs(closest[i] - nearest10[i].first) < std::numeric_limits<float>::min());
+            }
+        }
+
+        // destruction
+        grid.clear();
+        assert(sizeof(grid) == 3 * (sizeof(std::array<std::size_t, 2>) + sizeof(vec2)) + sizeof(vec2*) + sizeof(std::vector<vec2>));
     }
 }
 
