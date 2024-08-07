@@ -1866,19 +1866,30 @@ void test_GLSL_clustering() {
                50.0f * static_cast<float>(rand()) / RAND_MAX));
        }
 
-       // partition #1
+
+       // partition #1 (using kd-tree)
        SpacePartitioning::KDTree<vec2> kdtree;
        const auto clusterIds0 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, 1.0f, 10);
        assert(clusterIds0.clusters.empty());
        assert(clusterIds0.noise.size() == points.size());
 
-       // partition #2
+       // partition #2 (using kd-tree)
        kdtree.clear();
        const auto clusterIds1 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius, 4);
        assert(clusterIds1.clusters.size() == 2);
        assert(clusterIds1.clusters[0].size() == 60);
        assert(clusterIds1.clusters[1].size() == 40);
        assert(clusterIds0.noise.size() > 7);
+       kdtree.clear();
+
+       // partition #2 (using grid)
+       SpacePartitioning::Grid<vec2> grid;
+       const auto clusterIds2 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), grid, radius, 4);
+       assert(clusterIds1.clusters.size() == 2);
+       assert(clusterIds1.clusters[0].size() == 60);
+       assert(clusterIds1.clusters[1].size() == 40);
+       assert(clusterIds0.noise.size() > 7);
+       grid.clear();
    }
    
    // k-means
