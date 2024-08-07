@@ -1759,46 +1759,93 @@ void test_glsl_space_partitioning() {
 }
 
 void test_GLSL_clustering() {
-   std::vector<vec2> points;
-   float sign{ 0.5 };
-
-   // cluster #1
-   const vec2 center(20.0f, 12.0f);
-   const float radius{ 3.0f };
-   for (std::size_t i{}; i < 60; ++i) {
-       float fi{ static_cast<float>(i) };
-       points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
-                                center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
-       sign *= -1.0f;
-   }
-
-   // clster #2
-   for (std::size_t i{}; i < 40; ++i) {
-       float fi{ static_cast<float>(i) };
-       float x{ fi + sign * static_cast<float>(rand()) / RAND_MAX };
-       points.emplace_back(vec2(x, std::sqrt(x) + sign * static_cast<float>(rand()) / RAND_MAX));
-       sign *= -1.0f;
-   }
-
-   // noise
-   for (std::size_t i{}; i < 10; ++i) {
-       points.emplace_back(vec2(50.0f * static_cast<float>(rand()) / RAND_MAX,
-                                50.0f * static_cast<float>(rand()) / RAND_MAX));
-   }
-
    // dbscan
    {
+       std::vector<vec2> points;
+       float sign{ 0.5f };
+
+       // cluster #1
+       const vec2 center(20.0f, 12.0f);
+       const float radius{ 3.0f };
+       for (std::size_t i{}; i < 60; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+               center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // clster #2
+       for (std::size_t i{}; i < 40; ++i) {
+           float fi{ static_cast<float>(i) };
+           float x{ fi + sign * static_cast<float>(rand()) / RAND_MAX };
+           points.emplace_back(vec2(x, std::sqrt(x) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // noise
+       for (std::size_t i{}; i < 10; ++i) {
+           points.emplace_back(vec2(50.0f * static_cast<float>(rand()) / RAND_MAX,
+               50.0f * static_cast<float>(rand()) / RAND_MAX));
+       }
+
+       // partition #1
        SpacePartitioning::KDTree<vec2> kdtree;
        const auto clusterIds0 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, 1.0f, 10);
        assert(clusterIds0.clusters.empty());
        assert(clusterIds0.noise.size() == points.size());
 
+       // partition #2
        kdtree.clear();
        const auto clusterIds1 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius, 4);
        assert(clusterIds1.clusters.size() == 2);
        assert(clusterIds1.clusters[0].size() == 60);
        assert(clusterIds1.clusters[1].size() == 40);
        assert(clusterIds0.noise.size() > 7);
+   }
+   
+   // k-means
+   {
+       std::vector<vec2> points;
+       float sign{ 0.5f };
+
+       // cluster #1
+       vec2 center(20.0f, 12.0f);
+       float radius{ 3.0f };
+       for (std::size_t i{}; i < 60; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #2
+       center = vec2(5.0f, 2.0f);
+       radius = 3.0f;
+       for (std::size_t i{}; i < 20; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+               center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #3
+       center = vec2(-2.0f, 2.0f);
+       radius = 3.0f;
+       for (std::size_t i{}; i < 80; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+               center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       //partition
+       const auto clusterIds = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
+       assert(clusterIds.size() == 3);
+       std::array<std::size_t, 3> cluster_sizes{ {clusterIds[0].size(), clusterIds[1].size(), clusterIds[2].size()} };
+       std::ranges::sort(cluster_sizes);
+       assert(cluster_sizes[0] == 20);
+       assert(cluster_sizes[1] == 60);
+       assert(cluster_sizes[2] == 80);
    }
 }
 
