@@ -28,7 +28,7 @@
 #include <queue>
 #include <stack>
 #include <algorithm> // nth_element
-#include <numeric> // iota
+#include <numeric> // iota, midpoint
 #include <memory> // unique_ptr
 
 //
@@ -87,7 +87,7 @@ namespace SpacePartitioning {
 
     /**
     * \brief balanced KD-tree for GLSL::IFixedVector objects.
-    *        notice that tree doesn't hold the points themselvs, rather it points to their position in their original structure.
+    *        notice that tree doesn't hold the points themselves, rather it points to their position in their original structure.
     * @param {IFixedVector} point held in tree
     **/
     template<GLSL::IFixedVector VEC>
@@ -168,7 +168,7 @@ namespace SpacePartitioning {
         /**
         * \brief given point, 'k' of its nearest neighbors. notice that this method is recursive.
         * @param {point_t,                      in}  point to search around
-        * @paran {size_t,                       in}  amount of closest points
+        * @param {size_t,                       in}  amount of closest points
         * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
         **/
         constexpr vector_queries_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
@@ -227,12 +227,12 @@ namespace SpacePartitioning {
             
             // properties
             std::unique_ptr<Node> root;       // tree root
-            const point_t* first{ nullptr };  // iterator for point cloud start
+            const point_t* first{ nullptr };  // iterator for point cloud start 
         
             /**
             * \brief spatially divide the collection of points in recursive manner.
-            * @param {size_t,           in} node depth
-            * @param {vector<int32_t>,  in} cloud points vector of indices
+            * @param {size_t,         in} node depth
+            * @param {vector<size_t>, in} cloud points vector of indices
             **/
             constexpr std::unique_ptr<Node> build_tree(std::size_t depth, std::vector<std::size_t> indices) {
                 constexpr std::size_t N{ point_t::length() };
@@ -246,7 +246,7 @@ namespace SpacePartitioning {
                 std::ranges::nth_element(indices.begin(),
                                          indices.begin() + medianIndex,
                                          indices.end(),
-                    [&](std::size_t a, std::size_t b) {
+                    [axis, this](std::size_t a, std::size_t b) {
                         const point_t point_a(*(this->first + a));
                         const point_t point_b(*(this->first + b));
                         return (point_a[axis] < point_b[axis]);
@@ -306,4 +306,247 @@ namespace SpacePartitioning {
             }
     };
     static_assert(ISpacePartitioning<KDTree<vec2>, vec2, std::vector<vec2>::iterator>);
+
+
+    /**
+    * \brief uniform grid ("Bin-Lattice spatial subdivision structure") for GLSL::IFixedVector objects of second or third dimension.
+    *        notice that tree doesn't hold the points themselves, rather it points to their position in their original structure.
+    * @param {IFixedVector} point held in tree (2D/3D)
+    **/
+    template<GLSL::IFixedVector VEC>
+        requires(VEC::length() <= 3)
+    struct Grid {
+        // aliases
+        using point_t = VEC;
+        using coordinate_t = typename VEC::value_type;
+        using index_array_t = std::array<std::size_t, VEC::length()>;
+        using pair_t = std::pair<typename VEC::value_type, std::size_t>;
+        using vector_queries_t = std::vector<pair_t>;
+
+        /**
+        * \brief given iterators to collection of points - construct grid
+        * @param {forward_iterator, in} iterator to point cloud collection first point
+        * @param {forward_iterator, in} iterator to point cloud collection last point
+        **/
+        template<std::forward_iterator InputIt>
+            requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
+        constexpr void construct(const InputIt begin, const InputIt end) {
+            constexpr std::size_t k{ point_t::length() };
+            constexpr coordinate_t cellSize{ static_cast<coordinate_t>(1 << k) };
+
+            // build grid
+            const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(begin, end);
+            this->min = aabb.min;
+            this->max = aabb.max;
+            this->offset = GLSL::ceil(aabb.min);
+            this->gridMin = this->to_grid_position(aabb.min);
+            this->gridMax = this->to_grid_position(aabb.max);
+            if constexpr (k == 2) {
+                this->numCells = { {static_cast<std::size_t>(std::ceil((aabb.max[0] - aabb.min[0] + static_cast<coordinate_t>(1)) / cellSize)),
+                                    static_cast<std::size_t>(std::ceil((aabb.max[1] - aabb.min[1] + static_cast<coordinate_t>(1)) / cellSize))} };
+                this->bins.resize(this->numCells[0] * this->numCells[1]);
+            }
+            else {
+                this->numCells = { {static_cast<std::size_t>(std::ceil((aabb.max[0] - aabb.min[0] + static_cast<coordinate_t>(1)) / cellSize)),
+                                    static_cast<std::size_t>(std::ceil((aabb.max[1] - aabb.min[1] + static_cast<coordinate_t>(1)) / cellSize)),
+                                    static_cast<std::size_t>(std::ceil((aabb.max[2] - aabb.min[2] + static_cast<coordinate_t>(1)) / cellSize))} };
+                this->bins.resize(this->numCells[0] * this->numCells[1] * this->numCells[2]);
+            }
+
+            // fill grid
+            this->first = std::addressof(*begin);
+            std::size_t i{};
+            for (auto it{ begin }; it != end; ++it) {
+                const point_t p{ *it };
+                const std::size_t j{ this->to_index(p) };
+                this->bins[j].push_back(i);
+                ++i;
+            }
+        }
+
+        /**
+        * \brief clear kd-tree
+        **/
+        constexpr void clear() noexcept {
+            this->bins.clear();
+            this->numCells = { {0} };
+            this->gridMin = { {0} };
+            this->gridMax = { {0} };
+            this->min = VEC(coordinate_t{});
+            this->max = VEC(coordinate_t{});
+            this->offset = VEC(coordinate_t{});
+            this->first = nullptr;
+        }
+
+        /**
+        * \brief given point and query type, return all its neighbors within a specific enclosing area/volume around it
+        * @param {RangeSearchType,              in} query type
+        * @param {point_t,                      in} point to search around
+        * @param {coordinate_t,                 in} extent/radius of search area/volume around point
+        * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
+        **/
+        constexpr vector_queries_t range_query(const RangeSearchType type, const point_t point, const coordinate_t distance) const {
+            // housekeeping
+            constexpr std::size_t k{ point_t::length() };
+            const coordinate_t distance_criteria{ type == RangeSearchType::Manhattan ? distance : distance * distance };
+            auto metric_function = (type == RangeSearchType::Manhattan) ?
+                                   this->distance_metric<RangeSearchType::Manhattan>() :
+                                   this->distance_metric<RangeSearchType::Radius>();
+
+            // world bounds for search
+            const point_t radiusVec(distance);
+            const point_t max1{ this->max + point_t(static_cast<coordinate_t>(1)) };
+            const point_t _min{ GLSL::clamp(point - radiusVec, this->min, max1) };
+            const point_t _max{ GLSL::clamp(point + radiusVec, this->min, max1) };
+
+            // grid bound for search
+            index_array_t minCell{ this->to_grid_position(_min) };
+            index_array_t maxCell{ this->to_grid_position(_max) };
+            Utilities::static_for<0, 1, VEC::length()>([this, &minCell, &maxCell](std::size_t i) {
+                minCell[i] = Numerics::max(minCell[i], static_cast<std::size_t>(0));
+                maxCell[i] = Numerics::min(maxCell[i] + 1, this->numCells[i]);
+            });
+
+            // search
+            index_array_t cellpos;
+            vector_queries_t out;
+            if constexpr (k == 2) {
+                for (cellpos[1] = minCell[1]; cellpos[1] < maxCell[1]; ++cellpos[1]) {
+                    for (cellpos[0] = minCell[0]; cellpos[0] < maxCell[0]; ++cellpos[0]) {
+                        const std::size_t cellIndex{ this->to_index(cellpos) };
+                        const std::vector<std::size_t> cell{this->bins[cellIndex] };
+                        for (const std::size_t i : cell) {
+                            const point_t pos{ *(this->first + i) };
+                            const point_t diff{ point - pos };
+                            if (metric_function(diff) <= distance_criteria) {
+                                out.emplace_back(std::make_pair(GLSL::dot(diff), i));
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                for (cellpos[2] = minCell[2]; cellpos[2] < maxCell[2]; ++cellpos[2]) {
+                    for (cellpos[1] = minCell[1]; cellpos[1] < maxCell[1]; ++cellpos[1]) {
+                        for (cellpos[0] = minCell[0]; cellpos[0] < maxCell[0]; ++cellpos[0]) {
+                            const std::size_t cellIndex{ this->to_index(cellpos) };
+                            const std::vector<std::size_t> cell{ this->bins[cellIndex] };
+                            for (const std::size_t i : cell) {
+                                const point_t pos{ *(this->first + i) };
+                                const point_t diff{ point - pos };
+                                if (metric_function(diff) <= distance_criteria) {
+                                    out.emplace_back(std::make_pair(GLSL::dot(diff), i));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // output
+            return out;
+        }
+
+        /**
+        * \brief given point, 'k' of its nearest neighbors. notice that this method is recursive.
+        * @param {point_t,                      in}  point to search around
+        * @param {size_t,                       in}  amount of closest points
+        * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
+        **/
+        constexpr vector_queries_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
+            // housekeeping
+            constexpr std::size_t _k{ point_t::length() };
+            const coordinate_t maxExtent{ GLSL::max(this->max - this->min) };
+            coordinate_t cellSize{ static_cast<coordinate_t>(1 << _k) };
+
+            // search
+            vector_queries_t out;
+            while ((out.size() < k) && (cellSize < maxExtent)) {
+                out = range_query(RangeSearchType::Manhattan, point, cellSize);
+                cellSize *= static_cast<coordinate_t>(2);
+            }
+
+            std::ranges::sort(out, [](const pair_t & a, const pair_t & b) {
+                return a.first < b.first;
+            });
+
+            while (out.size() > k) {
+                out.pop_back();
+            }
+
+            return out;
+        }
+        
+        // internals
+        private:
+            // properties
+            std::vector<std::vector<std::size_t>> bins;
+            index_array_t numCells;           // number of cells in each dimension
+            index_array_t gridMin;            // grid cells minimal values
+            index_array_t gridMax;            // grid cells maximal values
+            point_t min;                      // grid min position
+            point_t max;                      // grid max position
+            point_t offset;                   // grid offset from coordinate system zero
+            const point_t* first{ nullptr };  // iterator for point cloud start 
+
+            /**
+            * \brief given point in space, offset and k-value, return position in grid
+            * @param {point_t,  in}  point
+            * @param {numCells, out} position in grid
+            **/
+            constexpr index_array_t to_grid_position(const point_t pos) const {
+                constexpr std::size_t k{ point_t::length() };
+
+                if constexpr (k == 2) {
+                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> k,
+                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> k }};
+                }
+                else {
+                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> k,
+                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> k,
+                                           static_cast<std::size_t>(pos[2] + this->offset[2]) >> k }};
+                }
+            }
+
+            /**
+            * \brief given point and number of cells - return its cell index in the grid
+            * @param {point_t, in}  point
+            * @param {size_t,  out} index of cell holding point in grid
+            **/
+            constexpr std::size_t to_index(const point_t pos) const {
+                constexpr std::size_t k{ point_t::length() };
+                return this->to_index(this->to_grid_position(pos));
+            }
+
+            /**
+            * \brief given grid cell - return its index
+            * @param {index_array_t, in}  cell
+            * @param {size_t,        out} index of cell holding point in grid
+            **/
+            constexpr std::size_t to_index(const index_array_t cell) const {
+                constexpr std::size_t k{ point_t::length() };
+
+                if constexpr (k == 2) {
+                    return cell[0] + this->numCells[0] * cell[1];
+                }
+                else {
+                    return cell[0] + this->numCells[0] * (cell[1] + this->numCells[1] * cell[2]);
+                }
+            }
+
+            /**
+            * \brief given range query type - return metric used in searching
+            * @param {invocable, out} distance metric used for range query
+            **/
+            template<RangeSearchType TYPE>
+            constexpr auto distance_metric() const {
+                if constexpr (TYPE == RangeSearchType::Manhattan) {
+                    return [](const point_t a) -> coordinate_t { return GLSL::max(GLSL::abs(a)); };
+                }
+                else if constexpr (TYPE == RangeSearchType::Radius) {
+                    return [](const point_t a) -> coordinate_t { return GLSL::dot(a); };
+                }
+            }
+    };
+    static_assert(ISpacePartitioning<Grid<vec2>, vec2, std::vector<vec2>::iterator>);
 }
