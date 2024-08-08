@@ -162,6 +162,7 @@ namespace Triangle {
         requires((VEC::length() == 2) || (VEC::length() == 3))
     constexpr VEC closest_point(const VEC& p, const VEC& a, const VEC& b, const VEC& c) noexcept {
         using T = typename VEC::value_type;
+        assert(Triangle::is_valid(a, b, c));
 
         const VEC ab{ b - a };
         const VEC ac{ c - a };
@@ -212,5 +213,204 @@ namespace Triangle {
         [[asseume(den > T{})]];
         const T denom{ static_cast<T>(1) / den };
         return a + ab * vb * denom + ac * vc * denom;
+    }
+
+    /**
+    * \brief orientation predicate for a point and a triangle
+    * @param {Vector3,    in}  point
+    * @param {Vector3,    in}  triangle vertex #0
+    * @param {Vector3,    in}  triangle vertex #1
+    * @param {Vector3,    in}  triangle vertex #2
+    * @param {value_type, in}  tolerance for point to be on triangle
+    * @param {int32_t,    out} -1/0/1 - point behind triangle / point on triangle / point in front of triangle
+    **/
+    template<class T>
+        requires(std::is_floating_point_v<T>)
+    constexpr std::int32_t point_triangle_orientation(const GLSL::Vector3<T>& p, const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b,
+                                                      const GLSL::Vector3<T>& c, const T eps = static_cast<T>(1e-10)) noexcept {
+        const GLSL::Matrix4<T> mat(GLSL::Vector4<T>(a, static_cast<T>(1)),
+                                   GLSL::Vector4<T>(b, static_cast<T>(1)),
+                                   GLSL::Vector4<T>(c, static_cast<T>(1)),
+                                   GLSL::Vector4<T>(p, static_cast<T>(1)));
+        const T det{ GLSL::determinant(mat) };
+        if (det < -eps) {
+            return -1;
+        }
+        else if (det > eps) {
+            return 1;
+        }
+        else {
+            return 0;
+        }
+    }
+
+    /**
+    * \brief given two non-degenerate non-coplanar triangles - check if they intersect and return intersection point/segment
+    * @param {Vector3,            in}  triangle #1 vertex #0
+    * @param {Vector3,            in}  triangle #1 vertex #1
+    * @param {Vector3,            in}  triangle #1 vertex #2
+    * @param {Vector3,            in}  triangle #2 vertex #0
+    * @param {Vector3,            in}  triangle #2 vertex #1
+    * @param {Vector3,            in}  triangle #2 vertex #2
+    * @param {{Vector3, Vector3}, out} {point #1 of intersection segment, point #2 if intersection segment}
+    *                                  if no intersectio occures, both point #1 and point #2 will be infinity
+    **/
+    template<class T>
+        requires(std::is_floating_point_v<T>)
+    constexpr auto check_triangles_intersection(const GLSL::Vector3<T>& t1a, const GLSL::Vector3<T>& t1b, const GLSL::Vector3<T>& t1c,
+                                                const GLSL::Vector3<T>& t2a, const GLSL::Vector3<T>& t2b, const GLSL::Vector3<T>& t2c) noexcept {
+        using vec_t = GLSL::Vector3<T>;
+        using out_t = struct { vec_t p0; vec_t p1; };
+        constexpr T eps{ static_cast<T>(1e-10) };
+
+        assert(Triangle::is_valid(t1a, t1b, t1c));
+        assert(Triangle::is_valid(t2a, t2b, t2c));
+
+        // housekeeping
+        out_t out{
+            .p0 = vec_t(std::numeric_limits<T>::max()),
+            .p1 = vec_t(std::numeric_limits<T>::max())
+        };
+
+        // lambda which permutes triangle vertices to the left
+        const auto permute_left = [](vec_t& a, vec_t& b, vec_t& c) {
+            const vec_t temp(a);
+            a = b;
+            b = c;
+            c = temp;
+        };
+
+        // lambda which permutes triangle vertices to the right
+        const auto permute_right = [](vec_t& a, vec_t& b, vec_t& c) {
+            const vec_t temp(c);
+            c = b;
+            b = a;
+            a = temp;
+        };
+
+        // lambda which permutes triangle vertex 'a' such that it would "lie on its side"
+        // (oa/ob/oc = relative position to vertices a/b/c)
+        const auto make_a_alone = [&permute_left, &permute_right](vec_t& a, vec_t& b, vec_t& c,
+                                     std::int32_t oa, std::int32_t ob, std::int32_t oc) {
+            // Permute a, b, c so that a is alone on its side
+            if (oa == ob) {
+                // c is alone, permute right so c becomes a
+                permute_right(a, b, c);
+            } // b is alone, permute so b becomes a
+            else if (oa == oc) {
+                permute_left(a, b, c);
+            } else if (ob != oc) {
+              // In case a, b, c have different orientation, put a on positive side
+              if (ob > 0) {
+                  permute_left(a, b, c);
+              } else if (oc > 0) {
+                  permute_right(a, b, c);
+              }
+            }
+        };
+        
+        // lambda to permute triangle 2 so its 'a' vertex lies in front of triangle 1
+        const auto make_a_positive = [](const vec_t& a1, const vec_t& a2, vec_t& b2, vec_t& c2) {
+            const std::int32_t o{Triangle::point_triangle_orientation(a1, a2, b2, c2) };
+            if (o < 0) {
+                const vec_t temp{ c2 };
+                c2 = b2;
+                b2 = temp;
+            }
+        };
+
+        // lambda to calculate intersection point between segment and a plane (defined by point and normal)
+        const auto get_segment_plane_intersect_point = [](const vec_t& a, const vec_t& b,
+                                                          const vec_t& p, const vec_t& n,
+                                                          vec_t& intersection) {
+            const vec_t u{ b - a };
+            const vec_t v{ a - p };
+            const T dot1{ GLSL::dot(n, u) };
+            const T dot2{ GLSL::dot(n, v) };
+            [[assume(dot1 > T{})]];
+            intersection = a + (-dot2 / dot1) * u;
+        };
+
+        // check rekative position of triangle #1 vertices against triangle #2
+        const std::int32_t o1a{ Triangle::point_triangle_orientation(t1a, t2a, t2b, t2c) };
+        const std::int32_t o1b{ Triangle::point_triangle_orientation(t1b, t2a, t2b, t2c) };
+        const std::int32_t o1c{ Triangle::point_triangle_orientation(t1c, t2a, t2b, t2c) };
+
+        // are vertices at same orientation?
+        if ((o1a == o1b) && (o1a == o1c)) {
+            return out;
+        }
+
+        // check rekative position of triangle #2 vertices against triangle #1
+        const std::int32_t o2a{ Triangle::point_triangle_orientation(t2a, t1a, t1b, t1c) };
+        const std::int32_t o2b{ Triangle::point_triangle_orientation(t2b, t1a, t1b, t1c) };
+        const std::int32_t o2c{ Triangle::point_triangle_orientation(t2c, t1a, t1b, t1c) };
+
+        // are vertices at same orientation?
+        if ((o2a == o2b) && (o2a == o2c)) {
+            return out;
+        }
+
+        // permute vertices
+        vec_t _t1a(t1a);
+        vec_t _t1b(t1b);
+        vec_t _t1c(t1c);
+        vec_t _t2a(t2a);
+        vec_t _t2b(t2b);
+        vec_t _t2c(t2c);
+        make_a_alone(_t1a, _t1b, _t1c, o1a, o1b, o1c);
+        make_a_alone(_t2a, _t2b, _t2c, o2a, o2b, o2c);
+
+        // swap vertices
+        make_a_positive(_t2a, _t1a, _t1b, _t1c);
+        make_a_positive(_t1a, _t2a, _t2b, _t2c);
+
+        // triangle 2 relative orientation after permutation
+        std::int32_t o1{ Triangle::point_triangle_orientation(_t2b, _t1a, _t1b, _t2a) };
+        std::int32_t o2{ Triangle::point_triangle_orientation(_t2a, _t1a, _t1c, _t2c) };
+        if (o1 > 0 && o2 > 0) {
+            return out;
+        }
+
+        // get triangle 2 'a' vertex relative to t1 triangle
+        o1 = Triangle::point_triangle_orientation(_t2a, _t1a, _t1c, _t2b);
+        o2 = Triangle::point_triangle_orientation(_t2a, _t1a, _t1b, _t2c);
+
+        // triangle normals
+        const vec_t n1{ GLSL::normalize(GLSL::cross(_t1c - _t1b, _t1a - _t1b)) };
+        const vec_t n2{ GLSL::normalize(GLSL::cross(_t2c - _t2b, _t2a - _t2b)) };
+
+        // calculate intersection points
+        vec_t i0;
+        vec_t i1;
+        if (o1 > 0) {
+            if (o2 > 0) {
+                // Intersection: k i l j
+                get_segment_plane_intersect_point(_t1a, _t1c, _t2a, n2, i0); // i
+                get_segment_plane_intersect_point(_t2a, _t2c, _t1a, n1, i1); // l
+            }
+            else {
+                // Intersection: k i j l
+                get_segment_plane_intersect_point(_t1a, _t1c, _t2a, n2, i0); // i
+                get_segment_plane_intersect_point(_t1a, _t1b, _t2a, n2, i1); // j
+            }
+        }
+        else {
+            if (o2 > 0) {
+                // Intersection: i k l j
+                get_segment_plane_intersect_point(_t2a, _t2b, _t1a, n1, i0); // k
+                get_segment_plane_intersect_point(_t2a, _t2c, _t1a, n1, i1); // l
+            }
+            else {
+                // Intersection: i k j l
+                get_segment_plane_intersect_point(_t2a, _t2b, _t1a, n1, i0); // i
+                get_segment_plane_intersect_point(_t1a, _t1b, _t2a, n2, i1); // k
+            }
+        }
+
+        // output
+        out.p0 = i0;
+        out.p1 = i1;
+        return out;
     }
 }
