@@ -111,19 +111,6 @@ namespace Aabb {
     template<GLSL::IFixedVector VEC>
         requires((VEC::length() == 2) || (VEC::length() == 3))
     constexpr auto closest_point(const VEC& p, const VEC& min, const VEC& max) noexcept {
-        using T = typename VEC::value_type;
-
-        VEC corner;
-        Utilities::static_for<0, 1, VEC::length()>([&corner, &p, &min, &max](std::size_t i) {
-            T v{ p[i] };
-            if (v < min[i]) {
-                v = min[i];
-            } else if (v > max[i]) {
-                v = max[i];
-            }
-            corner[i] = v;
-        });
-
-        return corner;
+        return GLSL::clamp(p, min, max);
     }
 }
