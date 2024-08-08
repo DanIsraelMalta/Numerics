@@ -1116,6 +1116,49 @@ void test_glsl_triangle() {
         assert(std::abs(closest.x - 1.0f) < 1e-6f);
         assert(std::abs(closest.y - -1.0f) < 1e-6f);
     }
+
+    {
+        // triangle #1
+        vec3 a1(0.0f);
+        vec3 b1(2.0f, 0.0f, 2.0f);
+        vec3 c1(-2.0f,0.0f, 2.0f);
+
+        // #triangle #2
+        vec3 a2(-2.0f, -2.0f, 1.0f);
+        vec3 b2(2.0f, -2.0f, 1.0f);
+        vec3 c2(0.0f, 2.0f, 1.0f);
+        const auto intersection_segment = Triangle::check_triangles_intersection(a1, b1, c1, a2, b2, c2);
+        assert(std::abs(intersection_segment.p0.x - -1.0f) < 1e-6);
+        assert(std::abs(intersection_segment.p0.y        ) < 1e-6);
+        assert(std::abs(intersection_segment.p0.z -  1.0f) < 1e-6);
+        assert(std::abs(intersection_segment.p1.x - 1.0f) < 1e-6);
+        assert(std::abs(intersection_segment.p1.y       ) < 1e-6);
+        assert(std::abs(intersection_segment.p1.z - 1.0f) < 1e-6);
+
+        // #triangle #3
+        vec3 a3(-2.0f, -2.0f, 0.001f);
+        vec3 b3(2.0f, -2.0f, 0.001f);
+        vec3 c3(0.0f, 2.0f, 0.001f);
+        const auto intersection_point = Triangle::check_triangles_intersection(a1, b1, c1, a3, b3, c3);
+        assert(std::abs(intersection_point.p0.x - -0.001f) < 1e-6);
+        assert(std::abs(intersection_point.p0.y) < 1e-6);
+        assert(std::abs(intersection_point.p0.z - 0.001f) < 1e-6);
+        assert(std::abs(intersection_point.p1.x - 0.001f) < 1e-6);
+        assert(std::abs(intersection_point.p1.y) < 1e-6);
+        assert(std::abs(intersection_point.p1.z - 0.001f) < 1e-6);
+
+        // #triangle #4
+        vec3 a4(-2.0f, -2.0f, -0.001f);
+        vec3 b4(2.0f, -2.0f, -0.001f);
+        vec3 c4(0.0f, 2.0f, -0.001f);
+        const auto no_intersection = Triangle::check_triangles_intersection(a1, b1, c1, a4, b4, c4);
+        assert(no_intersection.p0.x > 0.9f * std::numeric_limits<float>::max());
+        assert(no_intersection.p0.y > 0.9f * std::numeric_limits<float>::max());
+        assert(no_intersection.p0.z > 0.9f * std::numeric_limits<float>::max());
+        assert(no_intersection.p1.x > 0.9f * std::numeric_limits<float>::max());
+        assert(no_intersection.p1.y > 0.9f * std::numeric_limits<float>::max());
+        assert(no_intersection.p1.z > 0.9f * std::numeric_limits<float>::max());
+    }
 }
 
 void test_glsl_axis_aligned_bounding_box() {
