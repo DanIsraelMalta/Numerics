@@ -125,7 +125,7 @@ namespace Decomposition {
                 const T s{ static_cast<T>(1) / u };
                 return std::array<T, 3>{{t* s, s, b* u}};
             }
-            };
+        };
 
         // decomposition
         MAT R(mat);
