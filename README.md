@@ -5,9 +5,9 @@
 Features include:
 + Generic, modern and extensible numerical toolkit which follows the syntax and functionality of the GLSL shading language.
 + Implementations of canonical linear algebra operations, ranging from various decompositions to several linear equation solvers.
-+ A suite of computational geometry tools including ranging 2D operations (oriented bounding box, enclosing circles, convex/concave hull...) to acceleration structures used for fast nearest neighbours queries, clustering algorithms etc.
-+ A coherent set of efficient functions to calculate sign distance fields and ray-shapes intersections.
-+ Mandatory collection of operations related to spatial transformations and other numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
++ A suite of computational geometry tools including 2D operations (oriented bounding box, enclosing circles, convex/concave hull...), acceleration structures used for fast nearest neighbours queries, clustering algorithms etc.
++ A coherent set of efficient functions to calculate sign distance fields and ray intersectionsfor various shapes.
++ Mandatory collection of operations related to spatial transformations and numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
 
 **Sample:**
 ```cpp
