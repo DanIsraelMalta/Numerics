@@ -330,8 +330,8 @@ namespace GLSL {
     /**
     * \brief clamp vector elements to a given range
     * @param {VEC|value_type, in}  vector to clamp
-    * @param {value_type,     in}  minimal value
-    * @param {value_type,     in}  maximal value
+    * @param {VEC|value_type, in}  minimal value
+    * @param {VEC|value_type, in}  maximal value
     * @param {VEC|value_type, out} vector with clamped elements
     **/
     template<IFixedVector VEC, class T = typename VEC::value_type>
@@ -2359,7 +2359,7 @@ namespace GLSL {
     private:
         union {
             AlignedStorage(T) std::array<T, length>            data;    // elements layed out column wise
-            AlignedStorage(T) std::array<vector_type, columns> c;         // { column 0, column 1, column 2, column 3 }
+            AlignedStorage(T) std::array<vector_type, columns> c;       // { column 0, column 1, column 2, column 3 }
         };
     };
 
@@ -2369,11 +2369,94 @@ namespace GLSL {
     template<typename T> constexpr bool is_matrix4_v = is_matrix4<T>::value;
     template<typename T> concept IMatrix4 = is_matrix4_v<T>;
 
+    /**
+    * \brief cubic numerical matrix (column major)
+    * @param {arithmetic, in} elements underlying type
+    * @param {size_t,     in} amount of columns and rows
+    **/
+    template<typename T, std::size_t N>
+        requires(std::is_arithmetic_v<T> && (N > 0))
+    struct MatrixN final {
+        static constexpr std::integral_constant<std::size_t, N * N> length = {};
+        static constexpr std::integral_constant<std::size_t, N> columns = {};
+        using value_type = T;
+        using vector_type = VectorN<T, N>;
+
+        // construct from a single value
+        constexpr explicit MatrixN(const T value) noexcept {
+            Utilities::static_for<0, 1, length>([this, value](std::size_t i) {
+                data[i] = value;
+            });
+        }
+        
+        // construct from a moveable array
+        constexpr explicit MatrixN(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
+
+        // construct from a parameter pack (every N consecutive elements are a colume)
+        template<typename...TS>
+            requires((std::is_same_v<T, TS> && ...) && (sizeof...(TS) == length))
+        constexpr explicit MatrixN(TS&&... values) noexcept : data{ FWD(values)... } {}
+
+        // construct from a pointer
+        constexpr explicit MatrixN(const T* _data) {
+            [[assume(_data != nullptr)]];
+            AssumeAligned(T, _data);
+            std::memcpy(data.data(), _data, length * sizeof(T));
+        }
+
+        // assign a moveable array
+        constexpr MatrixN& operator=(std::array<T, length>&& _data) noexcept {
+            data = Utilities::exchange(_data, std::array<T, length>{});
+            return *this;
+        };
+
+        // construct from N VectorN
+        template<typename...TS>
+            requires(std::is_same_v<vector_type, TS> && ...)
+        constexpr explicit MatrixN(TS&&... vectors) noexcept {
+            for (std::size_t i{}; auto&& col : { vectors... }) {
+                c[i] = col;
+                ++i;
+            }
+        }
+
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, const MatrixN& mat) {
+            xio_stream << "{";
+            Utilities::static_for<0, 1, columns - 1>([&xio_stream, &mat](std::size_t i) {
+                xio_stream << mat[i] << ",\n";
+             });
+             xio_stream  << mat[columns - 1] << "}";
+             return xio_stream;
+        }
+
+        // overload operator '[]' to return column
+        constexpr vector_type  operator[](const std::size_t i) const { assert(i < columns); return c[i]; }
+        constexpr vector_type& operator[](const std::size_t i) { assert(i < columns); return c[i]; }
+
+        // overload operator '()' to return value
+        constexpr value_type  operator()(const std::size_t col, const std::size_t row) const { assert(col < columns); assert(row < columns); return data[col * columns + row]; }
+        constexpr value_type& operator()(const std::size_t col, const std::size_t row) { assert(col < columns); assert(row < columns); return data[col * columns + row]; }
+
+    private:
+        union {
+            AlignedStorage(T) std::array<T, length>            data;    // elements layed out column wise
+            AlignedStorage(T) std::array<vector_type, columns> c;       // { column 0, column 1, ..., column N-1 }
+        };
+    };
+
+    // Matrix4 traits and concept
+    template<typename>   struct is_matrixN : public std::false_type {};
+    template<typename T, std::size_t N> struct is_matrixN<MatrixN<T, N>> : public std::true_type {};
+    template<typename T> constexpr bool is_matrixn_v = is_matrixN<T>::value;
+    template<typename T> concept IMatrixN = is_matrixn_v<T>;
+    
     // trait to check if a type is a GLSL matrix
     template<typename>   struct is_matrix : public std::false_type {};
     template<typename T> struct is_matrix<Matrix2<T>> : public std::true_type {};
     template<typename T> struct is_matrix<Matrix3<T>> : public std::true_type {};
     template<typename T> struct is_matrix<Matrix4<T>> : public std::true_type {};
+    template<typename T, std::size_t N> struct is_matrix<MatrixN<T, N>> : public std::true_type {};
     template<typename T> constexpr bool is_matrix_v = is_matrix<T>::value;
     template<typename T> concept IGlslMatrix = is_matrix_v<T>;
 }
