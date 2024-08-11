@@ -687,6 +687,34 @@ void test_glsl_basics() {
             });
         });
     }
+    {
+        imat3 a(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        imat3 b(8, 9, 6, 7, 5, 4, 1, 2, 3);
+        imat3 c = a * b;
+        a *= b;
+
+        imat3 expected(86, 109, 132, 55, 71, 87, 30, 36, 42);
+        Utilities::static_for<0, 1, 3>([&a, &c, &expected](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&a, &c, &expected, i](std::size_t j) {
+                assert(c(i, j) == expected(i, j));
+                assert(a(i, j) == expected(i, j));
+            });
+        });
+    }
+
+    {
+        using ivec8 = GLSL::VectorN<std::int32_t, 8>;
+        ivec8 a(0, 1, 2, 3, 4, 5, 6, 7);
+        ivec8 b(7, 6, 5, 4, 3, 2, 1, 0);
+        ivec8 c = a + b;
+        ivec8 d(7);
+        assert(GLSL::equal(c, d));
+        assert(GLSL::sum(c) == 7 * 8);
+
+        using vec8 = GLSL::VectorN<float, 8>;
+        vec8 e = GLSL::mix<0.5f>(vec8(0.0f), vec8(4.0f));
+        assert(GLSL::max(GLSL::abs(e - vec8(2.0f))) < 1e-6);
+    }
 }
 
 void test_glsl_extra() {
