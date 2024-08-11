@@ -221,6 +221,12 @@ void test_glsl_basics() {
     static_assert(GLSL::Vector4<float>::length() == 4);
     static_assert(sizeof(GLSL::Vector4<float>) == 4 * sizeof(float));
 
+    static_assert(GLSL::IFixedVector<GLSL::VectorN<float, 16>>);
+    static_assert(GLSL::IFixedVector<GLSL::VectorN<double, 9>>);
+    static_assert(std::is_same_v<typename GLSL::VectorN<float, 16>::value_type, float>);
+    static_assert(GLSL::VectorN<float, 9>::length() == 9);
+    static_assert(sizeof(GLSL::VectorN<float, 9>) == 9 * sizeof(float));
+	
     // check that Matrix2 is IFixedCubicMatrix
     static_assert(GLSL::IFixedCubicMatrix<GLSL::Matrix2<float>>);
     static_assert(GLSL::IFixedCubicMatrix<GLSL::Matrix2<double>>);
@@ -245,6 +251,14 @@ void test_glsl_basics() {
     static_assert(GLSL::Matrix4<float>::columns() == 4);
     static_assert(sizeof(GLSL::Matrix4<float>) == 16 * sizeof(float));
 
+    // check that MatrixN is IFixedCubicMatrix
+    static_assert(GLSL::IFixedCubicMatrix<GLSL::MatrixN<float, 8>>);
+    static_assert(GLSL::IFixedCubicMatrix<GLSL::MatrixN<double, 16>>);
+    static_assert(std::is_same_v<typename GLSL::MatrixN<float, 5>::value_type, float>);
+    static_assert(GLSL::MatrixN<float, 5>::length() == 25);
+    static_assert(GLSL::MatrixN<float, 5>::columns() == 5);
+    static_assert(sizeof(GLSL::MatrixN<float, 6>) == 36 * sizeof(float));
+    
     {
         GLSL::Swizzle<int, 2, 1, 0> a(0, 1);
         assert(a[0] == 1);
@@ -714,6 +728,22 @@ void test_glsl_basics() {
         using vec8 = GLSL::VectorN<float, 8>;
         vec8 e = GLSL::mix<0.5f>(vec8(0.0f), vec8(4.0f));
         assert(GLSL::max(GLSL::abs(e - vec8(2.0f))) < 1e-6);
+    }
+	
+   {
+        using vec6 = GLSL::VectorN<std::int32_t, 6>;
+        using mat6 = GLSL::MatrixN<std::int32_t, 6>;
+
+        vec6 v(3);
+        mat6 m0(5);
+        mat6 m1(vec6(0), vec6(1), vec6(2), vec6(3), vec6(4), vec6(5));
+        mat6 m2(vec6(5), vec6(4), vec6(3), vec6(2), vec6(1), vec6(0));
+        mat6 m3 = m1 + m2;
+        assert(GLSL::max(m3) == 5);
+        assert(GLSL::min(m3) == 5);
+
+        vec6 m4 = m1 * v;
+        assert(GLSL::sum(m4) == 6 * 45);
     }
 }
 
