@@ -106,7 +106,7 @@ distance = PointDistance::sdf_to_ellipse(vec2(5.0f, 0.0f), vec2(1.0f, 2.0f)); //
 vec2 p0(1.0f);
 vec2 p1(2.0f, 3.0f);
 vec2 p2(0.0f, 3.0f);
-distance = PointDistance::sdf_to_triangle(vec2(0.0f), p0, p1, p2); // distance = STD::sqrt(2)
+distance = PointDistance::sdf_to_triangle(vec2(0.0f), p0, p1, p2); // distance = std::sqrt(2)
 
 // ray-triangle intersections
 vec3 p0(1.0f, 1.0f, 0.0f);
