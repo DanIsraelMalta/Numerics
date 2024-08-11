@@ -171,7 +171,7 @@ SpacePartitioning::KDTree<vec2> kdtree;
 kdtree.construct(points.begin(), points.end());
 auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Manhattan, vec2(50.0f), 5.0f); // nearest neighbours in cube
 auto pointsInSphere = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, vec2(50.0f), 5.0f); // nearest neighbours in sphere
-const auto nearest10 = kdtree.nearest_neighbors_query(vec2(50.0f), 18); // get 19 nearest neighbors ot point at (50, 50)
+const auto nearest10 = kdtree.nearest_neighbors_query(vec2(50.0f), 19); // get 19 nearest neighbors ot point at (50, 50)
 kdtree.clear();
 
 // cluster/partition points using DBSCAN with a kd-tree
