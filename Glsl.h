@@ -50,13 +50,6 @@ namespace GLSL {
     // trait to check that an argument is of IFixedVector concept
     template<typename T> constexpr bool is_fixed_vector_v = IFixedVector<T>;
 
-    // traits to check that two IFixedVector concepts have the same length and underlying type
-    template<IFixedVector VEC1, IFixedVector VEC2> struct are_vectors_similar {
-        static constexpr bool value{ std::is_same_v<typename VEC1::value_type,
-                                                    typename VEC2::value_type> &&
-                                     (VEC1::length() == VEC2::length()) };
-    };
-
     /**
     * concept of a fixed size arithmetic column major cubic matrix.
     **/
