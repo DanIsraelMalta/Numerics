@@ -2062,11 +2062,75 @@ namespace GLSL {
     template<typename T> constexpr bool is_vector4_v = is_vector4<T>::value;
     template<typename T> concept IVector4 = is_vector4_v<T>;
 
+    /**
+    *\brief 1xN numerical vector implementation of IFixedVector concept
+    * @param{arithmetic, in} elements underlying type
+    * @param{size_t,     in} amount of elements in vector
+    * */
+    template<typename T, std::size_t N>
+        requires(std::is_arithmetic_v<T> && (N > 0))
+    struct VectorN final {
+        static constexpr std::integral_constant<std::size_t, N> length = {};
+        using value_type = T;
+
+        // accessors
+        AlignedStorage(T) std::array<T, N> data{};
+
+        // construct from a single value
+        constexpr explicit VectorN(const T value) noexcept {
+            Utilities::static_for<0, 1, length>([this, value](std::size_t i) {
+                data[i] = value;
+            });
+        }
+
+        // construct from a moveable array
+        constexpr explicit VectorN(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
+
+        // construct from a parameter pack
+        template<typename...TS>
+            requires(std::is_same_v<T, TS> && ...)
+        constexpr explicit VectorN(TS&&... values) noexcept : data{ FWD(values)... } {}
+
+        // constructo from a pointer
+        constexpr explicit VectorN(const T* _data) {
+            [[assume(_data != nullptr)]];
+            AssumeAligned(T, _data);
+            std::memcpy(data.data(), _data, length * sizeof(T));
+        }
+
+        // assign a moveable array
+        constexpr VectorN& operator=(std::array<T, length>&& _data) noexcept {
+            data = Utilities::exchange(_data, std::array<T, length>{});
+            return *this;
+        };
+
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, const VectorN& vec) {
+            xio_stream << "{";
+            Utilities::static_for<0, 1, length - 1>([&xio_stream, &vec](std::size_t i) {
+                xio_stream << vec[i] << ",";
+             });
+             xio_stream  << vec[length - 1] << "}";
+             return xio_stream;
+        }
+
+        // overload operator '[]'
+        constexpr T  operator[](const std::size_t i) const { assert(i < length); return data.at(i); }
+        constexpr T& operator[](const std::size_t i) { assert(i < length); return data[i]; }
+    };
+
+    // VectorN traits and concept
+    template<typename> struct is_vectorn : public std::false_type {};
+    template<typename T, std::size_t N> struct is_vectorn<VectorN<T, N>> : public std::true_type {};
+    template<typename T> constexpr bool is_vectorn_v = is_vectorn<T>::value;
+    template<typename T> concept IVectorN = is_vectorn_v<T>;
+
     // trait to check if a type is GLSL vector
     template<typename>   struct is_vector : public std::false_type {};
     template<typename T> struct is_vector<Vector2<T>> : public std::true_type {};
     template<typename T> struct is_vector<Vector3<T>> : public std::true_type {};
     template<typename T> struct is_vector<Vector4<T>> : public std::true_type {};
+    template<typename T, std::size_t N> struct is_vector<VectorN<T, N>> : public std::true_type {};
     template<typename T> constexpr bool is_vector_v = is_vector<T>::value;
     template<typename T> concept IGlslVector = is_vector_v<T>;
 
