@@ -710,4 +710,87 @@ namespace Algorithms2D {
         // principle component
         return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
     }
+
+    /**
+    * \brief given a closed polygon (as a collection of points) and a line (given by two points), check if polygon is monotone relative to the line
+    * @param {forward_iterator, in}  iterator to first point in polygon
+    * @param {forward_iterator, in}  iterator to last point in polygon
+    * @param {IFixedVector,     in}  line first point
+    * @param {IFixedVector,     in}  line last point
+    * @param {bool,             out} true if polygon is monotone relative to line
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr bool is_polygon_monotone_relative_to_line(const InputIt first, const InputIt last, const VEC& p0, const VEC& p1) {
+        using T = typename VEC::value_type;
+
+        // project points on line and find "leftmost" (min) and "rightmost" (max) points on each coordinate
+        T xMin{ std::numeric_limits<T>::max() };
+        T yMin{ std::numeric_limits<T>::max() };
+        T xMax{ -std::numeric_limits<T>::max() };
+        T yMax{ -std::numeric_limits<T>::max() };
+        InputIt xMinIterator;
+        InputIt xMaxIterator;
+        InputIt yMinIterator;
+        InputIt yMaxIterator;
+        for (InputIt it{ first }; it != last; ++it) {
+            const VEC p{ *it };
+
+            if (p.x < xMin) {
+                xMin = p.x;
+                xMinIterator = it;
+            }
+            if (p.x > xMax) {
+                xMax = p.x;
+                xMaxIterator = it;
+            }
+
+            if (p.y < yMin) {
+                yMin = p.y;
+                yMinIterator = it;
+            }
+            if (p.y > yMax) {
+                yMax = p.y;
+                yMaxIterator = it;
+            }
+        }
+
+        // extend line
+        const T extent{ std::max(std::abs(xMax - xMin), std::abs(yMax - yMin)) };
+        const VEC dir{ p1 - p0 };
+        const VEC _p0{ p0 - extent * dir };
+        const VEC _p1{ p1 + extent * dir };
+
+        // check monotonicity in x
+        if (std::distance(xMinIterator, xMaxIterator) < 0) {
+            std::swap(xMinIterator, xMaxIterator);
+        }
+        InputIt it{ xMinIterator };
+        VEC valuePrev{ Internals::project_point_on_segment(_p0, _p1, *it).point };
+        ++it;
+        for (; it != xMaxIterator; ++it) {
+            const VEC value{ Internals::project_point_on_segment(_p0, _p1, *it).point };
+            if (value.x < valuePrev.x) {
+                return false;
+            }
+            valuePrev = value;
+        }
+
+        // check monotonicity in y
+        if (std::distance(yMinIterator, yMaxIterator) < 0) {
+            std::swap(yMinIterator, yMaxIterator);
+        }
+        it = yMinIterator;
+        valuePrev = Internals::project_point_on_segment(_p0, _p1, *it).point;
+        ++it;
+        for (; it != yMaxIterator; ++it) {
+            const VEC value{ Internals::project_point_on_segment(_p0, _p1, *it).point };
+            if (value.y < valuePrev.y) {
+                return false;
+            }
+            valuePrev = value;
+        }
+
+        return true;
+    }
 }
