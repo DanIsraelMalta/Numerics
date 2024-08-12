@@ -1748,6 +1748,22 @@ void test_GLSL_algorithms_2D() {
         for (std::size_t i{}; i < expected_concave.size(); ++i) {
             assert(GLSL::max(GLSL::abs(expected_concave[i] - concave2[i])) < 1e-6);
         }
+
+        // is monotone relative to Y axis?
+        bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(is_monotone);
+
+        // is monotone relative to X axis?
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+        assert(!is_monotone);
+
+        // is convex hull monotone relative to Y axis?
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(convex.begin(), convex.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(is_monotone);
+
+        // is convex hull monotone relative to X axis?
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(convex.begin(), convex.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+        assert(is_monotone);
     }
 
    {
