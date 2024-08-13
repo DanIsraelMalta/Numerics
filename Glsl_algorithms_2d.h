@@ -779,7 +779,7 @@ namespace Algorithms2D {
             return true;
         };
 
-        auto isMonotne{ check_montone(xMinIterator, xMaxIterator, 0)};
+        bool isMonotne{ check_montone(xMinIterator, xMaxIterator, 0)};
         if (isMonotne) {
             isMonotne = check_montone(yMinIterator, yMaxIterator, 1);
         }
