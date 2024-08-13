@@ -761,36 +761,28 @@ namespace Algorithms2D {
         const VEC _p0{ p0 - extent * dir };
         const VEC _p1{ p1 + extent * dir };
 
-        // check monotonicity in x
-        if (std::distance(xMinIterator, xMaxIterator) < 0) {
-            std::swap(xMinIterator, xMaxIterator);
-        }
-        InputIt it{ xMinIterator };
-        VEC valuePrev{ Internals::project_point_on_segment(_p0, _p1, *it).point };
-        ++it;
-        for (; it != xMaxIterator; ++it) {
-            const VEC value{ Internals::project_point_on_segment(_p0, _p1, *it).point };
-            if (value.x < valuePrev.x) {
-                return false;
+        // monotone checking lambda
+        auto check_montone = [_p0, _p1](InputIt& start, InputIt& end, const std::size_t index) -> bool {
+            if (std::distance(start, end) < 0) {
+                std::swap(start, end);
             }
-            valuePrev = value;
-        }
-
-        // check monotonicity in y
-        if (std::distance(yMinIterator, yMaxIterator) < 0) {
-            std::swap(yMinIterator, yMaxIterator);
-        }
-        it = yMinIterator;
-        valuePrev = Internals::project_point_on_segment(_p0, _p1, *it).point;
-        ++it;
-        for (; it != yMaxIterator; ++it) {
-            const VEC value{ Internals::project_point_on_segment(_p0, _p1, *it).point };
-            if (value.y < valuePrev.y) {
-                return false;
+            InputIt it{ start };
+            VEC valuePrev{ Internals::project_point_on_segment(_p0, _p1, *it).point };
+            ++it;
+            for (; it != end; ++it) {
+                const VEC value{ Internals::project_point_on_segment(_p0, _p1, *it).point };
+                if (value[index] < valuePrev[index]) {
+                    return false;
+                }
+                valuePrev = value;
             }
-            valuePrev = value;
-        }
+            return true;
+        };
 
-        return true;
+        auto isMonotne{ check_montone(xMinIterator, xMaxIterator, 0)};
+        if (isMonotne) {
+            isMonotne = check_montone(yMinIterator, yMaxIterator, 1);
+        }
+        return isMonotne;
     }
 }
