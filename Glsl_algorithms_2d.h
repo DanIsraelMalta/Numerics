@@ -93,9 +93,10 @@ namespace Algorithms2D {
         * @param {IFixedVector, in}  ray #2 direction
         * @param {IFixedVector, out} ray #1 and ray #2 intersection point (vector filled with std::numeric_limits<T>::max() if intersection does not occure)
         **/
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr VEC get_rays_intersection_point(const VEC& ro0, const VEC& rd0, const VEC& ro1, const VEC& rd1) noexcept {
+            using T = typename VEC::value_type;
             assert(Extra::is_normalized(rd0));
             assert(Extra::is_normalized(rd1));
             if (GLSL::equal(ro0, ro1)) [[unlikely]] {
@@ -123,10 +124,12 @@ namespace Algorithms2D {
         * @param {IFixedVector,               in}  point
         * @param {{IFixedVector, value_type}, out} {point projected on segment, interpolant along segment from point #1 to projected point}
         **/
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr auto project_point_on_segment(const VEC& a, const VEC& b, const VEC& p) noexcept {
+            using T = typename VEC::value_type;
             using out_t = struct { VEC point; T t; };
+
             const VEC ap{ p - a };
             const VEC ab{ b - a };
 
@@ -146,15 +149,17 @@ namespace Algorithms2D {
         * @param {{IFixedVector, value_type}, out} {circumcircle center, circumcircle squared radius}
         *                                          center will be at center and squared radius will be negative in case of invalid calculation.
         **/
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr auto get_circumcircle(const VEC& a, const VEC& b) noexcept {
+            using T = typename VEC::value_type;
             using out_t = struct { VEC center; T radius_squared; };
             return out_t{ (a + b) / static_cast<T>(2), GLSL::dot(a - b) / static_cast<T>(4) };
         }
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr auto get_circumcircle(const VEC& a, const VEC& b, const VEC& c) noexcept {
+            using T = typename VEC::value_type;
             using out_t = decltype(Algorithms2D::Internals::get_circumcircle(a, b));
 
             const VEC ba{ b - a };
@@ -168,9 +173,10 @@ namespace Algorithms2D {
             const VEC center{ a + VEC(ca.y * B - ba.y * C, ba.x * C - ca.x * B) / (static_cast<T>(2) * D) };
             return out_t{ center, GLSL::dot(center - a) };
         }
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr auto get_circumcircle(const VEC& a, const VEC& b, const VEC& c, const VEC& d) noexcept {
+            using T = typename VEC::value_type;
             using out_t = decltype(Algorithms2D::Internals::get_circumcircle(a, b));
 
             // does 'abc' circle include 'd'?
@@ -264,6 +270,71 @@ namespace Algorithms2D {
 
             // output
             return out_t{ distSquared, index };
+        }
+
+        /**
+        * \brief given a closed polygon (as a collection of points) return iterators to two monotone chains
+        *        going from minimum of each coordinate to the maximum of that coordinate
+        * @param {forward_iterator,             in}  iterator to first point in polygon
+        * @param {forward_iterator,             in}  iterator to last point in polygon
+        * @param {{array<forward_iterator, 2>,       {iterator from minimal x coordinate to maximal x coordinate,
+        *          array<forward_iterator, 2>,        iterator from minimal y coordinate to maximal y coordinate}
+        *          array<value_type, 2>,              minimal and maximal x values,
+        *          array<value_type, 2>,},      out}  minimal and maximal y values}
+        *
+        **/
+        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+            requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+        constexpr auto get_monotone_chains(const InputIt first, const InputIt last) {
+            using out_t = struct {
+                std::array<InputIt, 2> x_monotone_chain;
+                std::array<InputIt, 2> y_monotone_chain;
+                std::array<T, 2> x_min_max;
+                std::array<T, 2> y_min_max;
+            };
+
+            // project points on line and find "leftmost" (min) and "rightmost" (max) points on each coordinate
+            T xMin{ std::numeric_limits<T>::max() };
+            T yMin{ std::numeric_limits<T>::max() };
+            T xMax{ -std::numeric_limits<T>::max() };
+            T yMax{ -std::numeric_limits<T>::max() };
+            InputIt xMinIterator;
+            InputIt xMaxIterator;
+            InputIt yMinIterator;
+            InputIt yMaxIterator;
+            for (InputIt it{ first }; it != last; ++it) {
+                const VEC p{ *it };
+
+                if (p.x < xMin) {
+                    xMin = p.x;
+                    xMinIterator = it;
+                }
+                if (p.x > xMax) {
+                    xMax = p.x;
+                    xMaxIterator = it;
+                }
+
+                if (p.y < yMin) {
+                    yMin = p.y;
+                    yMinIterator = it;
+                }
+                if (p.y > yMax) {
+                    yMax = p.y;
+                    yMaxIterator = it;
+                }
+            }
+
+            if (std::distance(xMinIterator, xMaxIterator) < 0) {
+                std::swap(xMinIterator, xMaxIterator);
+            }
+
+            if (std::distance(yMinIterator, yMaxIterator) < 0) {
+                std::swap(yMinIterator, yMaxIterator);
+            }
+
+            // output
+            return out_t{ std::array<InputIt, 2>{{xMinIterator, xMaxIterator}}, std::array<InputIt, 2>{{yMinIterator, yMaxIterator}},
+                          std::array<T, 2>{{xMin, xMax}}, std::array<T, 2>{{yMin, yMax}} };
         }
     };
 
@@ -723,49 +794,20 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr bool is_polygon_monotone_relative_to_line(const InputIt first, const InputIt last, const VEC& p0, const VEC& p1) {
         using T = typename VEC::value_type;
+        using chains_t = decltype(Algorithms2D::Internals::get_monotone_chains(first, last));
 
-        // project points on line and find "leftmost" (min) and "rightmost" (max) points on each coordinate
-        T xMin{ std::numeric_limits<T>::max() };
-        T yMin{ std::numeric_limits<T>::max() };
-        T xMax{ -std::numeric_limits<T>::max() };
-        T yMax{ -std::numeric_limits<T>::max() };
-        InputIt xMinIterator;
-        InputIt xMaxIterator;
-        InputIt yMinIterator;
-        InputIt yMaxIterator;
-        for (InputIt it{ first }; it != last; ++it) {
-            const VEC p{ *it };
-
-            if (p.x < xMin) {
-                xMin = p.x;
-                xMinIterator = it;
-            }
-            if (p.x > xMax) {
-                xMax = p.x;
-                xMaxIterator = it;
-            }
-
-            if (p.y < yMin) {
-                yMin = p.y;
-                yMinIterator = it;
-            }
-            if (p.y > yMax) {
-                yMax = p.y;
-                yMaxIterator = it;
-            }
-        }
+        // get monotone chains
+        const chains_t chains{ Internals::get_monotone_chains(first, last) };
 
         // extend line
-        const T extent{ std::max(std::abs(xMax - xMin), std::abs(yMax - yMin)) };
+        const T extent{ std::max(std::abs(chains.x_min_max[0] - chains.x_min_max[1]),
+                                 std::abs(chains.y_min_max[0] - chains.y_min_max[1])) };
         const VEC dir{ p1 - p0 };
         const VEC _p0{ p0 - extent * dir };
         const VEC _p1{ p1 + extent * dir };
 
         // monotone checking lambda
-        auto check_montone = [_p0, _p1](InputIt& start, InputIt& end, const std::size_t index) -> bool {
-            if (std::distance(start, end) < 0) {
-                std::swap(start, end);
-            }
+        auto check_montone = [_p0, _p1](InputIt start, InputIt end, const std::size_t index) -> bool {
             InputIt it{ start };
             VEC valuePrev{ Internals::project_point_on_segment(_p0, _p1, *it).point };
             ++it;
@@ -779,10 +821,34 @@ namespace Algorithms2D {
             return true;
         };
 
-        bool isMonotne{ check_montone(xMinIterator, xMaxIterator, 0)};
+        bool isMonotne{ check_montone(chains.x_monotone_chain[0], chains.x_monotone_chain[1], 0)};
         if (isMonotne) {
-            isMonotne = check_montone(yMinIterator, yMaxIterator, 1);
+            isMonotne = check_montone(chains.y_monotone_chain[0], chains.y_monotone_chain[1], 1);
         }
         return isMonotne;
+    }
+
+    /**
+    * \brief given a closed polygon (as a collection of points), check if its edges a orthogonal with respect to XY axes
+    * @param {forward_iterator, in}  iterator to first point in polygon
+    * @param {forward_iterator, in}  iterator to last point in polygon
+    * @param {value_type,       in}  minimal slope between two consecutive points for their segment would be declared not orthogonal (default is Numerics::equality_precision)
+    * @param {bool,             out} true if polygon is orthogonal
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr bool is_polygon_orthogonal(const InputIt first, const InputIt last, const T tol = Numerics::equality_precision<T>() ) {
+        bool isOrthogonal{ true };
+
+        InputIt it{ first };
+        VEC pointPrev{ *it };
+        ++it;
+        for (; it != last; ++it) {
+            const VEC point{ *it };
+            isOrthogonal &= (std::abs(point.x - pointPrev.x) < tol) || (std::abs(point.y - pointPrev.y) < tol);
+            pointPrev = point;
+        }
+
+        return isOrthogonal;
     }
 }
