@@ -365,7 +365,7 @@ namespace SpacePartitioning {
         }
 
         /**
-        * \brief clear kd-tree
+        * \brief clear grid
         **/
         constexpr void clear() noexcept {
             this->bins.clear();
