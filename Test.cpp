@@ -1749,6 +1749,10 @@ void test_GLSL_algorithms_2D() {
             assert(GLSL::max(GLSL::abs(expected_concave[i] - concave2[i])) < 1e-6);
         }
 
+        // chcek orthogonality
+        bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
+        assert(!is_orthogonal);
+        
         // is monotone relative to Y axis?
         bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
         assert(is_monotone);
@@ -1806,6 +1810,28 @@ void test_GLSL_algorithms_2D() {
            const vec2 direction{ Algorithms2D::get_principle_axis(points.cbegin(), points.cend()) };
            assert(std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) <= 0.1f);
        }
+   }
+    
+   {
+       std::vector<vec2> polygon{ {vec2(0.0f,3.0f), vec2(1.0f,3.0f), vec2(1.0f,2.0f), vec2(2.0f,2.0f), vec2(2.0f,4.0f),
+                                   vec2(3.0f,4.0f), vec2(3.0f,0.0f), vec2(4.0f,0.0f), vec2(4.0f,1.0f), vec2(5.0f,1.0f),
+                                   vec2(5.0f,0.0f), vec2(6.0f,0.0f), vec2(6.0f,2.0f), vec2(7.0f,2.0f), vec2(7.0f,1.0f),
+                                   vec2(8.0f,1.0f), vec2(8.0f,4.0f), vec2(9.0f,4.0f), vec2(9.0f,7.0f), vec2(8.0f,7.0f),
+                                   vec2(8.0f,9.0f), vec2(7.0f,9.0f), vec2(7.0f,5.0f), vec2(6.0f,5.0f), vec2(6.0f,6.0f),
+                                   vec2(5.0f,6.0f), vec2(5.0f,9.0f), vec2(4.0f,9.0f), vec2(4.0f,8.0f), vec2(6.0f,8.0f),
+                                   vec2(6.0f,7.0f), vec2(2.0f,7.0f), vec2(2.0f,9.0f), vec2(1.0f,9.0f), vec2(1.0f,6.0f),
+                                   vec2(0.0f,6.0f)} };
+       // chcek orthogonality
+       bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
+       assert(is_orthogonal);
+
+       // is monotone relative to Y axis?
+       bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+       assert(!is_monotone);
+
+       // is monotone relative to X axis?
+       is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+       assert(is_monotone);
    }
 }
 
