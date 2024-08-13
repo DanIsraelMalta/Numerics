@@ -1764,6 +1764,17 @@ void test_GLSL_algorithms_2D() {
         // is convex hull monotone relative to X axis?
         is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(convex.begin(), convex.end(), vec2(0.0f), vec2(1.0f, 0.0f));
         assert(is_monotone);
+
+	    std::vector<vec2> mon{ {vec2(2.0, 0.0), vec2(5.0, 0.0), vec2(5.0, 10.0),
+                                vec2(2.0, 10.0), vec2(1.0, 8.0), vec2(2.0, 6.0), vec2(1.0, 3.0)}};
+
+	    // should not me monotone with regard to X axis
+	    is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+	    assert(!is_monotone);
+
+	    // should be monotone with regard to Y axis
+	    is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+	    assert(is_monotone);
     }
 
    {
