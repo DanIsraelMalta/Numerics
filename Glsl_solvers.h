@@ -66,7 +66,7 @@ namespace Decomposition {
 
     /**
     * \brief perform QR decomposition using gram-schmidt process.
-    *         numerically less accureate than QR_GivensRotation.
+    *         numerically less accurate than QR_GivensRotation.
     *
     * @param {IFixedCubicMatrix,                      in}  input matrix
     * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
@@ -89,7 +89,7 @@ namespace Decomposition {
 
     /**
     * \brief perform QR decomposition using "givens rotation".
-    *        numerically more accureate than QR_GramSchmidt.
+    *        numerically more accurate than QR_GramSchmidt.
     *
     * @param {IFixedCubicMatrix, in}     matrix
     * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
@@ -194,11 +194,11 @@ namespace Decomposition {
 
     /**
     * \brief perform LU decomposition using using Doolittle algorithm.
-    *        i.e. - given matrix decompose it to L*P*U, where L is lower traingular with unit diagonal,
+    *        i.e. - given matrix decompose it to L*P*U, where L is lower triangular with unit diagonal,
     *               U is an upper triangular and P is a diagonal pivot matrix (given as a vector holding its diagonal)
-    *        this implementatoin is geared towrds easy usage in linear system solutions.
-    * @param {IFixedCubicMatrix,                         in}  matrix to decomopse
-    * @param {{IFixedCubicMatrix, array, int32_t}, out} {LU matrix (decomposed matrix; upper triangular is U, lower triangular is L, diagnoal is part of U), decomposition pivot vector, pivot sign}
+    *        this implementation is geared towards easy usage in linear system solutions.
+    * @param {IFixedCubicMatrix,                   in}  matrix to decompose
+    * @param {{IFixedCubicMatrix, array, int32_t}, out} {LU matrix (decomposed matrix; upper triangular is U, lower triangular is L, diagonal is part of U), decomposition pivot vector, pivot sign}
     **/
     template<GLSL::IFixedCubicMatrix MAT>
     constexpr auto LU(const MAT& mat) {
@@ -252,10 +252,10 @@ namespace Decomposition {
 
     /**
     * \brief using Schur decomposition - return eigenvector and eigenvalues of given matrix.
-    * @param {IFixedCubicMatrix,                     in}  matrix to decomopse
+    * @param {IFixedCubicMatrix,                     in}  matrix to decompose
     * @param {size_t,                                in}  maximal number of iterations (default is 10)
-    * @param {value_type,                            in}  minimal error in iteration to stop calculation (defult is 1e-5)
-    * @param {IFixedCubicMatrix, IFixedCubicMatrix}, out} {matrix whose columns are eigenvectors, upper triangular matric whose diagonal holds eigenvalues }
+    * @param {value_type,                            in}  minimal error in iteration to stop calculation (default is 1e-5)
+    * @param {IFixedCubicMatrix, IFixedCubicMatrix}, out} {matrix whose columns are eigenvectors, upper triangular matrix whose diagonal holds eigenvalues }
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
@@ -268,12 +268,12 @@ namespace Decomposition {
         T err{ static_cast<T>(10) * tol };
         std::size_t i{};
         while ((i < iter) && (err > tol)) {
-            const VEC eigvalues0{ GLSL::trace(A) };
+            const VEC eigenvalues0{ GLSL::trace(A) };
 
             QR = Decomposition::QR_GivensRotation(A);
             A = QR.R * QR.Q;
 
-            err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigvalues0));
+            err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigenvalues0));
             ++i;
         }
 
@@ -297,23 +297,23 @@ namespace Decomposition {
 
     /**
     * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
-    *        user suuplies two stoppage criterias:
+    *        user supplies two stoppage criteria's:
     *        1. maximal amount of iterations (10 by default)
     *        2. minimal value between two consecutive eigenvalue approximation (1e-5 by default).
     * @param {IFixedCubicMatrix, in}  matrix
     * @param {size_t,            in}  maximal number of iterations (default is 10)
-    * @param {value_type,        in}  minimal error in iteration to stop calculation (defult is 1e-5)
+    * @param {value_type,        in}  minimal error in iteration to stop calculation (default is 1e-5)
     * @param {value_type,        out} spectral radius
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr T spectral_radius(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using VEC = typename MAT::vector_type;
 
-        // initialize random "eigenvactor"
+        // initialize random "eigenvector"
         VEC eigenvector;
         Extra::make_random(eigenvector);
 
-        // eignevector calculation via power iteration
+        // eigenvector calculation via power iteration
         VEC eigenvector_next;
         std::size_t i{};
         T eigenvalue{ static_cast<T>(10) * tol };
@@ -341,11 +341,11 @@ namespace Decomposition {
     constexpr T spectral_radius(const MAT& mat) {
         using VEC = typename MAT::vector_type;
 
-        // initialize random "eigenvactor"
+        // initialize random "eigenvector"
         VEC eigenvector;
         Extra::make_random(eigenvector);
 
-        // eignevector calculation via power iteration
+        // eigenvector calculation via power iteration
         VEC eigenvector_next;
         Utilities::static_for<0, 1, N>([&mat, &eigenvector, &eigenvector_next](std::size_t i) {
             eigenvector_next = eigenvector * mat;
@@ -446,15 +446,15 @@ namespace Decomposition {
     /**
     * \brief given non singular matrix, return the rotation matrix of its polar decomposition.
     *        in general, polar decomposition decompose a matrix to R*P where:
-    *        > R is an orthogonal unitary matrix repsresenting rotation.
-    *        > P is a positive semidefinite symmetric matrix represents deformation/scaling.
+    *        > R is an orthogonal unitary matrix representing rotation.
+    *        > P is a positive semi definite symmetric matrix represents deformation/scaling.
     *          (P might have negative sign for small magnitude singular values)
     *        here, we only return R. P can be calculated by the user (MAT * Rinv)
-    * @param {IFixedCubicMatrix, in}  matrix to decomopse
+    * @param {IFixedCubicMatrix, in}  matrix to decompose
     * @param {size_t,            in}  maximal number of iterations (default is 10)
-    * @param {value_type,        in}  minimal rotation matrix squared frobenius norm for calculation to halt.
-    *                                 since orthogonal matrix frobenius norm is 1, the tolerance should be larger than 1.
-    *                                 default is 1.1 - meaning operation will stop when squared frobenius norm will be smaller than 1.1.
+    * @param {value_type,        in}  minimal rotation matrix squared Frobenius norm for calculation to halt.
+    *                                 since orthogonal matrix Frobenius norm is 1, the tolerance should be larger than 1.
+    *                                 default is 1.1 - meaning operation will stop when squared Frobenius norm will be smaller than 1.1.
     * @param {IFixedCubicMatrix, out} rotation matrix of polar decomposition
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
@@ -518,7 +518,7 @@ namespace Decomposition {
 
     /**
     * \brief calculate the eigenvalues and eigenvectors of cubic 3x3 symmetric matrix.
-    *        notice that this calculation is correct only in cases where the eigenvalues are real and "well seperated".
+    *        notice that this calculation is correct only in cases where the eigenvalues are real and "well separated".
     * @param {IFixedCubicMatrix,                 in}  matrix
     * @param {IFixedCubicMatrix, IFixedVector}, out} {matrix whose columns are eigenvectors, vector whose elements are eigenvalues }
     **/
@@ -586,7 +586,7 @@ namespace Solvers {
         VEC x;
         Utilities::static_for<0, 1, N>([&x, &lowerUpper, &b](std::size_t i) {
             x[i] = b[static_cast<std::size_t>(lowerUpper.Pivot[i])];
-            });
+        });
 
         // Solve L*Y = b(pivoted)
         for (std::size_t k{}; k < N; ++k) {
