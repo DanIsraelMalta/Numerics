@@ -171,12 +171,10 @@ namespace Transformation {
     }
 
     /**
-    * \brief returns a point rotated around an axis. the rotation is centered
-    *        around the origin. (uses optimized version of rodriguez rotation formula)
-    * @param {IFixedVector, in}  point
+    * \brief given axis and angle, return quaternion
     * @param {IFixedVector, in}  axis (should be normalized)
     * @param {value_type,   in}  angle [rad]
-    * @param {IFixedVector, out} rotated point
+    * @param {IFixedVector, out} quaternion
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(VEC::length() == 3)
