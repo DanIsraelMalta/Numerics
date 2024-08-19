@@ -761,23 +761,13 @@ void test_glsl_extra() {
                -12.0f, 19.0f, 21.0f,
                2.0f, -8.0f, 1.0});
         mat3 b = Extra::orthonormalize(a);
-        assert(std::abs(GLSL::length(b[0]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(b[1]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(b[2]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(b[0], b[1])) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(b[0], b[2])) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(b[1], b[2])) - 1.0f) <= 1e-6);
+        assert(Extra::is_dcm_matrix(b));
     }
 
     {
         vec3 x(GLSL::normalize(vec3(3.5f, -12.2f, 27.0f)));
         mat3 a = Extra::orthonomrmalBasis(x);
-        assert(std::abs(GLSL::length(a[0]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(a[1]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(a[2]) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(a[0], a[1])) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(a[0], a[2])) - 1.0f) <= 1e-6);
-        assert(std::abs(GLSL::length(GLSL::cross(a[1], a[2])) - 1.0f) <= 1e-6);
+        assert(Extra::is_dcm_matrix(a));
     }
 
     {
@@ -794,12 +784,22 @@ void test_glsl_extra() {
         assert(Extra::left_dot<3>(a, b) == 20);
         assert(Extra::left_dot<2>(b) == 13);
     }
-    
+
     {
         ivec3 a(1, 2, 3);
         ivec3 b(3, 2, 3);
         assert(!Extra::are_vectors_identical(a, b, 1));
         assert(Extra::are_vectors_identical(a, b, 3));
+    }
+
+    {
+        vec4 a(1.0f, -23.0f, 142.0f, -120.0f);
+        mat4 b;
+        Extra::make_companion(b, a);
+        assert(std::abs(GLSL::sum(b[0]) - 1) < 1e-6);
+        assert(std::abs(GLSL::sum(b[1]) - 1) < 1e-6);
+        assert(std::abs(GLSL::sum(b[2]) - 1) < 1e-6);
+        assert(std::abs(GLSL::max(b[3] + a)) < 1e-6);
     }
 }
 
