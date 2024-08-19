@@ -81,6 +81,22 @@ namespace Extra {
     }
 
     /**
+    * \brief given a vector - return its companion matrix
+    * @param {IFixedVector,      in}     vector 
+    * @param {IFixedCubicMatrix, in|out} vectorc ompanion matrix
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = MAT::vector_type>
+    constexpr void make_companion(MAT& mat, const VEC& vec) noexcept {
+        using T = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        Utilities::static_for<0, 1, N - 1>([&mat](std::size_t i) {
+            mat(i, i + 1) = static_cast<T>(1);
+        });
+        mat[N - 1] = -vec;
+    }
+
+    /**
     * \brief fill a vector with positive random values in the range of [0, static_cast<T>(std::numeric_limits<std::uint32_t>::max())]
     * @param {IFixedVector, in} vector to be filled with random values
     **/
