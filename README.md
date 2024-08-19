@@ -4,7 +4,7 @@
 
 Features include:
 + Generic, modern and extensible numerical toolkit which follows the syntax and functionality of the GLSL shading language.
-+ Implementations of canonical linear algebra operations, ranging from decompositions to linear equation set solvers.
++ Implementations of canonical linear algebra operations, ranging from decompositions to linear equation system set solvers.
 + A suite of computational geometry tools ranfing from acceleration structures used for fast nearest neighbours queries and clustering algorithms to 2D tailored operations (oriented bounding box, enclosing circles, convex/concave hull...) etc.
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
 
@@ -64,7 +64,7 @@ mat3 mat = Transformation::create_rotation_matrix_from_quaternion(quat);
 auto axis_from_mat = Transformation::get_axis_angle_from_rotation_matrix(mat);
 
 //
-// decompositions and linear solvers
+// decompositions and linear equation system solvers
 //
 
 mat3 a(12.0, -51.0, 4.0,
