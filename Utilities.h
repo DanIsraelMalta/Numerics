@@ -131,7 +131,7 @@ namespace Utilities {
     template<class T, class U = T>
     constexpr T exchange(T& obj, U&& new_value) noexcept(std::is_nothrow_assignable_v<T&, U>) {
         T old_value = MOV(obj);
-        obj = MOV(new_value);
+        obj = FWD(new_value);
         return old_value;
     }
 };
