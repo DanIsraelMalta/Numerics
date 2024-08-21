@@ -188,6 +188,7 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
++ Algorithms.h - generic algorithms and local STL replacements.
 + Variadic.h - Utilities to operate and handle variadic arguments.
 + Concepts.h - useful concepts and traits.
 + Numerics.h - generic numerical utilities.
