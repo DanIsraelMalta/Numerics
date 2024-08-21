@@ -588,40 +588,6 @@ namespace Numerics {
     }
 
     /**
-    * \brief perform in place partition operations.
-    *        if range is given by forward iterator - use std::partition which perform O(n*log(n)) swaps
-    *        if range is given by bidirectional iterator - perform O(n/2) swaps using diffrent algorithm.
-    * @param {forward_iterator | bidirectional_iterator, in}  iterator to range start
-    * @param {forward_iterator | bidirectional_iterator, in}  iterator to range end
-    * @param {invocable,                                 in}  unary predicate which returns ​true if the element should be ordered before other elements
-    * @param {forward_iterator | bidirectional_iterator, out} iterator to first element of second group
-    **/
-    template<class It, class UnaryPred, class T = typename std::decay_t<decltype(*std::declval<It>())>>
-        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<UnaryPred, T>)
-    It partition(It first, It last, UnaryPred&& p) {
-        if constexpr (std::bidirectional_iterator<It>) {
-            if (first == last) {
-                return first;
-            }
-            --last;
-
-            while (first != last) {
-                while (first != last && p(*first)) {
-                    ++first;
-                }
-                while (first != last && !p(*last)) {
-                    --last;
-                }
-
-                Utilities::swap(*first, *last);
-            }
-            return first;
-        } else if (std::forward_iterator<It>) {
-            return std::partition(first, last, FWD(p));
-        }
-    }
-
-    /**
     * \brief stable numeric solution of a quadratic equation (a*x^2 + b*x + c = 0)
     * 
     * @param {floating_point,                         in}  a
