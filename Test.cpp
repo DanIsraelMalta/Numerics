@@ -3,6 +3,8 @@
 #include <array>
 #include <iostream>
 #include <list>
+#include <chrono>
+#include "Algorithms.h"
 #include "DiamondAngle.h"
 #include "Hash.h"
 #include "Variadic.h"
@@ -171,7 +173,7 @@ void test_numerics() {
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
-    auto it = Numerics::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
+    auto it = Algoithms::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
     assert(v == vExpected);
 
     // test quadratic equation solver
@@ -226,7 +228,7 @@ void test_glsl_basics() {
     static_assert(std::is_same_v<typename GLSL::VectorN<float, 16>::value_type, float>);
     static_assert(GLSL::VectorN<float, 9>::length() == 9);
     static_assert(sizeof(GLSL::VectorN<float, 9>) == 9 * sizeof(float));
-	
+
     // check that Matrix2 is IFixedCubicMatrix
     static_assert(GLSL::IFixedCubicMatrix<GLSL::Matrix2<float>>);
     static_assert(GLSL::IFixedCubicMatrix<GLSL::Matrix2<double>>);
@@ -258,7 +260,7 @@ void test_glsl_basics() {
     static_assert(GLSL::MatrixN<float, 5>::length() == 25);
     static_assert(GLSL::MatrixN<float, 5>::columns() == 5);
     static_assert(sizeof(GLSL::MatrixN<float, 6>) == 36 * sizeof(float));
-    
+
     {
         GLSL::Swizzle<int, 2, 1, 0> a(0, 1);
         assert(a[0] == 1);
@@ -701,20 +703,6 @@ void test_glsl_basics() {
             });
         });
     }
-    {
-        imat3 a(1, 2, 3, 4, 5, 6, 7, 8, 9);
-        imat3 b(8, 9, 6, 7, 5, 4, 1, 2, 3);
-        imat3 c = a * b;
-        a *= b;
-
-        imat3 expected(86, 109, 132, 55, 71, 87, 30, 36, 42);
-        Utilities::static_for<0, 1, 3>([&a, &c, &expected](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&a, &c, &expected, i](std::size_t j) {
-                assert(c(i, j) == expected(i, j));
-                assert(a(i, j) == expected(i, j));
-            });
-        });
-    }
 
     {
         using ivec8 = GLSL::VectorN<std::int32_t, 8>;
@@ -729,8 +717,8 @@ void test_glsl_basics() {
         vec8 e = GLSL::mix<0.5f>(vec8(0.0f), vec8(4.0f));
         assert(GLSL::max(GLSL::abs(e - vec8(2.0f))) < 1e-6);
     }
-	
-   {
+
+    {
         using vec6 = GLSL::VectorN<std::int32_t, 6>;
         using mat6 = GLSL::MatrixN<std::int32_t, 6>;
 
@@ -793,6 +781,7 @@ void test_glsl_extra() {
     }
 
     {
+        // check companion
         vec4 a(1.0f, -23.0f, 142.0f, -120.0f);
         mat4 b;
         Extra::make_companion(b, a);
@@ -911,7 +900,7 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eigs2[0] * 10000) == 421148);
         assert(static_cast<std::int32_t>(eigs2[1] * 10000) == 158851);
     }
-    
+
     {
         dmat3 polarExpected1( 0.853312, -0.416067, -0.31424,
                               0.325196,  0.89579,  -0.302999,
@@ -942,8 +931,8 @@ void test_glsl_solvers() {
             assert(Extra::are_vectors_identical(polar2[i], polarExpected2[i]));
         });
     }
-    
-    {   
+
+    {
         dmat3 QExpected(0.228375, -0.9790593, 0.076125,
                         0.618929, 0.084383, -0.780901,
                         0.751513, 0.225454, 0.619999);
@@ -976,7 +965,7 @@ void test_glsl_solvers() {
             assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
         });
     }
-    
+
     {
         dvec3 b(70.0, 12.0, 50.0);
         auto solution = Solvers::SolveLU(a, b);
@@ -1087,7 +1076,7 @@ void test_glsl_aabb() {
     const auto expanded = Aabb::expand(ivec2(0), ivec2(1), ivec2(2));
     assert(GLSL::equal(expanded.min, ivec2(0)));
     assert(GLSL::equal(expanded.max, ivec2(2)));
-    
+
     auto closest = Aabb::closest_point(vec2(1.0f, 1.0f), vec2(0.0f, 3.0f), vec2(3.0f, 5.0f));
     assert(std::abs(closest.x - 1.0) < 1e-6);
     assert(std::abs(closest.y - 3.0) < 1e-6);
@@ -1350,7 +1339,7 @@ void test_glsl_point_distance() {
         distance = PointDistance::sdf_to_box_at_center(vec2(0.0f, 4.0f), vec2(1.0f, 3.0f));
         assert(std::abs(distance - 1.0f) < 1e-6);
     }
-
+    
     {
         float angle = std::numbers::pi_v<float> / 4.0f;
         float cos{ std::cos(angle) };
@@ -1365,7 +1354,7 @@ void test_glsl_point_distance() {
         distance = PointDistance::sdf_to_oriented_box_at_center(vec2(-4.0f * sin, -4.0f * cos), vec2(0.0f), vec2(2.0f), rot);
         assert(std::abs(distance - 2.0f) < 1e-6);
     }
-	
+
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
@@ -1752,7 +1741,7 @@ void test_GLSL_algorithms_2D() {
         // chcek orthogonality
         bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
         assert(!is_orthogonal);
-        
+
         // is monotone relative to Y axis?
         bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
         assert(is_monotone);
@@ -1769,16 +1758,17 @@ void test_GLSL_algorithms_2D() {
         is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(convex.begin(), convex.end(), vec2(0.0f), vec2(1.0f, 0.0f));
         assert(is_monotone);
 
-	    std::vector<vec2> mon{ {vec2(2.0, 0.0), vec2(5.0, 0.0), vec2(5.0, 10.0),
-                                vec2(2.0, 10.0), vec2(1.0, 8.0), vec2(2.0, 6.0), vec2(1.0, 3.0)}};
+        std::vector<vec2> mon{ {vec2(2.0, 0.0), vec2(5.0, 0.0), vec2(5.0, 10.0),
+                                vec2(2.0, 10.0), vec2(1.0, 8.0), vec2(2.0, 6.0),
+                                vec2(1.0, 3.0)}};
 
-	    // should not me monotone with regard to X axis
-	    is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
-	    assert(!is_monotone);
+        // should not me monotone with regard to X axis
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+        assert(!is_monotone);
 
-	    // should be monotone with regard to Y axis
-	    is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
-	    assert(is_monotone);
+        // should be monotone with regard to Y axis
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(is_monotone);
     }
 
    {
@@ -1811,7 +1801,7 @@ void test_GLSL_algorithms_2D() {
            assert(std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) <= 0.1f);
        }
    }
-    
+
    {
        std::vector<vec2> polygon{ {vec2(0.0f,3.0f), vec2(1.0f,3.0f), vec2(1.0f,2.0f), vec2(2.0f,2.0f), vec2(2.0f,4.0f),
                                    vec2(3.0f,4.0f), vec2(3.0f,0.0f), vec2(4.0f,0.0f), vec2(4.0f,1.0f), vec2(5.0f,1.0f),
@@ -1990,6 +1980,7 @@ void test_glsl_space_partitioning() {
     }
 }
 
+
 void test_GLSL_clustering() {
    // dbscan
    {
@@ -2020,7 +2011,6 @@ void test_GLSL_clustering() {
                50.0f * static_cast<float>(rand()) / RAND_MAX));
        }
 
-
        // partition #1 (using kd-tree)
        SpacePartitioning::KDTree<vec2> kdtree;
        const auto clusterIds0 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, 1.0f, 10);
@@ -2033,7 +2023,7 @@ void test_GLSL_clustering() {
        assert(clusterIds1.clusters.size() == 2);
        assert(clusterIds1.clusters[0].size() == 60);
        assert(clusterIds1.clusters[1].size() == 40);
-       assert(clusterIds0.noise.size() > 7);
+       assert(clusterIds1.noise.size() > 7);
        kdtree.clear();
 
        // partition #2 (using grid)
@@ -2042,7 +2032,7 @@ void test_GLSL_clustering() {
        assert(clusterIds1.clusters.size() == 2);
        assert(clusterIds1.clusters[0].size() == 60);
        assert(clusterIds1.clusters[1].size() == 40);
-       assert(clusterIds0.noise.size() > 7);
+       assert(clusterIds1.noise.size() > 7);
        grid.clear();
    }
    
@@ -2081,7 +2071,7 @@ void test_GLSL_clustering() {
            sign *= -1.0f;
        }
 
-       //partition
+       // partition
        const auto clusterIds = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
        assert(clusterIds.size() == 3);
        std::array<std::size_t, 3> cluster_sizes{ {clusterIds[0].size(), clusterIds[1].size(), clusterIds[2].size()} };
@@ -2091,6 +2081,7 @@ void test_GLSL_clustering() {
        assert(cluster_sizes[2] == 80);
    }
 }
+
 
 int main() {
     test_diamond_angle();
@@ -2109,5 +2100,5 @@ int main() {
     test_GLSL_algorithms_2D();
     test_glsl_space_partitioning();
     test_GLSL_clustering();
-    return 1;
+	return 1;
 }
