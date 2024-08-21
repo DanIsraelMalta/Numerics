@@ -23,6 +23,7 @@
 // 
 //-------------------------------------------------------------------------------
 #pragma once
+#include "Algorithms.h"
 #include "Glsl.h"
 #include "Glsl_extra.h"
 #include "Glsl_point_distance.h"
@@ -325,11 +326,11 @@ namespace Algorithms2D {
             }
 
             if (std::distance(xMinIterator, xMaxIterator) < 0) {
-                std::swap(xMinIterator, xMaxIterator);
+                Utilities::swap(xMinIterator, xMaxIterator);
             }
 
             if (std::distance(yMinIterator, yMaxIterator) < 0) {
-                std::swap(yMinIterator, yMaxIterator);
+                Utilities::swap(yMinIterator, yMaxIterator);
             }
 
             // output
@@ -352,7 +353,7 @@ namespace Algorithms2D {
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
-        std::swap(points[0], *std::ranges::min_element(points, [](const VEC& a, const VEC& b) noexcept -> bool {
+        Utilities::swap(points[0], *Algoithms::min_element(points.begin(), points.end(), [](const VEC& a, const VEC& b) noexcept -> bool {
             return (a.x < b.x || (a.x == b.x && a.y < b.y));
         }));
 
@@ -800,8 +801,8 @@ namespace Algorithms2D {
         const chains_t chains{ Internals::get_monotone_chains(first, last) };
 
         // extend line
-        const T extent{ std::max(std::abs(chains.x_min_max[0] - chains.x_min_max[1]),
-                                 std::abs(chains.y_min_max[0] - chains.y_min_max[1])) };
+        const T extent{ Numerics::max(std::abs(chains.x_min_max[0] - chains.x_min_max[1]),
+                                      std::abs(chains.y_min_max[0] - chains.y_min_max[1])) };
         const VEC dir{ p1 - p0 };
         const VEC _p0{ p0 - extent * dir };
         const VEC _p1{ p1 + extent * dir };
