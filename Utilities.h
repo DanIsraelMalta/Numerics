@@ -26,7 +26,6 @@
 #include <type_traits>
 #include <memory> // std::assume_aligned
 #include <new> // std::hardware_constructive_interference_size
-#include <algorithm> // std::min
 
 // portable way to access the L1 data cache line size
 #ifdef __cpp_lib_hardware_interference_size
@@ -54,15 +53,18 @@ using std::hardware_destructive_interference_size;
 #define FWD(...) static_cast<decltype(__VA_ARGS__)&&>(__VA_ARGS__)
 #endif
 
+// define 'min' macro (to avoid include <algorithm> library)
+#define INTERNAL_MIN(a,b) (a) < (b) ? (a) : (b)
+
 /**
 * \brief align a given storage according to a given type
 * @param {T, in} underlying element for structure to be aligned accordingly
 */
 #ifndef AlignedStorage
-#define AlignedStorage(T) alignas(std::min(sizeof(T), hardware_constructive_interference_size))
+#define AlignedStorage(T) alignas(INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
 #else
 #undef AlignedStorage
-#define AlignedStorage(T) alignas(std::min(sizeof(T), hardware_constructive_interference_size))
+#define AlignedStorage(T) alignas(INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
 #endif
 
 /**
@@ -71,10 +73,10 @@ using std::hardware_destructive_interference_size;
 * @param {PTR, in} pointer assumed to be aligned
 **/
 #ifndef AssumeAligned
-#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<std::min(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
+#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
 #else
 #undef AssumeAligned
-#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<std::min(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
+#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
 #endif
 
 /**
@@ -107,8 +109,7 @@ namespace Utilities {
     }
 
     /**
-    * \brief swaps two moveable objects.
-    *        local implementation of std::swap.
+    * \brief swaps two moveable objects. local implementation of std::swap.
     **/
     template<typename T>
     constexpr void swap(T& t1, T& t2) noexcept {
