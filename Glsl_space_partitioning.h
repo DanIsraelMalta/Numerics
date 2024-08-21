@@ -24,10 +24,10 @@
 //-------------------------------------------------------------------------------
 #pragma once
 #include "Glsl.h"
+#include "Algorithms.h"
 #include <vector>
 #include <queue>
 #include <stack>
-#include <algorithm> // nth_element
 #include <numeric> // iota, midpoint
 #include <memory> // unique_ptr
 
@@ -231,8 +231,9 @@ namespace SpacePartitioning {
         
             /**
             * \brief spatially divide the collection of points in recursive manner.
-            * @param {size_t,         in} node depth
-            * @param {vector<size_t>, in} cloud points vector of indices
+            * @param {size_t,           in}  node depth
+            * @param {vector<size_t>,   in}  cloud points vector of indices
+            * @param {unique_ptr<Node>, out} pointer to new tree node
             **/
             constexpr std::unique_ptr<Node> build_tree(std::size_t depth, std::vector<std::size_t> indices) {
                 constexpr std::size_t N{ point_t::length() };
@@ -243,13 +244,11 @@ namespace SpacePartitioning {
                 // partition range according to its first coordinate
                 const std::size_t medianIndex{ indices.size() / 2 };
                 const std::size_t axis{ depth % N };
-                std::ranges::nth_element(indices.begin(),
-                                         indices.begin() + medianIndex,
-                                         indices.end(),
+                Algoithms::nth_element(indices, medianIndex,
                     [axis, this](std::size_t a, std::size_t b) {
                         const point_t point_a(*(this->first + a));
                         const point_t point_b(*(this->first + b));
-                        return (point_a[axis] < point_b[axis]);
+                        return (point_a[axis] <= point_b[axis]);
                     });
 
                 // build and return node
@@ -261,7 +260,7 @@ namespace SpacePartitioning {
                     .right = this->build_tree(depth + 1, std::vector<std::size_t>(indices.begin() + medianIndex + 1, indices.end()))
                 });
             }
-        
+
             /**
             * \brief erase a given node and all its children
             * @param {Node*, in} node to delete
