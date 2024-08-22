@@ -185,7 +185,7 @@ namespace Triangle {
         if (vc <= T{} && d1 >= T{} && d3 <= T{}) {
             const T den{ d1 - d3 };
             [[asseume(den > T{})]];
-            return a + (d1 / (d1 - d3)) * ab;
+            return a + (d1 / den) * ab;
         }
 
         const VEC cp{ p - c };
