@@ -1366,9 +1366,9 @@ namespace GLSL {
                 constexpr std::array<std::size_t, N> indexes{ Indexes... };
 
                 VEC pack;
-                Utilities::static_for<0, 1, N>([this, &pack, indices = MOV(indexes)](std::size_t i) {
-                    assert(indices[i] < N);
-                    pack[i] = data.at(indices[i]);
+                Utilities::static_for<0, 1, N>([this, &pack, indexes](std::size_t i) {
+                    assert(indexes[i] < N);
+                    pack[i] = data.at(indexes[i]);
                 });
 
                 return pack;
