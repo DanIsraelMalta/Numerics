@@ -191,9 +191,9 @@ namespace Clustering {
  
        // outputs
        std::vector<std::vector<std::size_t>> out(k);
-       for (std::size_t i{}; i < len; ++i) {
-           out[assigned_clusters[i]].push_back(i);
-       }
+       for (i = 0; i < len; ++i) {
+            out[assigned_clusters[i]].push_back(i);
+        }
        return out;
    }
 }
