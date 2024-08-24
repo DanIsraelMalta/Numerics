@@ -68,7 +68,7 @@ namespace Algoithms {
     }
 
     /**
-    * \brief local implementation of std::ranges::nth_element for std::vector.
+    * \brief local specialized implementation of std::ranges::nth_element for std::vector.
     **/
     template<class T, class Compare>
         requires(std::is_invocable_v<Compare, T, T>)
@@ -118,6 +118,188 @@ namespace Algoithms {
 
         // perform nth_element using quick-select algorithm
         quickselect(nth, 0, len, quickselect);
+    }
+
+    /**
+    * \brief local implementation of std::sort
+    **/
+    template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires(std::forward_iterator<It>&& std::is_invocable_v<Compare, T, T>)
+    constexpr void sort(It first, It last, Compare&& comp) noexcept {
+        // lambda to partition a collection using a pivot, i.e. - split collection into x<pivot and x>=pivot
+        const auto partition_with_pivot = [C = FWD(comp)](T pivot, It f, It l) -> It {
+            It res{ f };
+            for (It it{ f }; it != l; ++it) {
+                const bool r{ C(*it, pivot) };
+                Utilities::swap(*res, *it);
+                res += static_cast<std::size_t>(r);
+            }
+            return res;
+        };
+
+        // lambda to partition a collection using a pivot in reverse, i.e. - split collection into x<=pivot and x>pivot
+        const auto partition_with_pivot_reverse = [C = FWD(comp)](T pivot, It f, It l) -> It {
+            It res{ f };
+            for (It it{ f }; it != l; ++it) {
+                const bool r{ C(pivot, *it) };
+                Utilities::swap(*res, *it);
+                res += static_cast<std::size_t>(r);
+            }
+            return res;
+        };
+
+        // lambda to calculate the median of 5 elements in the array
+        const auto median5 = [C = FWD(comp)](It f, It l) -> T {
+            const std::size_t n{ static_cast<std::size_t>(l - f) };
+            const std::size_t n4{ n / 4 };
+
+            assert(n >= 5);
+
+            T e0{ f[0] };
+            T e1{ f[n4] };
+            T e2{ f[n4 * 2] };
+            T e3{ f[n4 * 3] };
+            T e4{ f[n - 1] };
+
+            if (C(e1, e0)) {
+                Utilities::swap(e1, e0);
+            }
+            if (C(e4, e3)) {
+                Utilities::swap(e4, e3);
+            }
+            if (C(e3, e0)) {
+                Utilities::swap(e3, e0);
+            }
+
+            if (C(e1, e4)) {
+                Utilities::swap(e1, e4);
+            }
+            if (C(e2, e1)) {
+                Utilities::swap(e2, e1);
+            }
+            if (C(e3, e2)) {
+                Utilities::swap(e2, e3);
+            }
+
+            if (C(e2, e1)) {
+                Utilities::swap(e2, e1);
+            }
+
+            return e2;
+        };
+
+        // lambda to push root down through a heap
+        const auto heap_sift = [C = FWD(comp)](It heap, std::size_t count, std::size_t root) {
+            assert(count > 0);
+            const std::size_t newLast{ (count - 1) / 2 };
+
+            while (root < newLast) {
+                assert(root * 2 + 2 < count);
+
+                std::size_t next{ root };
+                next = C(heap[next], heap[root * 2 + 1]) ? root * 2 + 1 : next;
+                next = C(heap[next], heap[root * 2 + 2]) ? root * 2 + 2 : next;
+
+                if (next == root) {
+                    break;
+                }
+                Utilities::swap(heap[root], heap[next]);
+                root = next;
+            }
+
+            if ((root == newLast) &&
+                (root * 2 + 1 < count) &&
+                C(heap[root], heap[root * 2 + 1])) {
+                Utilities::swap(heap[root], heap[root * 2 + 1]);
+            }
+        };
+
+        // lambda to sort a collection using heap sort
+        const auto heap_sort = [&heap_sift](It f, It l) {
+            if (f == l) {
+                return;
+            }
+
+            It heap{ f };
+            const std::size_t count{ static_cast<std::size_t>(l - f) };
+            for (std::size_t i{ count / 2 }; i > 0; --i) {
+                heap_sift(heap, count, i - 1);
+            }
+
+            for (std::size_t i{ count - 1 }; i > 0; --i) {
+                Utilities::swap(heap[0], heap[i]);
+                heap_sift(heap, i, 0);
+            }
+        };
+
+        // lambda to perform fast sorting of small collections (smaller than 20)
+        const auto small_sort = [C = FWD(comp)](It f, It l) {
+            for (std::size_t i{ static_cast<std::size_t>(l - f) }; i > 1; i -= 2) {
+                T x{ MOV(f[0]) };
+                T y{ MOV(f[1]) };
+                if (C(y, x)) {
+                    Utilities::swap(y, x);
+                }
+
+                for (std::size_t j{ 2 }; j < i; j++) {
+                    T z{ MOV(f[j]) };
+
+                    if (C(x, z)) {
+                        Utilities::swap(x, z);
+                    }
+                    if (C(y, z)) {
+                        Utilities::swap(y, z);
+                    }
+                    if (C(y, x)) {
+                        Utilities::swap(y, x);
+                    }
+
+                    f[j - 2] = MOV(z);
+                }
+
+                f[i - 2] = MOV(x);
+                f[i - 1] = MOV(y);
+            }
+            };
+
+        // lambda to sort a colection in recursive manner
+        const auto sort = [&partition_with_pivot, &partition_with_pivot_reverse,
+            &small_sort, &heap_sort, &median5, C = FWD(comp)]
+            (It f, It l, std::size_t limit, auto&& recursive_driver) {
+            for (;;) {
+                const std::size_t len{ static_cast<std::size_t>(l - f) };
+                if (len < 16) {
+                    small_sort(f, l);
+                    return;
+                }
+
+                if (limit == 0) [[unlikely]] {
+                    heap_sort(f, l);
+                    return;
+                }
+
+                const T pivot{ median5(f, l) };
+                const It mid{ partition_with_pivot(pivot, f, l) };
+
+                // skewed partitions? calculate new midpoint by separating equal elements
+                It midr{ mid };
+                if (static_cast<std::size_t>(mid - f) <= len / 8) [[unlikely]] {
+                    midr = partition_with_pivot_reverse(pivot, mid, l);
+                }
+
+                if (const std::size_t newLimit{ limit / 2 + limit / 4 }; mid - f <= l - midr) {
+                    recursive_driver(f, mid, newLimit, recursive_driver);
+                    f = midr;
+                }
+                else {
+                    recursive_driver(midr, l, newLimit, recursive_driver);
+                    l = mid;
+                }
+            }
+            };
+
+        // sort collections
+        sort(first, last, static_cast<std::size_t>(last - first), sort);
     }
 
     /**
