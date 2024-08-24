@@ -228,17 +228,13 @@ namespace Algorithms2D {
         /**
         * \brief given a collection of points whice define segments of closed polygon and a point, return the indices of points which define the segment which is closest to the point
         * @param {vector<IFixedVector>, in}  cloud of points, each two consecutive points define a segment
-        * @param {forward_iterator,     in}  iterator to polygon first point
-        * @param {forward_iterator,     in}  iterator to polygon last point
         * @param {IFixedVector,         in}  point
         * @param {{value_type, size_t}, out} {squared distance, index of point #1 in collection which define closest segment}
         **/
-        template<std::forward_iterator InputIt, 
-                 class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-            requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-        constexpr auto get_index_of_closest_segment(const InputIt first, const InputIt last, VEC point) noexcept {
+        template<GLSL::IFixedVector VEC>
+            requires(VEC::length() == 2)
+        constexpr auto get_index_of_closest_segment(const std::vector<VEC>& cloud, const VEC point) noexcept {
             using T = typename VEC::value_type;
-            using iter_size_t = std::iterator_traits<InputIt>::difference_type;
             using out_t = struct { T distance_squared; std::size_t index; };
 
             // housekeeping
@@ -246,28 +242,19 @@ namespace Algorithms2D {
             T distSquared{ std::numeric_limits<T>::max() };
             const auto update_point = [&point, &index, &distSquared](const VEC& a, const VEC& b, const std::size_t i) {
                 const T dist2{ PointDistance::squared_udf_to_segment(point, a, b) };
-                const bool closest{ dist2 > T{} && dist2 < distSquared };
+                const bool closest{ dist2 < distSquared };
                 distSquared = closest ? dist2 : distSquared;
                 index = closest ? i : index;
             };
 
             // iterate over all segments
-            const iter_size_t N{ std::distance(first, last) };
-            assert(N > 0);
-            for (iter_size_t i{}; i < N - 1; ++i) {
-                const VEC a(*(first + i));
-                const VEC b(*(first + i + 1));
-                if (!Extra::are_vectors_identical(point, a) &&
-                    !Extra::are_vectors_identical(point, b)) {
-                    update_point(a, b, i);
-                }
+            const std::size_t N{ cloud.size() - 1};
+            for (std::size_t i{}; i < N - 1; ++i) {
+                update_point(cloud[i], cloud[i + 1], i);
             }
 
             // check "closed segment"
-            if (const VEC a(*first), b(*(last - 1));
-                !Extra::are_vectors_identical(point, a) && !Extra::are_vectors_identical(point, b)) {
-                update_point(a, b, N - 1);
-            }
+            update_point(cloud[0], cloud[N], N);
 
             // output
             return out_t{ distSquared, index };
@@ -344,7 +331,7 @@ namespace Algorithms2D {
     *       
     * @param {forward_iterator,     in}  iterator to point cloud collection first point
     * @param {forward_iterator,     in}  iterator to point cloud collection last point
-    * @param {vector<IFixedVector>, out} collection of points which define point cloud convex hull
+    * @param {vector<IFixedVector>, out} collection of points which define point cloud convex hull (points are sorted counter clock wise)
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
@@ -353,13 +340,15 @@ namespace Algorithms2D {
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
-        Utilities::swap(points[0], *Algoithms::min_element(points.begin(), points.end(), [](const VEC& a, const VEC& b) noexcept -> bool {
+        Utilities::swap(points[0],
+                        *Algoithms::min_element(points.begin(), points.end(),
+                                                [](const VEC& a, const VEC& b) noexcept -> bool {
             return (a.x < b.x || (a.x == b.x && a.y < b.y));
         }));
 
         // lexicographically sort all points using the smallest point as pivot
         const VEC v0( points[0] );
-        std::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
+        Algoithms::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
             return (b.y - v0.y) * (c.x - b.x) - (b.x - v0.x) * (c.y - b.y) < T{};
         });
 
@@ -377,64 +366,9 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief calculate the concave hull of collection of 2D points (using Graham scan algorithm).
-    *
-    * @param {forward_iterator,     in}  iterator to point cloud collection first point
-    * @param {forward_iterator,     in}  iterator to point cloud collection last point
-    * @param {value_type,           in}  concave threshold. point will be added to concave hull if the length of edge segment
-    *                                    divided by the length of the segment divided at given point will be larger than this value.
-    *                                    the smaller - the more points are added to concave.
-    *                                    negative value will result in calculating the convex hull.
-    * @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
-        requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
-    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const T concave_threshold) {
-        // get convex hull
-        std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
-        if (concave_threshold <= T{}) {
-            return hull;
-        }
-
-        // "dig" into convex hull to create concave hull
-        bool finished{ false };
-        while (!finished) {
-            // find closest point to hull
-            VEC closest_point;
-            std::size_t segment_index_start{};
-            T distance_squared{ std::numeric_limits<T>::max() };
-            for (auto it{ first }; it != last; ++it) {
-                const VEC p{ *it };
-                auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull.cbegin(), hull.cend(), p);
-                if (closest.distance_squared < distance_squared) {
-                    distance_squared = closest.distance_squared;
-                    segment_index_start = closest.index + 1;
-                    closest_point = p;
-                }
-            }
-
-            // should point be part of concave hull?
-            const std::size_t segment_index_end{ (segment_index_start + 1) % hull.size()};
-            const T segment_length{ GLSL::distance(hull[segment_index_start], hull[segment_index_end]) };
-            const T new_segment_length{ GLSL::distance(closest_point, hull[segment_index_end]) +
-                                        GLSL::distance(hull[segment_index_start], closest_point) };
-            assert(segment_length > T{});
-            [[assume(segment_length > T{})]];
-            if (segment_length / new_segment_length >= concave_threshold) {
-                hull.insert(hull.begin() + segment_index_start, closest_point);
-            } else {
-                finished = true;
-            }
-        }
-
-        // output
-        return hull;
-    }
-
-    /**
     * \brief given convex hull, return its minimal area bounding rectangle
-    * @param {vector<IFixedVector>, in}  convex hull
-    * @param {{VEC, VEC, VEC, VEC}, out} vertices of minimal area bounding rectangle (ordererd counter clock wise)
+    * @param {vector<IFixedVector>,                                     in}  convex hull
+    * @param {{IFixedVector, IFixedVector, IFixedVector, IFixedVector}, out} vertices of minimal area bounding rectangle (ordererd counter clock wise)
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
@@ -731,14 +665,75 @@ namespace Algorithms2D {
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-    constexpr void sort_points_clock_wise(InputIt first, InputIt last, VEC centroid) {
+    constexpr void sort_points_clock_wise(InputIt first, InputIt last, const VEC centroid) {
         using T = typename VEC::value_type;
 
-        std::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+        Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
             const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
             const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
             return angla_a > angla_b;
         });
+    }
+
+    /**
+    * \brief calculate the concave hull of collection of 2D points (using Graham scan algorithm).
+    *
+    * @param {forward_iterator,     in}  iterator to point cloud collection first point
+    * @param {forward_iterator,     in}  iterator to point cloud collection last point
+    * @param {value_type,           in}  concave threshold. the minimal ratio between segment length with added point and original segment length.
+    *                                    if the value is smallter than the threshold - the point is part of the concave.
+    *                                    the larger the threshold - the more points will be part of the concvave.
+    *                                    default is 0, i.e - convex hull
+    * @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
+    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, T concave_threshold = T{}) {
+        // get convex hull
+        std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
+        if (concave_threshold <= T{}) {
+            return hull;
+        }
+
+        // remove convex hull points from cloud
+        std::vector<VEC> cloud(first, last);
+        for (const VEC h : hull) {
+            for (std::size_t i{}; i < cloud.size(); ++i) {
+                if (Extra::are_vectors_identical(h, cloud[i])) {
+                    Utilities::swap(cloud[i], cloud.back());
+                    cloud.pop_back();
+                }
+            }
+        }
+
+        // "dig" into convex hull to create concave hull
+        std::size_t i{};
+        while(i < cloud.size()) {
+            // find hull segment which cloud point is closest to
+            const VEC p{ cloud[i] };
+            auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
+
+            // should point be part of concave hull?
+            const std::size_t segment_index_start{ closest.index };
+            const std::size_t segment_index_end{ (segment_index_start + 1) % hull.size() };
+            const T segment_length{ GLSL::distance(hull[segment_index_start], hull[segment_index_end]) };
+            const T new_segment_length{ GLSL::distance(p, hull[segment_index_end]) +
+                                        GLSL::distance(hull[segment_index_start], p) };
+            [[assume(segment_length > T{})]];
+            [[assume(new_segment_length > T{})]];
+            const T segment_length_ratio{ new_segment_length / segment_length };
+            if (Numerics::areEquals(segment_length, new_segment_length, Numerics::equality_precision<T>()) || segment_length_ratio <= concave_threshold) {
+                hull.insert(hull.begin() + segment_index_start + 1, p);
+                cloud.erase(cloud.begin() + i);
+                i = 0;
+            }
+            else {
+                ++i;
+            }
+        }
+
+        // output
+        return hull;
     }
 
     /**
