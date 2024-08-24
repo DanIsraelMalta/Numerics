@@ -1679,7 +1679,7 @@ void test_GLSL_algorithms_2D() {
         // convex hull test
         const auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
         const std::vector<vec2> expected_convex{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
-                                                  vec2(10.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f)} };
+                                                  vec2(10.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f)} };
         assert(expected_convex.size() == convex.size());
         for (std::size_t i{}; i < expected_convex.size(); ++i) {
             assert(GLSL::max(GLSL::abs(expected_convex[i] - convex[i])) < 1e-6);
@@ -1687,10 +1687,10 @@ void test_GLSL_algorithms_2D() {
 
         // obb test
         const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
-        assert(GLSL::max(GLSL::abs(vec2(10.0f, 10.0f) - obb.p0)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(1.0f, 10.0f) - obb.p1)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(1.0f, 1.0f) - obb.p2)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p3)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(10.4705877f, 8.88235283f) - obb.p0)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(1.29411793f, 11.1764698f) - obb.p1)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(-0.999999285f, 1.99999905f) - obb.p2)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(8.1764698f, -0.294118881f) - obb.p3)) < 1e-6);
 
         // point inside polygon
         bool inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(7.0f, 6.0f));
@@ -1707,7 +1707,7 @@ void test_GLSL_algorithms_2D() {
         // centroid
         std::vector<vec2> cents{ obb.p0, obb.p1, obb.p2, obb.p3 };
         const vec2 centroid = Algorithms2D::Internals::get_centroid(cents.cbegin(), cents.cend());
-        assert(GLSL::max(GLSL::abs(vec2(5.5f) - centroid)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(4.73529434f, 5.44117594f) - centroid)) < 1e-6);
 
         // convex hull diamater
         const auto antipodal = Algorithms2D::get_convex_diameter(convex);
@@ -1724,17 +1724,24 @@ void test_GLSL_algorithms_2D() {
         }
 
         // concave hull
-        const auto concave0 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.0f);
+        const auto concave0 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end());
         for (std::size_t i{}; i < expected_convex.size(); ++i) {
             assert(GLSL::max(GLSL::abs(expected_convex[i] - concave0[i])) < 1e-6);
         }
 
-        const auto concave2 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.3f);
-        const std::vector<vec2> expected_concave{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
-                                                   vec2(10.0f, 9.0f), vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f),
-                                                   vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f)} };
-        for (std::size_t i{}; i < expected_concave.size(); ++i) {
-            assert(GLSL::max(GLSL::abs(expected_concave[i] - concave2[i])) < 1e-6);
+        const auto concave2 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.5f);
+        const std::vector<vec2> expected_concave2{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
+                                                   vec2(10.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f) } };
+        for (std::size_t i{}; i < expected_concave2.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(expected_concave2[i] - concave2[i])) < 1e-6);
+        }
+
+        const auto concave3 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 1.2f);
+        const std::vector<vec2> expected_concave3{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f),
+                                                   vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f), vec2(8.0f, 9.0f),
+                                                   vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f)} };
+        for (std::size_t i{}; i < expected_concave3.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(expected_concave3[i] - concave3[i])) < 1e-6);
         }
 
         // chcek orthogonality
