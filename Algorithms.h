@@ -47,6 +47,17 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::iota
+    **/
+    template<class It, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires(std::forward_iterator<It>)
+    constexpr void iota(It first, It last, T value) noexcept {
+        for (; first != last; ++first, ++value) {
+            *first = value;
+        }
+    }
+
+    /**
     * \brief local implementation of std::min_element
     **/
     template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
