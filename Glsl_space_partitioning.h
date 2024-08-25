@@ -390,6 +390,21 @@ namespace SpacePartitioning {
             auto metric_function = (type == RangeSearchType::Manhattan) ?
                                    this->distance_metric<RangeSearchType::Manhattan>() :
                                    this->distance_metric<RangeSearchType::Radius>();
+            vector_queries_t out;
+
+            // lambda to check if point should be included in query
+            const auto query_point = [this, METRIC_FUNC = FWD(metric_function), point, distance_criteria, &out]
+                                     (index_array_t cellPosition) {
+                const std::size_t cellIndex{ this->to_index(cellPosition) };
+                const std::vector<std::size_t> cell{ this->bins[cellIndex] };
+                for (const std::size_t i : cell) {
+                    const point_t pos{ *(this->first + i) };
+                    const point_t diff{ point - pos };
+                    if (METRIC_FUNC(diff) <= distance_criteria) {
+                        out.emplace_back(std::make_pair(GLSL::dot(diff), i));
+                    }
+                }
+            };
 
             // world bounds for search
             const point_t radiusVec(distance);
@@ -407,19 +422,10 @@ namespace SpacePartitioning {
 
             // search
             index_array_t cellpos;
-            vector_queries_t out;
             if constexpr (k == 2) {
                 for (cellpos[1] = minCell[1]; cellpos[1] < maxCell[1]; ++cellpos[1]) {
                     for (cellpos[0] = minCell[0]; cellpos[0] < maxCell[0]; ++cellpos[0]) {
-                        const std::size_t cellIndex{ this->to_index(cellpos) };
-                        const std::vector<std::size_t> cell{this->bins[cellIndex] };
-                        for (const std::size_t i : cell) {
-                            const point_t pos{ *(this->first + i) };
-                            const point_t diff{ point - pos };
-                            if (metric_function(diff) <= distance_criteria) {
-                                out.emplace_back(std::make_pair(GLSL::dot(diff), i));
-                            }
-                        }
+                        query_point(cellpos);
                     }
                 }
             }
@@ -427,15 +433,7 @@ namespace SpacePartitioning {
                 for (cellpos[2] = minCell[2]; cellpos[2] < maxCell[2]; ++cellpos[2]) {
                     for (cellpos[1] = minCell[1]; cellpos[1] < maxCell[1]; ++cellpos[1]) {
                         for (cellpos[0] = minCell[0]; cellpos[0] < maxCell[0]; ++cellpos[0]) {
-                            const std::size_t cellIndex{ this->to_index(cellpos) };
-                            const std::vector<std::size_t> cell{ this->bins[cellIndex] };
-                            for (const std::size_t i : cell) {
-                                const point_t pos{ *(this->first + i) };
-                                const point_t diff{ point - pos };
-                                if (metric_function(diff) <= distance_criteria) {
-                                    out.emplace_back(std::make_pair(GLSL::dot(diff), i));
-                                }
-                            }
+                            query_point(cellpos);
                         }
                     }
                 }
