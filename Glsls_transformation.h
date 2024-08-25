@@ -310,7 +310,7 @@ namespace Transformation {
     template<GLSL::IFixedVector VEC4, GLSL::IFixedVector VEC3, class T = typename VEC3::value_type>
         requires((VEC4::length() == 4) && (VEC3::length() == 3) && std::is_same_v<T, typename VEC4::value_type>)
     constexpr VEC3 rotate_point_using_quaternion(const VEC4& quat, const VEC3& point) {
-        const VEC3 axis{ Extra::get_quaternion_axis(quat) };
+        const VEC3 axis{ quat.xyz };
         const VEC3 temp{ static_cast<T>(2) * GLSL::cross(axis, point) };
         return (point + quat.w * temp + GLSL::cross(axis, temp));
     }
