@@ -462,7 +462,7 @@ namespace SpacePartitioning {
                 cellSize *= static_cast<coordinate_t>(2);
             }
 
-            std::ranges::sort(out, [](const pair_t & a, const pair_t & b) {
+            Algoithms::sort(out.begin(), out.end(), [](const pair_t& a, const pair_t& b) {
                 return a.first < b.first;
             });
 
