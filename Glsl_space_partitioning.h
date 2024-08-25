@@ -28,7 +28,6 @@
 #include <vector>
 #include <queue>
 #include <stack>
-#include <numeric> // iota, midpoint
 #include <memory> // unique_ptr
 
 //
@@ -108,7 +107,7 @@ namespace SpacePartitioning {
         constexpr void construct(const InputIt begin, const InputIt end) {
             this->first = std::addressof(*begin);
             std::vector<std::size_t> indices(static_cast<std::size_t>(std::distance(begin, end)));
-            std::iota(indices.begin(), indices.end(), 0);
+            Algoithms::iota(indices.begin(), indices.end(), 0);
             this->root = this->build_tree(0, indices);
         }
 
