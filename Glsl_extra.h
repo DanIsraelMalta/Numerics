@@ -381,7 +381,13 @@ namespace Extra {
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Vector3<T> get_quaternion_axis(const GLSL::Vector4<T>& quat) {
         assert(Extra::is_normalized(quat));
-        return quat.xyz;
+        const T num{ static_cast<T>(1) - quat.w * quat.w };
+        [[asseume(num > T{})]];
+        const T s{ std::sqrt(num) };
+        if (Numerics::areEquals(s, T{})) [[unlikely]] {
+            return quat.xyz;
+        }
+        return (quat.xyz / s);
     }
 
     /**
