@@ -25,6 +25,8 @@
 #pragma once
 #include "Glsl.h"
 #include "Glsl_space_partitioning.h"
+#include "Glsl_axis_aligned_bounding_box.h"
+#include "Algorithms.h"
 #include <iterator>
 #include <vector>
 
@@ -121,79 +123,79 @@ namespace Clustering {
         return out_t{ clusterIndices, notClusters };
     }
 
-   /**
-   * \brief perform clustering operation using k-means and Euclidean distance as metric.
-   *        notice that this function uses ISpacePartitioning object from "Glsl_space_partitioning.h" for neighbour query.
-   * @param {forward_iterator,          in}  iterator to point cloud collection first point
-   * @param {forward_iterator,          in}  iterator to point cloud collection last point
-   * @param {size_t,                    in}  number of clusters
-   * @param {size_t,                    in}  maximal number of iterations
-   * @param {size_t,                    in}  convergence tolerance for operation stoppage (minimal movement of each cluster center in two consecutive iterations)
-   * @param {vector<vector<integral>>}, out} vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i)
-   **/
-   template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
-       requires(GLSL::is_fixed_vector_v<VEC>)
-   constexpr std::vector<std::vector<std::size_t>> k_means(const InputIt first, const InputIt last, const std::size_t k,
-                                                           const std::size_t max_iterations, const T tol) {
-       // place centers in random manner
-       std::vector<VEC> centers(k);
-       const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(first, last);
-       for (std::size_t i{}; i < k; ++i) {
-           Utilities::static_for<0, 1, VEC::length()>([&centers, &aabb, i](std::size_t j) {
-               centers[i][j] = aabb.min[j] + std::fmod(static_cast<T>(rand()), aabb.max[j] - aabb.min[j] + static_cast<T>(1));
-           });
-       }
- 
-       // k-means
-       std::size_t i{};
-       bool converged{ false };
-       const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
-       std::vector<T> dist(k); // temporary vectot which holds distance from given point to all clusters
-       std::vector<VEC> sum(k); // temporary vector to sum distances in every cluster
-       std::vector<std::size_t> count(k); // temporary vector to hold amount of points in each cluster
-       std::vector<std::size_t> assigned_clusters(len); // point 'i' in cloud point belongs to cluster center in 'dist' at position initi[i]
-       while (!converged && i < max_iterations) {
-           // for each point - calculate its distance to the centers
-           std::size_t x{};
-           for (auto it{ first }; it != last; ++it) {
-               const VEC p{ *it };
-               for (std::size_t j{}; j < k; ++j) {
-                   dist[j] = GLSL::dot(p - centers[j]);
-               }
- 
-               // assign cluster with closest center
-               assigned_clusters[x] = std::distance(dist.begin(), std::ranges::min_element(dist));
- 
-               // update loop iterator
-               ++x;
-           }
- 
-           // update centers
-           bool check_tolerance{ true };
-           std::ranges::fill(sum, VEC());
-           std::ranges::fill(count, 0);
-           for (std::size_t j{}; j < len; ++j) {
-               const std::size_t cluster_index{ assigned_clusters[j] };
-               sum[cluster_index] += *(first + j);
-               ++count[cluster_index];
-           }
-           for (std::size_t j{}; j < k; ++j) {
-               assert(count[j] > 0);
-               const VEC newCenter{ sum[j] / static_cast<T>(count[j]) };
-               check_tolerance &= GLSL::max(GLSL::abs(centers[j] - newCenter)) <= tol;
-               centers[j] = newCenter;
-           }
-           
-           // update loop iterator
-           ++i;
-           converged = check_tolerance;
-       }
- 
-       // outputs
-       std::vector<std::vector<std::size_t>> out(k);
-       for (i = 0; i < len; ++i) {
+    /**
+    * \brief perform clustering operation using k-means and Euclidean distance as metric.
+    *        notice that this function uses ISpacePartitioning object from "Glsl_space_partitioning.h" for neighbour query.
+    * @param {forward_iterator,          in}  iterator to point cloud collection first point
+    * @param {forward_iterator,          in}  iterator to point cloud collection last point
+    * @param {size_t,                    in}  number of clusters
+    * @param {size_t,                    in}  maximal number of iterations
+    * @param {size_t,                    in}  convergence tolerance for operation stoppage (minimal movement of each cluster center in two consecutive iterations)
+    * @param {vector<vector<integral>>}, out} vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i)
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>)
+    constexpr std::vector<std::vector<std::size_t>> k_means(const InputIt first, const InputIt last, const std::size_t k,
+                                                            const std::size_t max_iterations, const T tol) {
+        // place centers in random manner
+        std::vector<VEC> centers(k);
+        const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(first, last);
+        for (std::size_t i{}; i < k; ++i) {
+            Utilities::static_for<0, 1, VEC::length()>([&centers, &aabb, i](std::size_t j) {
+                centers[i][j] = aabb.min[j] + std::fmod(static_cast<T>(rand()), aabb.max[j] - aabb.min[j] + static_cast<T>(1));
+            });
+        }
+  
+        // k-means
+        std::size_t i{};
+        bool converged{ false };
+        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+        std::vector<T> dist(k); // temporary vectot which holds distance from given point to all clusters
+        std::vector<VEC> sum(k); // temporary vector to sum distances in every cluster
+        std::vector<std::size_t> count(k); // temporary vector to hold amount of points in each cluster
+        std::vector<std::size_t> assigned_clusters(len); // point 'i' in cloud point belongs to cluster center in 'dist' at position initi[i]
+        while (!converged && i < max_iterations) {
+            // for each point - calculate its distance to the centers
+            std::size_t x{};
+            for (auto it{ first }; it != last; ++it) {
+                const VEC p{ *it };
+                for (std::size_t j{}; j < k; ++j) {
+                    dist[j] = GLSL::dot(p - centers[j]);
+                }
+  
+                // assign cluster with closest center
+                assigned_clusters[x] = std::distance(dist.begin(), std::ranges::min_element(dist));
+  
+                // update loop iterator
+                ++x;
+            }
+  
+            // update centers
+            bool check_tolerance{ true };
+            Algoithms::fill(sum.begin(), sum.end(), VEC());
+            Algoithms::fill(count.begin(), count.end(), 0);
+            for (std::size_t j{}; j < len; ++j) {
+                const std::size_t cluster_index{ assigned_clusters[j] };
+                sum[cluster_index] += *(first + j);
+                ++count[cluster_index];
+            }
+            for (std::size_t j{}; j < k; ++j) {
+                assert(count[j] > 0);
+                const VEC newCenter{ sum[j] / static_cast<T>(count[j]) };
+                check_tolerance &= GLSL::max(GLSL::abs(centers[j] - newCenter)) <= tol;
+                centers[j] = newCenter;
+            }
+            
+            // update loop iterator
+            ++i;
+            converged = check_tolerance;
+        }
+  
+        // outputs
+        std::vector<std::vector<std::size_t>> out(k);
+        for (i = 0; i < len; ++i) {
             out[assigned_clusters[i]].push_back(i);
         }
-       return out;
-   }
+        return out;
+    }
 }
