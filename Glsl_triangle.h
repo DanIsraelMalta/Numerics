@@ -184,7 +184,7 @@ namespace Triangle {
         const T vc{ d1 * d4 - d3 * d2 };
         if (vc <= T{} && d1 >= T{} && d3 <= T{}) {
             const T den{ d1 - d3 };
-            [[asseume(den > T{})]];
+            [[assume(den > T{})]];
             return a + (d1 / den) * ab;
         }
 
@@ -198,19 +198,19 @@ namespace Triangle {
         const T vb{ d5 * d2 - d1 * d6 };
         if (vb <= T{} && d2 >= T{} && d6 <= T{}) {
             const T den{ d2 - d6 };
-            [[asseume(den > T{})]];
+            [[assume(den > T{})]];
             return a + (d2 / den) * ac;
         }
 
         const T va{ d3 * d6 - d5 * d4 };
         if (va <= T{} && (d4 - d3) >= T{} && (d5 - d6) >= T{}) {
             const T den{ (d4 - d3) + (d5 - d6) };
-            [[asseume(den > T{})]];
+            [[assume(den > T{})]];
             return b + ((d4 - d3) / den) * (c - b);
         }
 
         const T den{ va + vb + vc };
-        [[asseume(den > T{})]];
+        [[assume(den > T{})]];
         const T denom{ static_cast<T>(1) / den };
         return a + ab * vb * denom + ac * vc * denom;
     }
