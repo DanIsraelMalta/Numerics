@@ -1025,6 +1025,7 @@ namespace GLSL {
 
     /**
     * \brief calculate matrix determinant
+    *        (to calculate determinant of larger matrices - see 'Glsl_solvers.h' - Decomposition::determinant_using_lu and Decomposition::determinant_using_qr
     * @param {MAT,        in}  matrix
     * @param {value_type, out} matrix determinant
     **/
@@ -1075,22 +1076,42 @@ namespace GLSL {
 
     /**
     * \brief transpose a matrix
+    *        see 'Glsl_solvers.h' fo efficient way to transpose large matrices
     * @param {MAT, in}  matrix
     * @param {MAT, out} transposed matrix
     **/
     template<IFixedCubicMatrix MAT>
     constexpr MAT transpose(const MAT& mat) noexcept {
-        MAT out(mat);
-        Utilities::static_for<0, 1, MAT::columns()>([&out](std::size_t i) {
-            for (std::size_t j{ i + 1 }; j < MAT::columns(); ++j) {
-                Utilities::swap(out(i, j), out(j, i));
-            }
-        });
-        return out;
+        constexpr std::size_t N{ MAT::columns() };
+
+        if constexpr (N == 2) {
+            return MAT(mat(0, 0), mat(1, 0),
+                       mat(0, 1), mat(1, 1));
+        }
+        else if constexpr (N == 3) {
+            return MAT(mat(0, 0), mat(1, 0), mat(2, 0),
+                       mat(0, 1), mat(1, 1), mat(2, 1),
+                       mat(0, 2), mat(1, 2), mat(2, 2));
+        }
+        else if constexpr (N == 4) {
+            return MAT(mat(0, 0), mat(1, 0), mat(2, 0), mat(3, 0),
+                       mat(0, 1), mat(1, 1), mat(2, 1), mat(3, 1),
+                       mat(0, 2), mat(1, 2), mat(2, 2), mat(3, 2),
+                       mat(0, 3), mat(1, 3), mat(2, 3), mat(3, 3));
+        }
+        else {
+            MAT out(mat);
+            Utilities::static_for<0, 1, MAT::columns()>([&out](std::size_t i) {
+                for (std::size_t j{ i + 1 }; j < MAT::columns(); ++j) {
+                    Utilities::swap(out(i, j), out(j, i));
+                }
+            });
+            return out;
+        }
     }
 
     /**
-    * \brief invert a matrix
+    * \brief invert a matrix (to invert larger matrices - see 'Glsl_solvers.h' - Decomposition::inverse_using_lu)
     * @param {MAT, in}  matrix
     * @param {MAT, out} matrix inverse
     **/
