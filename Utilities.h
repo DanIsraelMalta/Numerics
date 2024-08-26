@@ -54,17 +54,22 @@ using std::hardware_destructive_interference_size;
 #endif
 
 // define 'min' macro (to avoid include <algorithm> library)
-#define INTERNAL_MIN(a,b) (a) < (b) ? (a) : (b)
+#ifndef __NUMERICS_INTERNAL_MIN
+#define __NUMERICS_INTERNAL_MIN(a,b) (a) < (b) ? (a) : (b)
+#else
+#undef __NUMERICS_INTERNAL_MIN
+#define __NUMERICS_INTERNAL_MIN(a,b) (a) < (b) ? (a) : (b)
+#endif
 
 /**
 * \brief align a given storage according to a given type
 * @param {T, in} underlying element for structure to be aligned accordingly
 */
 #ifndef AlignedStorage
-#define AlignedStorage(T) alignas(INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
+#define AlignedStorage(T) alignas(__NUMERICS_INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
 #else
 #undef AlignedStorage
-#define AlignedStorage(T) alignas(INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
+#define AlignedStorage(T) alignas(__NUMERICS_INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size))
 #endif
 
 /**
@@ -73,10 +78,10 @@ using std::hardware_destructive_interference_size;
 * @param {PTR, in} pointer assumed to be aligned
 **/
 #ifndef AssumeAligned
-#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
+#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<__NUMERICS_INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
 #else
 #undef AssumeAligned
-#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
+#define AssumeAligned(T, PTR) [[assume(std::assume_aligned<__NUMERICS_INTERNAL_MIN(sizeof(T), hardware_constructive_interference_size)>(PTR))]]
 #endif
 
 /**
