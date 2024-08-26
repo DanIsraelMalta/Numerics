@@ -31,7 +31,6 @@
 #include <limits>
 #include <vector>
 #include <iterator>
-#include <algorithm>
 #include <random>
 
 //
