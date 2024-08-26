@@ -1076,7 +1076,6 @@ namespace GLSL {
 
     /**
     * \brief transpose a matrix
-    *        see 'Glsl_solvers.h' fo efficient way to transpose large matrices
     * @param {MAT, in}  matrix
     * @param {MAT, out} transposed matrix
     **/
