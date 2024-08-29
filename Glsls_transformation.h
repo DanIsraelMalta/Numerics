@@ -31,33 +31,7 @@
 //
 
 namespace Transformation {
-
-    /**
-    * \brief efficient inverse of affine rigid transformation (assuming matrix is not singular)
-    *        an affine rigid transformation matrix is a 4x4 matrix with first 3x3 portion holding
-    *        rotation information and the fourth column holds the translation information.
-    * @param {IFixedCubicMatrix, in}  4x4 affine rigid transformation
-    * @param {IFixedCubicMatrix, out} invert of input matrix
-    **/
-    template<GLSL::IFixedCubicMatrix MAT>
-        requires(MAT::columns() == 4)
-    constexpr MAT affine_rigid_inverse(const MAT& mat) noexcept {
-        using vec_t = typename MAT::vector_type;
-        using T = typename MAT::value_type;
-
-        // transpose DCM
-        MAT inv{ GLSL::transpose(mat) };
-
-        // multiply translation by DCM transpose
-        const vec_t x{ mat[0] };
-        const vec_t y{ mat[1] };
-        const vec_t z{ mat[2] };
-        inv[3] = vec_t{ -GLSL::dot(z, x), -GLSL::dot(z, y), -GLSL::dot(z), static_cast<T>(1) };
-
-        // output
-        return inv;
-    }
-    
+   
     /**
     * \brief generate look-at matrix (4x4)
     * @param {Vector3,                in}  origin/eye
