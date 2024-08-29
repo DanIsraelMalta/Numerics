@@ -742,6 +742,17 @@ void test_glsl_extra() {
         assert(a(0, 1) == 1 * 4);
         assert(a(1, 0) == 2 * 3);
         assert(a(1, 1) == 2 * 4);
+
+        using vec = GLSL::VectorN<int, 5>;
+        using mat = GLSL::MatrixN<int, 5>;
+        vec v(1, 2, 3, 4, 5);
+        vec u(3, 4, 5, 6, 7);
+        mat b = Extra::outer_product(v, u);
+        Utilities::static_for<0, 1, 5>([&b, &v, &u](std::size_t i) {
+            Utilities::static_for<0, 1, 5>([&b, &v, &u, i](std::size_t j) {
+                b(i, j) = v[j] * u[i];
+            });
+        });
     }
 
     {
