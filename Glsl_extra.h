@@ -197,11 +197,22 @@ namespace Extra {
                                     x[1] * y[0], x[1] * y[1], x[1] * y[2],
                                     x[2] * y[0], x[2] * y[1], x[2] * y[2]);
         }
-        else {
+        else if constexpr (N == 4) {
             return GLSL::Matrix4<T>(x[0] * y[0], x[0] * y[1], x[0] * y[2], x[0] * y[3],
                                     x[1] * y[0], x[1] * y[1], x[1] * y[2], x[1] * y[3],
                                     x[2] * y[0], x[2] * y[1], x[2] * y[2], x[2] * y[3],
                                     x[3] * y[0], x[3] * y[1], x[3] * y[2], x[3] * y[3]);
+        }
+        else {
+            GLSL::MatrixN<T, N> out;
+
+            Utilities::static_for<0, 1, N>([&out, &x, &y](std::size_t i) {
+                Utilities::static_for<0, 1, N>([&out, &x, &y, i](std::size_t j) {
+                    out(i, j) = x[j] * y[i];
+                });
+            });
+
+            return out;
         }
     }
 
@@ -410,7 +421,7 @@ namespace Extra {
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
-    constexpr auto multiply_quaternions(const GLSL::Vector4<T>& x, const GLSL::Vector4<T>& y) noexcept {
+    constexpr GLSL::Vector4<T> multiply_quaternions(const GLSL::Vector4<T>& x, const GLSL::Vector4<T>& y) noexcept {
         return GLSL::Vector4<T>(x[0] * y[0] - x[1] * y[1] - x[2] * y[2] - x[3] * y[3],
                                 x[0] * y[1] + x[1] * y[0] - x[2] * y[3] + x[3] * y[2],
                                 x[0] * y[2] + x[1] * y[3] + x[2] * y[0] - x[3] * y[1],
