@@ -2434,10 +2434,8 @@ namespace GLSL {
         template<typename...TS>
             requires(std::is_same_v<vector_type, TS> && ...)
         constexpr explicit MatrixN(TS&&... vectors) noexcept {
-            for (std::size_t i{}; auto&& col : { vectors... }) {
-                c[i] = col;
-                ++i;
-            }
+            std::size_t i{};
+            ([&] { c[i] = FWD(vectors); ++i; } (), ...);
         }
 
         // overload stream '<<' operator
