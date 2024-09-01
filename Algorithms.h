@@ -69,6 +69,53 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::lower_bound
+    **/
+    template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<Compare, T, T>)
+    constexpr It lower_bound(It first, It last, const T& value, Compare&& comp) {
+        It it;
+        std::size_t step{};
+        std::size_t count{ static_cast<std::size_t>(std::distance(first, last)) };
+
+        while (count > 0) {
+            it = first;
+            step = count / 2;
+            it += step;
+
+            if (comp(*it, value)) {
+                first = ++it;
+                count -= step + 1;
+            }
+            else {
+                count = step;
+            }
+        }
+
+        return first;
+    }
+
+    /**
+    * \brief local implementation of std::unique
+    **/
+    template<class It, class BinaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<BinaryPredicate, T, T>)
+    constexpr It unique(It first, It last, BinaryPredicate p) {
+        if (first == last) {
+            return last;
+        }
+
+        It result{ first };
+        while (++first != last) {
+            if (!p(*result, *first) && (++result != first)) {
+                *result = MOV(*first);
+            }
+        }
+
+        return ++result;
+    }
+
+    /**
     * \brief local implementation of std::min_element
     **/
     template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
