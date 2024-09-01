@@ -105,7 +105,7 @@ namespace SpacePartitioning {
         template<std::forward_iterator InputIt>
             requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
         constexpr void construct(const InputIt begin, const InputIt end) {
-            this->first = std::addressof(*begin);
+            this->first = Utilities::addressof(*begin);
             std::vector<std::size_t> indices(static_cast<std::size_t>(std::distance(begin, end)));
             Algoithms::iota(indices.begin(), indices.end(), 0);
             this->root = this->build_tree(0, indices);
@@ -352,7 +352,7 @@ namespace SpacePartitioning {
             }
 
             // fill grid
-            this->first = std::addressof(*begin);
+            this->first = Utilities::addressof(*begin);
             std::size_t i{};
             for (auto it{ begin }; it != end; ++it) {
                 const point_t p{ *it };
