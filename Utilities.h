@@ -140,4 +140,18 @@ namespace Utilities {
         obj = FWD(new_value);
         return old_value;
     }
+
+    /**
+    * \brief Obtains the actual address of the object or function.
+    *        local implementation of std::addressof
+    **/
+    template<class T>
+    T* addressof(T& arg) noexcept {
+        if constexpr (std::is_object_v<T>) {
+            return reinterpret_cast<T*>(&const_cast<char&>(reinterpret_cast<const volatile char&>(arg)));
+        }
+        else {
+            return &arg;
+        }
+    }
 };
