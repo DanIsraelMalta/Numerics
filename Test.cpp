@@ -1999,8 +1999,10 @@ void test_glsl_space_partitioning() {
 
 
 void test_GLSL_clustering() {
+    
    // dbscan
    {
+       svg<vec2> dbscan_test_svg(600, 600);
        std::vector<vec2> points;
        float sign{ 0.5f };
 
@@ -2043,6 +2045,17 @@ void test_GLSL_clustering() {
        assert(clusterIds1.noise.size() > 7);
        kdtree.clear();
 
+       for (const std::size_t i : clusterIds1.clusters[0]) {
+           dbscan_test_svg.add_circle(points[i] * 10.0f, 2.0f, "red", "red", 1.0f);
+       }
+       for (const std::size_t i : clusterIds1.clusters[1]) {
+           dbscan_test_svg.add_circle(points[i] * 10.0f, 2.0f, "blue", "blue", 1.0f);
+       }
+       for (const std::size_t i : clusterIds1.noise) {
+           dbscan_test_svg.add_circle(points[i] * 10.0f, 2.0f, "green", "green", 1.0f);
+       }
+       dbscan_test_svg.to_file("dbscan_test.svg");
+
        // partition #2 (using grid)
        SpacePartitioning::Grid<vec2> grid;
        const auto clusterIds2 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), grid, radius, 4);
@@ -2052,9 +2065,10 @@ void test_GLSL_clustering() {
        assert(clusterIds1.noise.size() > 7);
        grid.clear();
    }
-   
+
    // k-means
    {
+       svg<vec2> kmean_test_svg(250, 160);
        std::vector<vec2> points;
        float sign{ 0.5f };
 
@@ -2096,6 +2110,17 @@ void test_GLSL_clustering() {
        assert(cluster_sizes[0] == 20);
        assert(cluster_sizes[1] == 60);
        assert(cluster_sizes[2] == 80);
+
+       for (const std::size_t i : clusterIds[0]) {
+           kmean_test_svg.add_circle(points[i] * 10.0f, 2.0f, "red", "red", 1.0f);
+       }
+       for (const std::size_t i : clusterIds[1]) {
+           kmean_test_svg.add_circle(points[i] * 10.0f, 2.0f, "blue", "blue", 1.0f);
+       }
+       for (const std::size_t i : clusterIds[2]) {
+           kmean_test_svg.add_circle(points[i] * 10.0f, 2.0f, "green", "green", 1.0f);
+       }
+       kmean_test_svg.to_file("kmean_test.svg");
    }
 }
 
