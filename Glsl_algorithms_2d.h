@@ -339,11 +339,11 @@ namespace Algorithms2D {
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
-        Utilities::swap(points[0],
-                        *Algoithms::min_element(points.begin(), points.end(),
-                                                [](const VEC& a, const VEC& b) noexcept -> bool {
+        const InputIt minElementIterator{ Algoithms::min_element(points.begin(), points.end(),
+                                        [](const VEC& a, const VEC& b) noexcept -> bool {
             return (a.x < b.x || (a.x == b.x && a.y < b.y));
-        }));
+        }) };
+        Utilities::swap(points[0], *minElementIterator);
 
         // lexicographically sort all points using the smallest point as pivot
         const VEC v0( points[0] );
