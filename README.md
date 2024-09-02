@@ -206,4 +206,5 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 + Glsl_algorithms_2D.h - collection of algorithms for 2D cloud points and shapes using GLSL vectors.
 + Glsl_space_partitioning.h - collection of Euclidean space partitioning data structure using GLSL vectors and matrices.
 + Glsl_clustering.h - collection of clustering algorithms using GLSL vectors and matrices.
++ Glsl_svg.h - generates scalable vector graphic schema from GLSL vectors.
 + Test.cpp - basic testing for the various files in this repository.
