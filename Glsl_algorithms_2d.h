@@ -27,6 +27,7 @@
 #include "Glsl.h"
 #include "Glsl_extra.h"
 #include "Glsl_point_distance.h"
+#include "Glsl_axis_aligned_bounding_box.h"
 #include "DiamondAngle.h"
 #include <limits>
 #include <vector>
@@ -83,6 +84,21 @@ namespace Algorithms2D {
             const VEC v1{ a - c };
             const VEC v2{ b - c };
             return std::abs(v1.x * v2.y - v1.y * v2.x);
+        }
+
+        /**
+        * \brief return twice the triangle signed area
+        * @param {IFixedVector, in}  point a
+        * @param {IFixedVector, in}  point b
+        * @param {IFixedVector, in}  point c
+        * @param {floating,     out} twice triangle signed area
+        **/
+        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+            requires(VEC::length() == 2)
+        constexpr T triangle_twice_signed_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
+            const VEC v1{ a - c };
+            const VEC v2{ b - c };
+            return v1.x * v2.y - v1.y * v2.x;
         }
 
         /**
@@ -340,7 +356,7 @@ namespace Algorithms2D {
 
         // place left most point at start of point cloud
         const InputIt minElementIterator{ Algoithms::min_element(points.begin(), points.end(),
-                                        [](const VEC& a, const VEC& b) noexcept -> bool {
+                                                [](const VEC& a, const VEC& b) noexcept -> bool {
             return (a.x < b.x || (a.x == b.x && a.y < b.y));
         }) };
         Utilities::swap(points[0], *minElementIterator);
@@ -748,7 +764,7 @@ namespace Algorithms2D {
 
         // housekeeping
         const VEC centroid{ Internals::get_centroid(first, last) };
-        const T N{ static_cast<T>(std::distance(first, last) - 1)};
+        const T N{ static_cast<T>(std::distance(first, last) - 1) };
 
         // calculate covariance matrix elements
         T cov_xx{};
@@ -845,5 +861,35 @@ namespace Algorithms2D {
         }
 
         return isOrthogonal;
+    }
+    
+    /**
+    * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
+    * @param {forward_iterator, in}  iterator to first point in polygon
+    * @param {forward_iterator, in}  iterator to last point in polygon
+    * @param {int32_t,          out} true if polygon is convex, false otherwise
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
+        // housekeeping
+        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+        if (len < 4) {
+            return true;
+        }
+
+        bool sign{ false };
+        for (std::size_t i{}; i < len - 1; ++i) {
+            const T area{ Internals::triangle_twice_signed_area(*(first + (i + 2) % len), *(first + i) , *(first + (i + 1) % len)) };
+
+            if (i == 0) {
+                sign = area > T{};
+            }
+            else if (sign != (area > T{})) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
