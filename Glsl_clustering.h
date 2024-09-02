@@ -137,9 +137,11 @@ namespace Clustering {
         requires(GLSL::is_fixed_vector_v<VEC>)
     constexpr std::vector<std::vector<std::size_t>> k_means(const InputIt first, const InputIt last, const std::size_t k,
                                                             const std::size_t max_iterations, const T tol) {
+        using point_cloud_aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(first, last));
+        
         // place centers in random manner
         std::vector<VEC> centers(k);
-        const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(first, last);
+        const point_cloud_aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
         for (std::size_t i{}; i < k; ++i) {
             Utilities::static_for<0, 1, VEC::length()>([&centers, &aabb, i](std::size_t j) {
                 centers[i][j] = aabb.min[j] + std::fmod(static_cast<T>(rand()), aabb.max[j] - aabb.min[j] + static_cast<T>(1));
@@ -164,7 +166,8 @@ namespace Clustering {
                 }
   
                 // assign cluster with closest center
-                assigned_clusters[x] = std::distance(dist.begin(), std::ranges::min_element(dist));
+                const auto minElementIter = Algoithms::min_element(dist.begin(), dist.end(), [](const T& a, const T& b) { return a < b; });
+                assigned_clusters[x] = std::distance(dist.begin(), minElementIter);
   
                 // update loop iterator
                 ++x;
