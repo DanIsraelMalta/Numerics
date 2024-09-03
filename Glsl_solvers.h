@@ -131,31 +131,30 @@ namespace Decomposition {
             }
         };
 
-        // decomposition
+        // housekeeping
         MAT R(mat);
         MAT Q;
         Extra::make_identity(Q);
+
+        // perform decomposition
         for (std::size_t j{}; j < N; ++j) {
             for (std::size_t i{ N - 1 }; i >= j + 1; --i) {
                 const GLSL::Vector3<T> CSR(givensRotation(R(j, i - 1), R(j, i)));
-
-                // R' = G * R
                 for (std::size_t x{}; x < N; ++x) {
-                    const T temp1{ R(x, i - 1) };
-                    const T temp2{ R(x, i) };
+                    // R' = G * R
+                    T temp1{ R(x, i - 1) };
+                    T temp2{ R(x, i) };
                     R(x, i - 1) = temp1 * CSR[0] + temp2 * CSR[1];
-                    R(x, i) = -temp1 * CSR[1] + temp2 * CSR[0];
+                    R(x, i)     = temp2 * CSR[0] - temp1 * CSR[1];
+
+                    // Q' = Q * G^
+                    temp1 = Q(i - 1, x);
+                    temp2 = Q(i,     x);
+                    Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
+                    Q(i, x)     = temp2 * CSR[0] - temp1 * CSR[1];
                 }
                 R(j, i - 1) = CSR[2];
                 R(j, i) = T{};
-
-                // Q' = Q * G^
-                for (std::size_t x{}; x < N; ++x) {
-                    const T temp1{ Q(i - 1, x) };
-                    const T temp2{ Q(i,     x) };
-                    Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
-                    Q(i, x) = -temp1 * CSR[1] + temp2 * CSR[0];
-                }
             }
         }
 
