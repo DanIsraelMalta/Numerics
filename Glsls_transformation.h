@@ -72,7 +72,7 @@ namespace Transformation {
         using T = typename MAT::value_type;
         using out_t = struct { VEC axis; T cosine; };
 
-        assert(Extra::is_dcm_matrix(mat));
+        assert(Extra::is_orthonormal_matrix(mat));
         assert(!Extra::is_symmetric(mat));
 
         const VEC axis(mat(1, 2) - mat(2, 1), mat(2, 0) - mat(0, 2), mat(0, 1) - mat(1, 0));
@@ -196,7 +196,7 @@ namespace Transformation {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Vector4<T> create_quaternion_from_rotation_matrix(const GLSL::Matrix3<T>& mat) {
-        assert(Extra::is_dcm_matrix(mat));
+        assert(Extra::is_orthonormal_matrix(mat));
 
         const T tr{static_cast<T>(1) + mat(0,0) + mat(1,1) + mat(2,2)};
 
