@@ -262,8 +262,11 @@ namespace Decomposition {
         using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { MAT eigenvectors; MAT schur; };
+        constexpr std::size_t N{ MAT::columns() };
 
         MAT A(mat);
+        MAT Q;
+        Extra::make_identity(Q);
         qr_t QR;
         T err{ static_cast<T>(10) * tol };
         std::size_t i{};
@@ -272,12 +275,13 @@ namespace Decomposition {
 
             QR = Decomposition::QR_GivensRotation(A);
             A = QR.R * QR.Q;
+            Q *= QR.Q;
 
             err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigenvalues0));
             ++i;
         }
 
-        return out_t{ QR.Q, A };
+        return out_t{ Q, A };
     }
 
     template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
@@ -286,13 +290,16 @@ namespace Decomposition {
         using out_t = struct { MAT eigenvectors; MAT schur; };
 
         MAT A(mat);
+        MAT Q;
+        Extra::make_identity(Q);
         qr_t QR;
-        Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
+        Utilities::static_for<0, 1, N>([&A, &Q, &QR](std::size_t i) {
             QR = Decomposition::QR_GivensRotation(A);
             A = QR.R * QR.Q;
+            Q *= QR.Q;
         });
 
-        return out_t{ QR.Q, A };
+        return out_t{ Q, A };
     }
 
     /**
