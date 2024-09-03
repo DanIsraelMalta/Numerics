@@ -160,36 +160,18 @@ namespace Extra {
     }
 
     /**
-    * \brief tests if a given matrix is orthogonal
+    * \brief tests if a given matrix is orthonormal
     * @param {IFixedCubicMatrix, in}  matrix
-    * @param {bool,              out} true if matrix is orthogonal
+    * @param {bool,              out} true if matrix is orthonormal
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr bool is_orthogonal_matrix(const MAT& mat) noexcept {
+    constexpr bool is_orthonormal_matrix(const MAT& mat) noexcept {
         Utilities::static_for<0, 1, MAT::columns() - 1>([&mat](std::size_t i) {
             if (!Extra::is_normalized(GLSL::cross(mat[i], mat[i + 1]))) {
                 return false;
             }
         });
         return true;
-    }
-
-    /**
-    * \brief tests if a given 3x3 matrix is direct cosine matrix (DCM)
-    * @param {IFixedCubicMatrix, in}  3x3 matrix
-    * @param {bool,              out} true if matrix is DCM
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-        requires(MAT::columns() == 3)
-    constexpr bool is_dcm_matrix(const MAT& mat) noexcept {
-        bool is_dcm{ true };
-        is_dcm &= Extra::is_normalized(mat[0]);
-        is_dcm &= Extra::is_normalized(mat[1]);
-        is_dcm &= Extra::is_normalized(mat[2]);
-        is_dcm &= Extra::is_normalized(GLSL::cross(mat[0], mat[1]));
-        is_dcm &= Extra::is_normalized(GLSL::cross(mat[0], mat[2]));
-        is_dcm &= Extra::is_normalized(GLSL::cross(mat[1], mat[2]));
-        return is_dcm;
     }
 
     /**
