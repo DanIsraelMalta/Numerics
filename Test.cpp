@@ -1074,6 +1074,24 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
     }
+
+    {
+        auto svd = Decomposition::SVD(a);
+        assert(Extra::is_orthonormal_matrix(svd.U));
+        assert(Extra::is_orthonormal_matrix(svd.V));
+        assert(static_cast<std::int32_t>(svd.S[0] * 100) == 19056);
+        assert(static_cast<std::int32_t>(svd.S[1] * 1000) == 32856);
+        assert(static_cast<std::int32_t>(svd.S[2] * 1000) == -13694);
+       
+        auto svd4 = Decomposition::SVD<6>(dmat4(12.0, 16.0,  38.0, 92.0,
+                                                13.0, 15.0,  75.0, 32.0,
+                                                14.0, 14.0, -15.0, 27.0,
+                                                15.0, 13.0,   5.0, 5.0));
+        assert(static_cast<std::int32_t>(svd4.S[0] * 100) == 12440);
+        assert(static_cast<std::int32_t>(svd4.S[1] * 1000) == 55681);
+        assert(static_cast<std::int32_t>(svd4.S[2] * 1000) == 23746);
+        assert(static_cast<std::int32_t>(svd4.S[3] * 1000) == 662);
+    }
 }
 
 void test_glsl_aabb() {
