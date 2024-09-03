@@ -303,6 +303,92 @@ namespace Decomposition {
     }
 
     /**
+    * \brief calculate SVD (singular value decomposition) via QR algorithm
+    * @param {IFixedCubicMatrix,                                   in}  matrix to decompose
+    * @param {size_t,                                              in}  maximal number of iterations (default is 15)
+    * @param {value_type,                                          in}  minimal error in iteration to stop calculation (default is 1e-5)
+    * @param {IFixedVector, IFixedCubicMatrix, IFixedCubicMatrix}, out} {vector holding singular values, matrix holding eigenvectors of mat*trnanspose(mat), matrix holding eigenvectors of trnanspose(mat)*mat }
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr auto SVD(const MAT& mat, const std::size_t iter = 15, const T tol = static_cast<T>(1e-5)) {
+        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using VEC = typename MAT::vector_type;
+        using out_t = struct { VEC S; MAT U; MAT V; };
+
+        // housekeeping
+        qr_t qr1;
+        qr_t qr2;
+        MAT Q1;
+        MAT R1;
+        MAT Q2;
+        MAT R2;
+        MAT U;
+        MAT V;
+        Extra::make_identity(U);
+        Extra::make_identity(V);
+
+        // lambda for one iteration in SVD calculation
+        const auto iterative_step = [&qr1, &qr2, &U, &V](const MAT& m) {
+            qr1 = Decomposition::QR_GivensRotation(m);
+            qr2 = Decomposition::QR_GivensRotation(GLSL::transpose(qr1.R));
+            qr1.R = GLSL::transpose(qr2.R);
+            V *= qr1.Q;
+            U *= qr2.Q;
+        };
+
+        // calculate SVD
+        iterative_step(mat);
+        T err{ static_cast<T>(10) * tol };
+        std::size_t i{ 1 };
+        while ((i < iter) && (err > tol)) {
+            const VEC singulars0{ GLSL::trace(qr1.R) };
+
+            iterative_step(qr1.R);
+
+            err = GLSL::max(GLSL::abs(GLSL::trace(qr1.R) - singulars0));
+            ++i;
+        }
+
+        return out_t{ GLSL::trace(qr1.R), U, V };
+    }
+
+    template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
+    constexpr auto SVD(const MAT& mat) {
+        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using VEC = typename MAT::vector_type;
+        using out_t = struct { VEC S; MAT U; MAT V; };
+
+        // housekeeping
+        qr_t qr1;
+        qr_t qr2;
+        MAT Q1;
+        MAT R1;
+        MAT Q2;
+        MAT R2;
+        MAT U;
+        MAT V;
+        Extra::make_identity(U);
+        Extra::make_identity(V);
+
+        // lambda for one iteration in SVD calculation
+        const auto iterative_step = [&qr1, &qr2, &U, &V](const MAT& m) {
+            qr1 = Decomposition::QR_GivensRotation(m);
+            qr2 = Decomposition::QR_GivensRotation(GLSL::transpose(qr1.R));
+            qr1.R = GLSL::transpose(qr2.R);
+            V *= qr1.Q;
+            U *= qr2.Q;
+        };
+
+        // calculate SVD
+        iterative_step(mat);
+        Utilities::static_for<1, 1, N>([&qr1, &iterative_step](std::size_t i) {
+            iterative_step(qr1.R);
+        });
+
+        return out_t{ GLSL::trace(qr1.R), U, V };
+    }
+
+    /**
     * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
     *        user supplies two stoppage criteria's:
     *        1. maximal amount of iterations (10 by default)
