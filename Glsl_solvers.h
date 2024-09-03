@@ -112,7 +112,9 @@ namespace Decomposition {
             else if (std::abs(a) > std::abs(b)) {
                 [[assume(a != T{})]];
                 const T t{ b / a };
-                const T u{ Numerics::sign(a) * std::sqrt(t * t + static_cast<T>(1)) };
+                const T squared{ t * t + static_cast<T>(1) };
+                [[assume(squared >= T{})]];
+                const T u{ Numerics::sign(a) * std::sqrt(squared) };
                 [[assume(u != T{})]];
                 const T c{ static_cast<T>(1) / u };
                 return std::array<T, 3>{{c, t* c, a* u}};
@@ -120,7 +122,9 @@ namespace Decomposition {
             else {
                 [[assume(b != T{})]];
                 const T t{ a / b };
-                const T u{ Numerics::sign(b) * std::sqrt(t * t + static_cast<T>(1)) };
+                const T squared{ t * t + static_cast<T>(1) };
+                [[assume(squared >= T{})]];
+                const T u{ Numerics::sign(b) * std::sqrt(squared) };
                 [[assume(u != T{})]];
                 const T s{ static_cast<T>(1) / u };
                 return std::array<T, 3>{{t* s, s, b* u}};
