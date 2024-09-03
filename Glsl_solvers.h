@@ -318,10 +318,6 @@ namespace Decomposition {
         // housekeeping
         qr_t qr1;
         qr_t qr2;
-        MAT Q1;
-        MAT R1;
-        MAT Q2;
-        MAT R2;
         MAT U;
         MAT V;
         Extra::make_identity(U);
@@ -361,10 +357,6 @@ namespace Decomposition {
         // housekeeping
         qr_t qr1;
         qr_t qr2;
-        MAT Q1;
-        MAT R1;
-        MAT Q2;
-        MAT R2;
         MAT U;
         MAT V;
         Extra::make_identity(U);
