@@ -102,12 +102,12 @@ namespace Decomposition {
         constexpr T tol{ Numerics::equality_precision<T>() };
 
         // "givens rotation" - return {cosine, sine, radius}
-        const auto givensRotation = [](const T a, const T b) {
+        const auto givensRotation = [](const T a, const T b) -> GLSL::Vector3<T> {
             if (std::abs(a) <= tol) {
-                return std::array<T, 3>{{T{}, Numerics::sign(b), std::abs(b)}};
+                return GLSL::Vector3<T>(T{}, Numerics::sign(b), std::abs(b));
             }
             else if (std::abs(b) <= tol) {
-                return std::array<T, 3>{{Numerics::sign(a), T{}, std::abs(a)}};
+                return GLSL::Vector3<T>(Numerics::sign(a), T{}, std::abs(a));
             }
             else if (std::abs(a) > std::abs(b)) {
                 [[assume(a != T{})]];
@@ -117,7 +117,7 @@ namespace Decomposition {
                 const T u{ Numerics::sign(a) * std::sqrt(squared) };
                 [[assume(u != T{})]];
                 const T c{ static_cast<T>(1) / u };
-                return std::array<T, 3>{{c, t* c, a* u}};
+                return GLSL::Vector3<T>(c, t * c, a * u);
             }
             else {
                 [[assume(b != T{})]];
@@ -127,7 +127,7 @@ namespace Decomposition {
                 const T u{ Numerics::sign(b) * std::sqrt(squared) };
                 [[assume(u != T{})]];
                 const T s{ static_cast<T>(1) / u };
-                return std::array<T, 3>{{t* s, s, b* u}};
+                return GLSL::Vector3<T>(t * s, s, b * u);
             }
         };
 
