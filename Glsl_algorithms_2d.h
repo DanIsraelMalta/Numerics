@@ -72,21 +72,6 @@ namespace Algorithms2D {
         }
 
         /**
-        * \brief return twice a triangle area
-        * @param {IFixedVector, in}  point a
-        * @param {IFixedVector, in}  point b
-        * @param {IFixedVector, in}  point c
-        * @param {floating,     out} twice triangle area
-        **/
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-            requires(VEC::length() == 2)
-        constexpr T triangle_twice_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
-            const VEC v1{ a - c };
-            const VEC v2{ b - c };
-            return std::abs(v1.x * v2.y - v1.y * v2.x);
-        }
-
-        /**
         * \brief return twice the triangle signed area
         * @param {IFixedVector, in}  point a
         * @param {IFixedVector, in}  point b
@@ -99,6 +84,19 @@ namespace Algorithms2D {
             const VEC v1{ a - c };
             const VEC v2{ b - c };
             return v1.x * v2.y - v1.y * v2.x;
+        }
+
+        /**
+        * \brief return twice a triangle area
+        * @param {IFixedVector, in}  point a
+        * @param {IFixedVector, in}  point b
+        * @param {IFixedVector, in}  point c
+        * @param {floating,     out} twice triangle area
+        **/
+        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+            requires(VEC::length() == 2)
+        constexpr T triangle_twice_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
+            return std::abs(triangle_twice_signed_area(a, b, c));
         }
 
         /**
