@@ -760,13 +760,13 @@ void test_glsl_extra() {
                -12.0f, 19.0f, 21.0f,
                2.0f, -8.0f, 1.0});
         mat3 b = Extra::orthonormalize(a);
-        assert(Extra::is_dcm_matrix(b));
+        assert(Extra::is_orthonormal_matrix(b));
     }
 
     {
         vec3 x(GLSL::normalize(vec3(3.5f, -12.2f, 27.0f)));
         mat3 a = Extra::orthonomrmalBasis(x);
-        assert(Extra::is_dcm_matrix(a));
+        assert(Extra::is_orthonormal_matrix(a));
     }
 
     {
@@ -1058,7 +1058,7 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1605);
-        assert(Extra::is_orthogonal_matrix(eig.eigenvectors));
+        assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
         eig = Decomposition::Schur(GLSL::Matrix3<double>(21.0, 6.0, 14.0,
                                                          -51.0, -51.0, 24.0,
@@ -1066,13 +1066,13 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 32257);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -4881);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1723);
-        assert(Extra::is_orthogonal_matrix(eig.eigenvectors));
+        assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
         auto eign = Decomposition::Schur<20>(a);
         assert(static_cast<std::int32_t>(eign.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eign.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
-        assert(Extra::is_orthogonal_matrix(eig.eigenvectors));
+        assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
     }
 }
 
