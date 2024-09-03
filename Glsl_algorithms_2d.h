@@ -878,14 +878,10 @@ namespace Algorithms2D {
             return true;
         }
 
-        bool sign{ false };
-        for (std::size_t i{}; i < len - 1; ++i) {
+        bool sign{ Internals::triangle_twice_signed_area(*(first + 2), *first , *(first + 1)) > T{} };
+        for (std::size_t i{ 1 }; i < len - 1; ++i) {
             const T area{ Internals::triangle_twice_signed_area(*(first + (i + 2) % len), *(first + i) , *(first + (i + 1) % len)) };
-
-            if (i == 0) {
-                sign = area > T{};
-            }
-            else if (sign != (area > T{})) {
+            if (sign != (area > T{})) {
                 return false;
             }
         }
