@@ -160,6 +160,21 @@ namespace Extra {
     }
 
     /**
+    * \brief tests if a given matrix is orthogonal
+    * @param {IFixedCubicMatrix, in}  matrix
+    * @param {bool,              out} true if matrix is orthogonal
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr bool is_orthogonal_matrix(const MAT& mat) noexcept {
+        Utilities::static_for<0, 1, MAT::columns() - 1>([&mat](std::size_t i) {
+            if (!Extra::is_normalized(GLSL::cross(mat[i], mat[i + 1]))) {
+                return false;
+            }
+        });
+        return true;
+    }
+
+    /**
     * \brief tests if a given 3x3 matrix is direct cosine matrix (DCM)
     * @param {IFixedCubicMatrix, in}  3x3 matrix
     * @param {bool,              out} true if matrix is DCM
