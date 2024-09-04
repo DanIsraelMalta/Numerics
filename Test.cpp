@@ -764,7 +764,6 @@ void test_glsl_extra() {
         GLSL::VectorN<double, 8> axis8;
         Extra::make_random(axis8);
         const GLSL::MatrixN<double, 8> reflect8{ Extra::Householder(GLSL::normalize(axis8)) };
-        const auto a = Decomposition::determinant_using_lu(reflect8);
         assert(std::abs(1.0 + Decomposition::determinant_using_lu(reflect8)) < 1e-6);
     }
             
