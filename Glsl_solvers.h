@@ -550,7 +550,9 @@ namespace Decomposition {
         if constexpr (MAT::columns() == 2) {
             const T x0{ mat(0, 0) + mat(1, 1) };
             const T x1{ mat(0, 1) - mat(1, 0) };
-            const T den{ std::sqrt(x0 * x0 + x1 * x1) };
+            const T square{ x0 * x0 + x1 * x1 };
+            [[assume(square >= T{})]]
+            const T den{ std::sqrt(square) };
             assert(den > T{});
             const T c{  x0 / den };
             const T s{ -x1 / den };
