@@ -65,7 +65,7 @@ namespace Decomposition {
     }
 
     /**
-    * \brief perform QR decomposition using gram-schmidt process.
+    * \brief perform QR decomposition using gram-schmidt process (numerically improved using Schwarz-Rutishauser algorithm).
     *         numerically less accurate than QR_GivensRotation.
     *
     * @param {IFixedCubicMatrix,                      in}  input matrix
@@ -75,16 +75,20 @@ namespace Decomposition {
     constexpr auto QR_GramSchmidt(const MAT& mat) {
         using out_t = struct { MAT Q; MAT R; };
 
-        const MAT Q(Extra::orthonormalize(mat));
-
+        MAT Q(mat);
         MAT R;
-        Utilities::static_for<0, 1, MAT::columns()>([&Q, &R, &mat](std::size_t i) {
-            for (std::size_t j{ i }; j < MAT::columns(); ++j) {
-                R(j, i) = GLSL::dot(mat[j], Q[i]);
-            }
-        });
 
-        return out_t{ Q, R };
+        for (std::size_t k{}; k < MAT::columns(); ++k) {
+            for (std::size_t i{}; i < k; ++i) {
+                R(k, i) = GLSL::dot(Q[i], Q[k]);
+                Q[k] -= R(k, i) * Q[i];
+            }
+
+            R(k, k) = GLSL::length(Q[k]);
+            Q[k] /= R(k, k);
+        }
+
+        return out_t{ -Q, -R };
     }
 
     /**
