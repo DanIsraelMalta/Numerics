@@ -215,6 +215,43 @@ namespace Extra {
     }
 
     /**
+    * \brief return householder matrix of a given vector
+    * @param  {IFixedVector,      in}  vector (normalized)
+    * @return {IFixedCubicMatrix, out} householder matrix (reflection matrix about hyperplane with unit normal vector 'vec')
+    **/
+    template<GLSL::IFixedVector VEC>
+    constexpr auto Householder(const VEC& vec) noexcept {
+        using T = typename VEC::value_type;
+        constexpr std::size_t N{ VEC::length() };
+        constexpr T one{ static_cast<T>(1) };
+        constexpr T two{ static_cast<T>(-2) };
+
+        assert(Extra::is_normalized(vec));
+
+        if constexpr (N == 2) {
+            return GLSL::Matrix2<T>(one + two * vec[0] * vec[0],       two * vec[0] * vec[1],
+                                          two * vec[1] * vec[0], one + two * vec[1] * vec[1]);
+        }
+        else if constexpr (N == 3) {
+            return GLSL::Matrix3<T>(one + two * vec[0] * vec[0],       two * vec[0] * vec[1],       two * vec[0] * vec[2],
+                                          two * vec[1] * vec[0], one + two * vec[1] * vec[1],       two * vec[1] * vec[2],
+                                          two * vec[2] * vec[0],       two * vec[2] * vec[1], one + two * vec[2] * vec[2]);
+        }
+        else if constexpr (N == 4) {
+            return GLSL::Matrix4<T>(one + two * vec[0] * vec[0],       two * vec[0] * vec[1],       two * vec[0] * vec[2],       two * vec[0] * vec[3],
+                                          two * vec[1] * vec[0], one + two * vec[1] * vec[1],       two * vec[1] * vec[2],       two * vec[1] * vec[3],
+                                          two * vec[2] * vec[0],       two * vec[2] * vec[1], one + two * vec[2] * vec[2],       two * vec[2] * vec[3],
+                                          two * vec[3] * vec[0],       two * vec[3] * vec[1],       two * vec[3] * vec[2], one + two * vec[3] * vec[3]);
+        }
+        else {
+            GLSL::MatrixN<T, N> out;
+            Extra::make_identity(out);
+            GLSL::MatrixN<T, N> reflection_matrix{ Extra::outer_product(vec, vec) };
+            return (out + reflection_matrix * two);
+        }
+    }
+
+    /**
     * \brief create a plane going through 3 points
     * @param {Vector3, in}  point #0
     * @param {Vector3, in}  point #1
