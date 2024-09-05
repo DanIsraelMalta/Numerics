@@ -116,6 +116,30 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::reverse
+    **/
+    template<class It>
+        requires(std::bidirectional_iterator<It>)
+    constexpr void reverse(It first, It last) {
+        using iter_cat = typename std::iterator_traits<It>::iterator_category;
+
+        if constexpr (std::is_base_of_v<std::random_access_iterator_tag, iter_cat>) {
+            if (first == last) {
+                return;
+            }
+
+            for (--last; first < last; (void)++first, --last) {
+                Utilities::swap(first, last);
+            }
+        }
+        else {
+            while (first != last && first != --last) {
+                Utilities::swap(first++, last);
+            }
+        }
+    }
+
+    /**
     * \brief local implementation of std::min_element
     **/
     template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
