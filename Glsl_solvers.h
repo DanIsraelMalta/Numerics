@@ -32,6 +32,13 @@
 
 namespace Decomposition {
 
+    // QR decomposition algorithm type
+    enum class QR_DEOMPOSITION_TYPE : std::uint8_t {
+        GramSchmidt        = 0, // use gram-schmidt process. very fast. numerically unstable.
+        SchwarzRutishauser = 1, // use Schwarz-Rutishauser algorithm. better numerical accuracy than gram-schmidt and faster yet slower.
+        GivensRotation     = 3  // use "givens rotation" algortihm. numerically precise. slower than other options.
+    };
+
     /**
     * \brief return the eigenvalues of a 2x2 ot 3x3 matrix
     *
@@ -65,104 +72,107 @@ namespace Decomposition {
     }
 
     /**
-    * \brief perform QR decomposition using gram-schmidt process (numerically improved using Schwarz-Rutishauser algorithm).
-    *         numerically less accurate than QR_GivensRotation.
+    * \brief perform QR decomposition.
     *
     * @param {IFixedCubicMatrix,                      in}  input matrix
     * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
     **/
-    template<GLSL::IFixedCubicMatrix MAT>
-    constexpr auto QR_GramSchmidt(const MAT& mat) {
+    template<QR_DEOMPOSITION_TYPE TYPE = QR_DEOMPOSITION_TYPE::GivensRotation, GLSL::IFixedCubicMatrix MAT>
+    constexpr auto QR(const MAT& mat) {
         using out_t = struct { MAT Q; MAT R; };
 
-        MAT Q(mat);
-        MAT R;
+        if constexpr (TYPE == QR_DEOMPOSITION_TYPE::GramSchmidt) {
+            const MAT Q(Extra::orthonormalize(mat));
 
-        for (std::size_t k{}; k < MAT::columns(); ++k) {
-            for (std::size_t i{}; i < k; ++i) {
-                R(k, i) = GLSL::dot(Q[i], Q[k]);
-                Q[k] -= R(k, i) * Q[i];
-            }
-
-            R(k, k) = GLSL::length(Q[k]);
-            Q[k] /= R(k, k);
-        }
-
-        return out_t{ -Q, -R };
-    }
-
-    /**
-    * \brief perform QR decomposition using "givens rotation".
-    *        numerically more accurate than QR_GramSchmidt.
-    *
-    * @param {IFixedCubicMatrix, in}     matrix
-    * @param {{IFixedCubicMatrix, IFixedCubicMatrix}, out} {Q matrix (orthogonal matrix with orthogonal columns, i.e. - Q*Q^T = I),  R matrix (upper triangular matrix) }
-    **/
-    template<GLSL::IFixedCubicMatrix MAT>
-    constexpr auto QR_GivensRotation(const MAT& mat) {
-        using out_t = struct { MAT Q; MAT R; };
-        using T = typename MAT::value_type;
-        constexpr std::size_t N{ MAT::columns() };
-        constexpr T tol{ Numerics::equality_precision<T>() };
-
-        // "givens rotation" - return {cosine, sine, radius}
-        const auto givensRotation = [](const T a, const T b) -> GLSL::Vector3<T> {
-            if (std::abs(a) <= tol) {
-                return GLSL::Vector3<T>(T{}, Numerics::sign(b), std::abs(b));
-            }
-            else if (std::abs(b) <= tol) {
-                return GLSL::Vector3<T>(Numerics::sign(a), T{}, std::abs(a));
-            }
-            else if (std::abs(a) > std::abs(b)) {
-                [[assume(a != T{})]];
-                const T t{ b / a };
-                const T squared{ t * t + static_cast<T>(1) };
-                [[assume(squared >= T{})]];
-                const T u{ Numerics::sign(a) * std::sqrt(squared) };
-                [[assume(u != T{})]];
-                const T c{ static_cast<T>(1) / u };
-                return GLSL::Vector3<T>(c, t * c, a * u);
-            }
-            else {
-                [[assume(b != T{})]];
-                const T t{ a / b };
-                const T squared{ t * t + static_cast<T>(1) };
-                [[assume(squared >= T{})]];
-                const T u{ Numerics::sign(b) * std::sqrt(squared) };
-                [[assume(u != T{})]];
-                const T s{ static_cast<T>(1) / u };
-                return GLSL::Vector3<T>(t * s, s, b * u);
-            }
-        };
-
-        // housekeeping
-        MAT R(mat);
-        MAT Q;
-        Extra::make_identity(Q);
-
-        // perform decomposition
-        for (std::size_t j{}; j < N; ++j) {
-            for (std::size_t i{ N - 1 }; i >= j + 1; --i) {
-                const GLSL::Vector3<T> CSR(givensRotation(R(j, i - 1), R(j, i)));
-                for (std::size_t x{}; x < N; ++x) {
-                    // R' = G * R
-                    T temp1{ R(x, i - 1) };
-                    T temp2{ R(x, i) };
-                    R(x, i - 1) = temp1 * CSR[0] + temp2 * CSR[1];
-                    R(x, i)     = temp2 * CSR[0] - temp1 * CSR[1];
-
-                    // Q' = Q * G^
-                    temp1 = Q(i - 1, x);
-                    temp2 = Q(i,     x);
-                    Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
-                    Q(i, x)     = temp2 * CSR[0] - temp1 * CSR[1];
+            MAT R;
+            Utilities::static_for<0, 1, MAT::columns()>([&Q, &R, &mat](std::size_t i) {
+                for (std::size_t j{ i }; j < MAT::columns(); ++j) {
+                    R(j, i) = GLSL::dot(mat[j], Q[i]);
                 }
-                R(j, i - 1) = CSR[2];
-                R(j, i) = T{};
-            }
-        }
+            });
 
-        return out_t{ Q, R };
+            return out_t{ Q, R };
+        }
+        else if constexpr (TYPE == QR_DEOMPOSITION_TYPE::SchwarzRutishauser) {
+            MAT Q(mat);
+            MAT R;
+
+            for (std::size_t k{}; k < MAT::columns(); ++k) {
+                for (std::size_t i{}; i < k; ++i) {
+                    R(k, i) = GLSL::dot(Q[i], Q[k]);
+                    Q[k] -= R(k, i) * Q[i];
+                }
+
+                R(k, k) = GLSL::length(Q[k]);
+                Q[k] /= R(k, k);
+            }
+
+            return out_t{ -Q, -R };
+        }
+        else if constexpr (TYPE == QR_DEOMPOSITION_TYPE::GivensRotation) {
+            using T = typename MAT::value_type;
+            constexpr std::size_t N{ MAT::columns() };
+            constexpr T tol{ Numerics::equality_precision<T>() };
+
+            // "givens rotation" - return {cosine, sine, radius}
+            const auto givensRotation = [](const T a, const T b) -> GLSL::Vector3<T> {
+                if (std::abs(a) <= tol) {
+                    return GLSL::Vector3<T>(T{}, Numerics::sign(b), std::abs(b));
+                }
+                else if (std::abs(b) <= tol) {
+                    return GLSL::Vector3<T>(Numerics::sign(a), T{}, std::abs(a));
+                }
+                else if (std::abs(a) > std::abs(b)) {
+                    [[assume(a != T{})]];
+                    const T t{ b / a };
+                    const T squared{ t * t + static_cast<T>(1) };
+                    [[assume(squared >= T{})]];
+                    const T u{ Numerics::sign(a) * std::sqrt(squared) };
+                    [[assume(u != T{})]];
+                    const T c{ static_cast<T>(1) / u };
+                    return GLSL::Vector3<T>(c, t * c, a * u);
+                }
+                else {
+                    [[assume(b != T{})]];
+                    const T t{ a / b };
+                    const T squared{ t * t + static_cast<T>(1) };
+                    [[assume(squared >= T{})]];
+                    const T u{ Numerics::sign(b) * std::sqrt(squared) };
+                    [[assume(u != T{})]];
+                    const T s{ static_cast<T>(1) / u };
+                    return GLSL::Vector3<T>(t * s, s, b * u);
+                }
+            };
+
+            // housekeeping
+            MAT R(mat);
+            MAT Q;
+            Extra::make_identity(Q);
+
+            // perform decomposition
+            for (std::size_t j{}; j < N; ++j) {
+                for (std::size_t i{ N - 1 }; i >= j + 1; --i) {
+                    const GLSL::Vector3<T> CSR(givensRotation(R(j, i - 1), R(j, i)));
+                    for (std::size_t x{}; x < N; ++x) {
+                        // R' = G * R
+                        T temp1{ R(x, i - 1) };
+                        T temp2{ R(x, i) };
+                        R(x, i - 1) = temp1 * CSR[0] + temp2 * CSR[1];
+                        R(x, i)     = temp2 * CSR[0] - temp1 * CSR[1];
+
+                        // Q' = Q * G^
+                        temp1 = Q(i - 1, x);
+                        temp2 = Q(i,     x);
+                        Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
+                        Q(i, x)     = temp2 * CSR[0] - temp1 * CSR[1];
+                    }
+                    R(j, i - 1) = CSR[2];
+                    R(j, i) = T{};
+                }
+            }
+
+            return out_t{ Q, R };
+        }
     }
 
     /**
