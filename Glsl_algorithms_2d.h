@@ -750,6 +750,93 @@ namespace Algorithms2D {
     }
 
     /**
+    * \brief given a collection of points as a signal, i.e. - x coordinate is monotonic increasing, return points defining its "envelope"
+    * @param {forward_iterator,     in}  iterator to first point in collection/signal
+    * @param {forward_iterator,     in}  iterator to last point in collection/signal
+    * @param {vector<IFixedVector>, out} {collection of points defining the top of the signal envelope, collection of points defining the bottom of the signal envelope}
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr auto get_points_envelope(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+        using out_t = struct { std::vector<VEC> top; std::vector<VEC> bottom; };
+
+        // given vector of values - return vector holding differences between adjacent elements
+        const auto diff = [](const std::vector<T>& x) -> std::vector<T> {
+            const std::size_t len{ x.size() - 1 };
+            std::vector<T> d(len);
+            for (std::size_t i{}; i < len - 1; ++i) {
+                d[i] = x[i+1] - x[i];
+            }
+            return d;
+        };
+
+        // given vector of values - return vector holding sign of each element
+        const auto sign = [](const std::vector<T>& x) -> std::vector<T> {
+            const std::size_t len{ x.size() - 1 };
+            std::vector<T> d(len);
+            for (std::size_t i{}; i < len - 1; ++i) {
+                if (x[i] > T{}) {
+                    d[i] = static_cast<T>(1);
+                }
+                else if (x[i] < T{}) {
+                    d[i] = static_cast<T>(-1);
+                }
+                else {
+                    d[i] = T{};
+                }
+            }
+            return d;
+        };
+
+        // seperate cloud point into XY coordinates
+        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+        std::vector<T> x(len);
+        std::vector<T> y(len);
+        for (std::size_t i{}; i < len - 1; ++i) {
+            const VEC p{ *(first + i) };
+            x[i] = p.x;
+            y[i] = p.y;
+        }
+
+        // calculate second derivative
+        std::vector<T> secondDerivative{ diff(sign(diff(y))) };
+
+        // find peaks indices
+        std::vector<std::size_t> extrMaxIndex;
+        std::vector<std::size_t> extrMinIndex;
+        for (std::size_t i{}; i < secondDerivative.size(); ++i) {
+            if (Numerics::areEquals(secondDerivative[i], static_cast<T>(2))) {
+                extrMinIndex.emplace_back(i + 1);
+            }
+            else if (Numerics::areEquals(secondDerivative[i], static_cast<T>(-2))) {
+                extrMaxIndex.emplace_back(i + 1);
+            }
+        }
+
+        // find peaks
+        std::vector<T> extrMaxValue;
+        for (const std::size_t i : extrMaxIndex) {
+            extrMaxValue.emplace_back(y[i]);
+        }
+        std::vector<T> extrMinValue;
+        for (const std::size_t i : extrMinIndex) {
+            extrMinValue.emplace_back(y[i]);
+        }
+
+        // output
+        std::vector<VEC> top(extrMaxValue.size());
+        std::vector<VEC> bottom(extrMinValue.size());
+        for (std::size_t i{}; i < extrMaxValue.size(); ++i) {
+            top[i] = VEC(x[extrMaxIndex[i]], extrMaxValue[i]);
+        }
+        for (std::size_t i{}; i < extrMinValue.size(); ++i) {
+            bottom[i] = VEC(x[extrMinIndex[i]], extrMinValue[i]);
+        }
+        return out_t{ top, bottom };
+    }
+
+    /**
     * \brief given collection of points, estimate main principle axis
     * @param {forward_iterator, in}  iterator to first point in collection
     * @param {forward_iterator, in}  iterator to last point in collection
