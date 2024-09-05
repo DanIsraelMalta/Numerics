@@ -963,13 +963,13 @@ void test_glsl_solvers() {
                         -165.895209, 70.906839,  0.0,
                         -27.328842,  31.566433, -23.015097);
 
-        auto rot = Decomposition::QR_GivensRotation(a);
+        auto rot = Decomposition::QR(a);
         Utilities::static_for<0, 1, 3>([&rot, &QExpected, &RExpected](std::size_t i) {
             assert(std::abs(GLSL::length(rot.Q[i]) - GLSL::length(QExpected[i])) < 1e-2);
             assert(std::abs(GLSL::length(rot.R[i]) - GLSL::length(RExpected[i])) < 1e-6);
         });
 
-        auto gs = Decomposition::QR_GramSchmidt(a);
+        auto gs = Decomposition::QR<Decomposition::QR_DEOMPOSITION_TYPE::SchwarzRutishauser>(a);
         Utilities::static_for<0, 1, 3>([&gs, &QExpected, &RExpected](std::size_t i) {
             assert(std::abs(GLSL::length(gs.Q[i]) - GLSL::length(QExpected[i])) < 1e-2);
             assert(std::abs(GLSL::length(gs.R[i]) - GLSL::length(RExpected[i])) < 1e-6);
