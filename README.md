@@ -1,4 +1,3 @@
-
 # Welcome to Numerics
 "Numerics" is a modern c++ (requires c++23) collection of numerical algorithms, structures and operations with particular focus on linear algebra and computational geometry.
 
@@ -185,6 +184,30 @@ grid.clear();
 // k-mean might be faster...
 clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
+
+It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
+As an example, here is a graphic representation of the calculated top/bottom envelope of a sine signal:
+```cpp
+std::vector<vec2> points;
+for (std::size_t i{}; i < 200; ++i) {
+    float fi{ static_cast<float>(i) };
+    points.emplace_back(vec2(fi, 10.0f + 180.0f * std::abs(std::sin(fi))));
+}
+
+const auto envelope = Algorithms2D::get_points_envelope(points.begin(), points.end());
+
+svg<vec2> envelope_test_svg(200, 200);
+for (const vec2 p : points) {
+    envelope_test_svg.add_circle(p, 2.0f, "none", "black", 0.5f);
+}
+envelope_test_svg.add_polyline(envelope.top.begin(), envelope.top.end(), "none", "red", 1.0f);
+envelope_test_svg.add_polyline(envelope.bottom.begin(), envelope.bottom.end(), "none", "green", 1.0f);
+envelope_test_svg.to_file("envelope_test_svg.svg");
+```
+and here is the outcome (signal top envelope in green, signal bottom envelope in red):
+
+![envelope_test_svg](https://github.com/user-attachments/assets/928004c9-6d36-4c52-b177-f0629d140632)
+
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
