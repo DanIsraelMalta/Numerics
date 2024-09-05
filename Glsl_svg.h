@@ -96,6 +96,24 @@ class svg {
         }
 
         /**
+        * \brief add ellipse
+        * @param {VEC,        in} ellipse center
+        * @param {VEC,        in} circle radius
+        * @param {string,     in} fill color
+        * @param {string,     in} border color
+        * @param {value_type, in} border width
+        **/
+        constexpr void add_ellipse(const VEC center, const VEC radius, const std::string fill_color, const std::string border_color, const T width) {
+            this->xo_svg += elementStart("ellipse");
+            this->xo_svg += attribute("cx", std::to_string(center.x));
+            this->xo_svg += attribute("cy", std::to_string(center.y));
+            this->xo_svg += attribute("rx", std::to_string(radius.x));
+            this->xo_svg += attribute("ry", std::to_string(radius.y));
+            this->xo_svg += style(fill_color, border_color, std::to_string(width));
+            this->xo_svg += "/>\n";
+        }
+
+        /**
         * \brief add rectangle
         * @param {VEC,        in} rectangle min corner
         * @param {VEC,        in} rectangle extent (width, height)
