@@ -716,9 +716,9 @@ namespace Solvers {
     /**
     * \brief solve linear system A*x=b using Cholesky decomposition. 'A' must be positive definite.
     *
-    * @param {IFixedCubicMatrix, in}  A (CUBIC and positive definite)
-    * @param {IFixedVector,      in}  b (column vector)
-    * @param {IFixedVector,      out} x (column vector)
+    * @param {IFixedCubicMatrix, in}  A
+    * @param {IFixedVector,      in}  b
+    * @param {IFixedVector,      out} x
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
@@ -762,9 +762,9 @@ namespace Solvers {
     *        > pseudo-inverse - to avoid increasing the output matrix condition number (happens when multiplying the matrix by its transpose),
     *        > SVD - high running time complexity.
     *
-    * @param {IFixedCubicMatrix, in}  A (ROWxCOL, ROW >= COL)
-    * @param {IFixedVector,      in}  B (column vector, ROWx1)
-    * @param {IFixedVector,      out} X (column vector, COL, 1)
+    * @param {IFixedCubicMatrix, in}  A
+    * @param {IFixedVector,      in}  B
+    * @param {IFixedVector,      out} X
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
