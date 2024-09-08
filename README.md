@@ -255,7 +255,7 @@ As an example, here is a graphic representation of the calculated top/bottom env
 and here is the outcome (left image shows the signal as black circles, signal top envelope in green, signal bottom envelope in red; right image shows the polygon in black, convex hull in green, convex hull points in green circles, minimal bounding circle in blue and minimal area bounding rectangle in red):
 
 ![envelope_test_svg](https://github.com/user-attachments/assets/928004c9-6d36-4c52-b177-f0629d140632)
-
+![image](https://github.com/user-attachments/assets/d3bed116-1f70-4dda-af5f-541473c032f3)
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
