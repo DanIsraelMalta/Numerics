@@ -1085,6 +1085,16 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eign.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
+
+	auto eign4 = Decomposition::Schur(dmat4(12.0, 16.0,  38.0, 92.0,
+                                        	13.0, 15.0,  75.0, 32.0,
+                                        	14.0, 14.0, -15.0, 27.0,
+                                        	15.0, 13.0,   5.0, 5.0));
+	assert(Extra::is_orthonormal_matrix(eign4.eigenvectors));
+	assert(static_cast<std::int32_t>(std::abs(eign4.schur(0, 0))) == 77);
+	assert(static_cast<std::int32_t>(std::abs(eign4.schur(1, 1))) == 39);
+	assert(static_cast<std::int32_t>(std::abs(eign4.schur(2, 2))) == 22);
+	assert(static_cast<std::int32_t>(std::abs(eign4.schur(3, 3))) == 1);
     }
 
     {
