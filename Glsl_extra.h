@@ -168,7 +168,9 @@ namespace Extra {
         requires(MAT::columns() == 3)
     constexpr bool is_orthonormal_matrix(const MAT& mat) noexcept {
         Utilities::static_for<0, 1, MAT::columns() - 1>([&mat](std::size_t i) {
-            if (!Extra::is_normalized(GLSL::cross(mat[i], mat[i + 1]))) {
+            if (!Extra::is_normalized(mat[i]) ||
+                !Extra::is_normalized(mat[i + 1]) ||
+                !Numerics::areEquals(T{}, GLSL::dot(GLSL::normalize(mat[i]), GLSL::normalize(mat[i + 1])))) {
                 return false;
             }
         });
