@@ -548,6 +548,53 @@ namespace Numerics {
     }
 
     /**
+    * \brief given collection of values, partition them into predetermined mount of bins and return the bin counts and bin edges.
+    * @param {forward_iterator,                                     in}  iterator to first element to sum
+    * @param {forward_iterator,                                     in}  iterator to last element to sum
+    * @param {size_t,                                               in}  number of bins (a good initial choise can be ceil(sqrt(amount of values in input)) )
+    * @param {{vector<size_t>, vector<arithmetic>, vector<size_t>}, out} {bin counts,
+    *                                                                     bin edges - first element is the leading edge of the first bin. The last element is the trailing edge of the last bin,
+    *                                                                     index array where 'i' cell holds the index of 'bin edges' in which *(first + i) value is catagroized }
+    **/
+    template<std::forward_iterator InputIt, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(std::is_arithmetic_v<T>)
+    constexpr auto histcounts(InputIt first, const InputIt last, const std::size_t nbins) {
+        using out_t = struct { std::vector<std::size_t> N; std::vector<T> edges; std::vector<std::size_t> bin; };
+
+        // housekeeping
+        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+        std::vector<T> edges(nbins + 1, T{});
+        std::vector<std::size_t> N(nbins);
+        std::vector<std::size_t> bins(len);
+
+        // define bin edges
+        T maxvalue{ *first };
+        for (InputIt f{ first }; f != last; ++f) {
+            maxvalue = Numerics::max(*f, maxvalue);
+        }
+        const T binWidth{ (maxvalue + static_cast<T>(1)) / static_cast<T>(nbins) };
+        for (std::size_t i{1}; i < nbins + 1; ++i) {
+            edges[i] = edges[i - 1] + binWidth;
+        }
+
+        // discretize values into bins
+        std::size_t i{};
+        for (InputIt f{ first }; f != last; ++f) {
+            const std::size_t bin{ static_cast<std::size_t>(std::floor(*f /binWidth)) };
+            ++N[bin];
+            bins[i] = bin;
+            ++i;
+        }
+        
+        // output
+        return out_t{ N, edges, bins };
+    }
+    template<Concepts::Iterable COL>
+    constexpr auto histcounts(const COL& collection, const std::size_t nbins) {
+        return histcounts(collection.begin(), collection.end(), nbins);
+    }
+
+    /**
     * \brief Apply a kernal, in ordererd manner, on variadic amount of random access arithmetic ranges and return the result in a diffrent range.
     *        Although operation will be element wise, kernel should be given in scalar manner.
     * 
