@@ -165,7 +165,6 @@ namespace Extra {
     * @param {bool,              out} true if matrix is orthonormal
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-        requires(MAT::columns() == 3)
     constexpr bool is_orthonormal_matrix(const MAT& mat) noexcept {
         Utilities::static_for<0, 1, MAT::columns() - 1>([&mat](std::size_t i) {
             if (!Extra::is_normalized(mat[i]) ||
