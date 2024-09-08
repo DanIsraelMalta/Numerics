@@ -170,6 +170,18 @@ void test_numerics() {
     const std::array<double, 4> tempArray{ 1.0, std::pow(10.0, 100), 0.01, -std::pow(10.0, 100) };
     assert(static_cast<std::int32_t>(Numerics::accumulate(tempArray) * 100) == 101);
 
+    // test histcounts
+    const std::array<double, 10> x{ {2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 29.0} };
+    const auto hists = Numerics::histcounts(x, 6);
+    const std::array<std::size_t, 6> Nexpected{ {2,2,2,2,1,1} };
+    const std::array<std::size_t, 10> binExpected{ {0,0,1,1,2,2,3,3,4,5} };
+    for (std::size_t i{}; i < 6; ++i) {
+        assert(hists.N[i] == Nexpected[i]);
+    }
+    for (std::size_t i{}; i < 10; ++i) {
+        assert(hists.bin[i] == binExpected[i]);
+    }
+
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
