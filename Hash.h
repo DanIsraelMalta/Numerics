@@ -25,6 +25,8 @@
 #pragma once
 #include <type_traits>
 #include <limits> // std::numeric_limits
+#include <cmath> // std::pow
+
 /**
 * Hashing and pairing functions
 **/
