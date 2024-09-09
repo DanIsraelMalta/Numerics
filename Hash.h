@@ -68,7 +68,7 @@ namespace Hash {
     }
 
     /**
-    * \brief hash integral 2D/3D coordinate into 1D integral value.
+    * \brief hash integral 2D/3D coordinate into 1D integral value, where grid size is determined at compile time.
     *        based upon: “VDB: High-Resolution Sparse Volumes with Dynamic Topology”, p. 27:9)
     *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
     * @param {integral}      hash table size. 20 by deault.
@@ -92,7 +92,35 @@ namespace Hash {
         requires(std::is_integral_v<T> &&
                  (N > 0 && N < std::numeric_limits<T>::digits - 1))
     constexpr auto hash_coordinate_to_integral(T x, T y) {
-        return hash_coordinate_to_integral(x, y, x ^ y);
+        return hash_coordinate_to_integral<N>(x, y, x ^ y);
+    }
+
+    /**
+    * \brief hash 2D/3D coordinate into 1D integral value, where grid size is determined at run time.
+    *        based upon: “VDB: High-Resolution Sparse Volumes with Dynamic Topology”, p. 27:9)
+    *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
+    * @param {integral, in}  hash table size. 20 by deault.
+    *                        N = 20 -> 2^20 = 1,048,576 ~= 100x100x100 grid size
+    *                        N = 24 -> 2^24 = 16,777,216 = 256*256*256 grid size
+    * @param {integral, in}  x coordinate
+    * @param {integral, in}  y coordinate
+    * @param {integral, in}  z coordinate (optional)
+    * @param {integral, out} hash value
+    **/
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T hash_coordinate_to_integral(std::size_t N, T x, T y, T z) {
+        constexpr T A{ 73856093 };
+        constexpr T B{ 19349663 };
+        constexpr T C{ 83492791 };
+        assert(N > 0 && N < std::numeric_limits<T>::digits - 1);
+        return ((1 << N) - 1) & (x * A ^ y * B ^ z * C);
+    }
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T hash_coordinate_to_integral(std::size_t N, T x, T y) {
+        assert(N > 0 && N < std::numeric_limits<T>::digits - 1);
+        return hash_coordinate_to_integral(N, x, y, x ^ y);
     }
 
     /**
