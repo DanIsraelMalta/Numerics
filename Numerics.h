@@ -548,6 +548,33 @@ namespace Numerics {
     }
 
     /**
+    * \brief return the mean and standard deviation of a collection of arithmetic values.
+    * @param {forward_iterator,         in}  iterator to first value
+    * @param {forward_iterator,         in}  iterator to last value
+    * @param {{arithmetic, arithmetic}, out} {mean, standard devialtion}
+    **/
+    template<std::forward_iterator InputIt, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(std::is_arithmetic_v<T>)
+    constexpr auto mean_and_std(InputIt first, const InputIt last) {
+        using out_t = struct { T mean; T std; };
+        T mean{};
+        T std{};
+        T count{};
+        for (InputIt it{ first }; it != last; ++it) {
+            ++count;
+            const T delta{ *it - mean };
+            mean += delta / count;
+            const T delta2{ *it - mean };
+            std += delta * delta2;
+        }
+        return out_t{ mean, std / count };
+    }
+    template<Concepts::Iterable COL>
+    constexpr auto mean_and_std(const COL& collection) {
+        return mean_and_std(collection.begin(), collection.end());
+    }
+
+    /**
     * \brief given collection of values, partition them into predetermined mount of bins and return the bin counts and bin edges.
     * @param {forward_iterator,                                     in}  iterator to first element to sum
     * @param {forward_iterator,                                     in}  iterator to last element to sum
