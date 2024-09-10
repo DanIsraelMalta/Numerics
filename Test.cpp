@@ -825,6 +825,15 @@ void test_glsl_extra() {
         assert(std::abs(GLSL::sum(b[2]) - 1) < 1e-6);
         assert(std::abs(GLSL::max(b[3] + a)) < 1e-6);
     }
+
+    {
+        vec3 world(3.0f, 2.0f, 4.0f);
+        for (std::size_t i{1}; i < GLSL::prod(world); ++i) {
+            const vec3 pos{ Extra::index_to_vector(i, world) };
+            const std::size_t index{ Extra::vector_to_index(pos, world) };
+            assert(index == i);
+        }
+    }
 }
 
 void test_glsl_transformation() {
