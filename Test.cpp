@@ -182,6 +182,11 @@ void test_numerics() {
         assert(hists.bin[i] == binExpected[i]);
     }
 
+    // test mean and std
+    const auto stats = Numerics::mean_and_std(x);
+    assert(static_cast<std::size_t>(stats.mean * 10) == 129);
+    assert(static_cast<std::size_t>(stats.std * 100) == 7329);
+
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
