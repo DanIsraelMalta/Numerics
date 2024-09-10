@@ -83,7 +83,7 @@ namespace Extra {
     /**
     * \brief given a vector - return its companion matrix
     * @param {IFixedVector,      in}     vector 
-    * @param {IFixedCubicMatrix, in|out} vectorc ompanion matrix
+    * @param {IFixedCubicMatrix, in|out} vector companion matrix
     **/
     template<GLSL::IFixedCubicMatrix MAT, class VEC = MAT::vector_type>
     constexpr void make_companion(MAT& mat, const VEC& vec) noexcept {
@@ -145,7 +145,7 @@ namespace Extra {
 
     /**
     * \brief tests if a given matrix is symmetric
-    * @param {IFixedCubicMatrix, in}  matrix which will be testd for symmetry
+    * @param {IFixedCubicMatrix, in}  matrix which will be tested for symmetry
     * @param {bool,              out} true if matrix is symmetrical
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
@@ -408,6 +408,51 @@ namespace Extra {
     }
 
     /**
+    * \brief given an N-dimensional vector as coordinate in discretized world, world dimensions and cell size in world,
+    *        return the index of that coordinate in a flatten vector which stores the world in row-major style.
+    *        see 'index_to_vector' for the apposite operation.
+    * @param {IFixedVector, in}  position in N dimensional space
+    * @param {IFixedVector, in}  size of world along each coordinate (amount of cells along each coordinate)
+    * @param {value_type,   in}  cell size in N dimensional space (1 by default)
+    * @param {size_t,       out} index of position in a flatten world stored in row major style.
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr std::size_t vector_to_index(const VEC& position, const VEC& world, const T cellSize = static_cast<T>(1)) {
+        std::size_t index{};
+        std::size_t mul{ 1 };
+        Utilities::static_for<0, 1, VEC::length()>([&position, &world, &index, &mul, cellSize](std::size_t i) {
+            index += static_cast<std::size_t>(position[i] / cellSize) * mul;
+            mul *= static_cast<std::size_t>(world[i]);
+        });
+        assert(index < GLSL::prod(world));
+        return index;
+    }
+
+    /**
+    * \brief given an index in N-dimensional vector flatten in row-major style, return its world coordinate.
+    *        see 'vector_to_index' for the apposite operation.
+    * @param {size_t,       in}  index of position in a flatten world stored in row major style.
+    * @param {IFixedVector, in}  size of world along each coordinate (amount of cells along each coordinate)
+    * @param {value_type,   in}  cell size in N dimensional space (1 by default)
+    * @param {IFixedVector, out} position in N dimensional space
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr VEC index_to_vector(std::size_t index, const VEC& world) {
+        assert(index < GLSL::prod(world));
+        VEC position;
+        VEC res;
+        std::size_t mul{ static_cast<std::size_t>(GLSL::prod(world)) };
+        Utilities::static_for<1, 1, VEC::length() + 1>([&position, &world, &mul, &res, &index](std::size_t i) {
+            const std::size_t j{ VEC::length() - i };
+            mul /= static_cast<std::size_t>(world[j]);
+            res[j] = static_cast<T>(index / mul);
+            assert(res[j] < world[j]);
+            index -= static_cast<std::size_t>(res[j]) * mul;
+        });
+        return res;
+    }
+
+    /**
     * \brief given quaternion, return its rotation angle
     * @param {Vector4,    in}  quaternion
     * @param {value_type, out} quaternion angle
@@ -429,7 +474,7 @@ namespace Extra {
     constexpr GLSL::Vector3<T> get_quaternion_axis(const GLSL::Vector4<T>& quat) {
         assert(Extra::is_normalized(quat));
         const T num{ static_cast<T>(1) - quat.w * quat.w };
-        [[asseume(num > T{})]];
+        [[assume(num > T{})]];
         const T s{ std::sqrt(num) };
         if (Numerics::areEquals(s, T{})) [[unlikely]] {
             return quat.xyz;
