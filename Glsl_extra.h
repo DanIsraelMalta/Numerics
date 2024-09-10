@@ -408,6 +408,30 @@ namespace Extra {
     }
 
     /**
+    * \brief return the mean and standard deviation of a collection of vectors.
+    * @param {forward_iterator,         in}  iterator to first value
+    * @param {forward_iterator,         in}  iterator to last value
+    * @param {{arithmetic, arithmetic}, out} {mean, standard devialtion}
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>)
+    constexpr auto mean_and_std(InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+        using out_t = struct { VEC mean; VEC std; };
+        VEC mean{};
+        VEC std{};
+        T count{};
+        for (InputIt it{ first }; it != last; ++it) {
+            ++count;
+            const VEC delta{ *it - mean };
+            mean += delta / count;
+            const VEC delta2{ *it - mean };
+            std += delta * delta2;
+        }
+        return out_t{ mean, std / count };
+    }
+
+    /**
     * \brief given an N-dimensional vector as coordinate in discretized world, world dimensions and cell size in world,
     *        return the index of that coordinate in a flatten vector which stores the world in row-major style.
     *        see 'index_to_vector' for the apposite operation.
