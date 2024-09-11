@@ -398,6 +398,80 @@ namespace Decomposition {
     }
 
     /**
+    * \brief return a balanced form of a given matrix (matrix whose rows and columns normal are similar while eigenvalues are identical).
+    *        background:
+    *        > The sensitivity of eigenvalues to rounding errors dcan be reduced by the procedure of balancing.
+    *          Since errors in eigensystem found numerically are generally proportional to the
+    *          Euclidean norm of the matrix (the square root of the sum of the squares of the elements) - the
+    *          idea of balancing is to use similarity transformations to make corresponding rows and columns 
+    *          have comparable norms, thus reducing the overall norm of the matrix while leaving the eigenvalues unchanged.
+    *        > Notice that a symmetric matrix is already balanced.
+    *
+    * @param {IFixedCubicMatrix, in}  matrix to balance
+    * @param {IFixedCubicMatrix, out} balanced matrix.
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT balance_matrix(const MAT& mat) {
+        using VEC = typename MAT::vector_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        constexpr T radix{ std::numeric_limits<T>::radix };
+        constexpr T radix_squared{ radix * radix };
+        constexpr T norm_ratio{ static_cast<T>(0.95) };
+
+        MAT out(mat);
+        bool calculating{ true };
+        while (calculating) {
+            calculating = true;
+            
+            for (std::size_t i{}; i < N; ++i) {
+                // calculate row and column norms
+                T r{};
+                T c{};
+                for (std::size_t j{}; j < N; ++j) {
+                    c += std::abs(out(j, i));
+                    r += std::abs(out(i, j));
+                }
+                c -= std::abs(out(i, i));
+                r -= std::abs(out(i, i));
+
+                // if any norm is zero, skip clanacing
+                if (Numerics::areEquals(c, T{}) || Numerics::areEquals(r, T{})) {
+                    continue;
+                }
+
+                // find integer power of machine radix that is closest to bakancing the matrix
+                T g{ r / radix };
+                T f{ static_cast<T>(1) };
+                const T s{ c + r };
+                while (c < g) {
+                    f *= radix;
+                    c *= radix_squared;
+                }
+
+                g = r * radix;
+                while (c > g) {
+                    f /= radix;
+                    c /= radix;
+                }
+
+                // perform similarity transformation
+                [[assume(f > T{})]];
+                if ((c + r) / f < norm_ratio * s) {
+                    calculating = false;
+                    g = static_cast<T>(1) / f;
+                    for (std::size_t j{}; j < N; ++j) {
+                        out(i, j) *= g;
+                        out(j, i) *= f;
+                    }
+                }
+            }
+        }
+
+        return out;
+    }
+
+    /**
     * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
     *        user supplies two stoppage criteria's:
     *        1. maximal amount of iterations (10 by default)
