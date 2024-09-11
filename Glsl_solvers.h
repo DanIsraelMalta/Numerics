@@ -422,7 +422,7 @@ namespace Decomposition {
         MAT out(mat);
         bool calculating{ true };
         while (calculating) {
-            calculating = true;
+            calculating = false;
             
             for (std::size_t i{}; i < N; ++i) {
                 // calculate row and column norms
@@ -458,7 +458,7 @@ namespace Decomposition {
                 // perform similarity transformation
                 [[assume(f > T{})]];
                 if ((c + r) / f < norm_ratio * s) {
-                    calculating = false;
+                    calculating = true;
                     g = static_cast<T>(1) / f;
                     for (std::size_t j{}; j < N; ++j) {
                         out(i, j) *= g;
