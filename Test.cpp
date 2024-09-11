@@ -1015,6 +1015,21 @@ void test_glsl_solvers() {
     }
 
     {
+        // chack that balancing a matrix allows faster eigenvalue decomposition
+        mat4 df(12.0f, 16.0f, 38.0f, 92.0f,
+                13.0f, 15.0f, 75.0f, 32.0f,
+                14.0f, 14.0f, -15.0f, 27.0f,
+                15.0f, 13.0f, 5.0f, 5.0f);
+        const mat4 balanced_df = Decomposition::balance_matrix(df);       
+        const auto shur_balanced_df = Decomposition::Schur(balanced_df, 3);
+        assert(Extra::is_orthonormal_matrix(shur_balanced_df.eigenvectors));
+        assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(0, 0))) == 76);
+        assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(1, 1))) == 21);
+        assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(2, 2))) == 38);
+        assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(3, 3))) == 1);
+    }
+        
+    {
         dvec3 b(70.0, 12.0, 50.0);
         auto solution = Solvers::SolveLU(a, b);
 
