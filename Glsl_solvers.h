@@ -501,39 +501,6 @@ namespace Decomposition {
     }
 
     /**
-    * \brief given a polynomial, return its roots using QR decomposition
-    * @param {array<arithmetic>, in}  polynomial coefficients given as: a[0] + a[1]*x + a[2]*x^2 + a[3]*x^3 + ... + a[n]*x^n
-    * @param {array<arithmetic>, out} polynomial roots
-    **/
-    template<typename T, std::size_t N>
-    constexpr std::array<T, N> calculate_polynomial_roots_using_qr(const std::array<T, N>& coefficients) {
-        using mat_t = GLSL::MatrixN<T, N>;
-
-        // construct polynomial upper Hessenberg matrix
-        mat_t H;
-        for (std::size_t k{}; k < N; ++k) {
-            H(0, k) = -coefficients[N - k - 1] / coefficients[N - 1];
-            for (std::size_t j{ 2 }; j < N; ++j) {
-                H(j, k) = T{};
-            }
-            if (k != N - 1) {
-                H(k + 1, k) = static_cast<T>(1);
-            }
-        }
-
-        // balance H and extract its eigenvalues using QR decomposition
-        const mat_t B{ Decomposition::balance_matrix(H) };
-        const auto qr = Decomposition::QR(B);
-
-        // output
-        std::array<T, N> out;
-        Utilities::static_for<0, 1, N>([&out, &qr](std::size_t i) {
-            out[i] = qr.R(i, i);
-        });
-        return out;
-    }
-
-    /**
     * \brief calculate the eigenvalues and eigenvectors of cubic 3x3 symmetric matrix.
     *        notice that this calculation is correct only in cases where the eigenvalues are real and "well separated".
     * @param {IFixedCubicMatrix,                 in}  matrix
