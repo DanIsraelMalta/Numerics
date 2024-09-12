@@ -210,64 +210,6 @@ namespace Decomposition {
     }
 
     /**
-    * \brief perform LU decomposition using using Doolittle algorithm.
-    *        i.e. - given matrix decompose it to L*P*U, where L is lower triangular with unit diagonal,
-    *               U is an upper triangular and P is a diagonal pivot matrix (given as a vector holding its diagonal)
-    *        this implementation is geared towards easy usage in linear system solutions.
-    * @param {IFixedCubicMatrix,                   in}  matrix to decompose
-    * @param {{IFixedCubicMatrix, array, int32_t}, out} {LU matrix (decomposed matrix; upper triangular is U, lower triangular is L, diagonal is part of U), decomposition pivot vector, pivot sign}
-    **/
-    template<GLSL::IFixedCubicMatrix MAT>
-    constexpr auto LU(const MAT& mat) {
-        constexpr std::size_t N{ MAT::columns() };
-        using T = typename MAT::value_type;
-        using VEC = typename MAT::vector_type;
-        using out_t = struct { MAT LU; VEC Pivot; std::int32_t Sign; bool Degenerate; };
-
-        // housekeeping
-        constexpr T tol{ static_cast<T>(10) * Numerics::equality_precision<T>() };
-        MAT LU(mat);
-        VEC Pivot;
-        Utilities::static_for<0, 1, N>([&Pivot](std::size_t i) {
-            Pivot[i] = static_cast<T>(i);
-        });
-        std::int32_t Sign{ 1 };
-
-        for (std::size_t c{}; c < N; ++c) {
-            // find pivot
-            std::size_t _pivot{ c };
-            for (std::size_t r{ c + 1 }; r < N; ++r) {
-                if (std::abs(LU(c, r)) > std::abs(LU(c, _pivot))) {
-                    _pivot = r;
-                }
-            }
-
-            // exchange pivot
-            if (_pivot != c) {
-                for (std::size_t cc{}; cc < N; ++cc) {
-                    Utilities::swap(LU(cc, _pivot), LU(cc, c));
-                }
-                Utilities::swap(Pivot[_pivot], Pivot[c]);
-                Sign = -Sign;
-            }
-
-            // calculate multipliers and eliminate c-th column.
-            if (!Numerics::areEquals(LU(c, c), T{})) {
-                [[assume(LU(c, c) != T{})]];
-                for (std::size_t r{ c + 1 }; r < N; ++r) {
-                    LU(c, r) /= LU(c, c);
-
-                    for (std::size_t cc{ c + 1 }; cc < N; ++cc) {
-                        LU(cc, r) -= LU(c, r) * LU(cc, c);
-                    }
-                }
-            }
-        }
-
-        return out_t{ LU, Pivot, Sign };
-    }
-
-    /**
     * \brief using Schur decomposition - return eigenvector and eigenvalues of given matrix.
     * @param {IFixedCubicMatrix,                     in}  matrix to decompose
     * @param {size_t,                                in}  maximal number of iterations (default is 10)
@@ -276,7 +218,7 @@ namespace Decomposition {
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
-        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using qr_t = decltype(Decomposition::QR(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { MAT eigenvectors; MAT schur; };
         constexpr std::size_t N{ MAT::columns() };
@@ -290,7 +232,7 @@ namespace Decomposition {
         while ((i < iter) && (err > tol)) {
             const VEC eigenvalues0{ GLSL::trace(A) };
 
-            QR = Decomposition::QR_GivensRotation(A);
+            QR = Decomposition::QR(A);
             A = QR.R * QR.Q;
             Q *= QR.Q;
 
@@ -300,10 +242,10 @@ namespace Decomposition {
 
         return out_t{ Q, A };
     }
-
+    
     template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
     constexpr auto Schur(const MAT& mat) {
-        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using qr_t = decltype(Decomposition::QR(mat));
         using out_t = struct { MAT eigenvectors; MAT schur; };
 
         MAT A(mat);
@@ -311,7 +253,7 @@ namespace Decomposition {
         Extra::make_identity(Q);
         qr_t QR;
         Utilities::static_for<0, 1, N>([&A, &Q, &QR](std::size_t i) {
-            QR = Decomposition::QR_GivensRotation(A);
+            QR = Decomposition::QR(A);
             A = QR.R * QR.Q;
             Q *= QR.Q;
         });
@@ -328,7 +270,7 @@ namespace Decomposition {
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr auto SVD(const MAT& mat, const std::size_t iter = 15, const T tol = static_cast<T>(1e-5)) {
-        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using qr_t = decltype(Decomposition::QR(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { VEC S; MAT U; MAT V; };
 
@@ -342,8 +284,8 @@ namespace Decomposition {
 
         // lambda for one iteration in SVD calculation
         const auto iterative_step = [&qr1, &qr2, &U, &V](const MAT& m) {
-            qr1 = Decomposition::QR_GivensRotation(m);
-            qr2 = Decomposition::QR_GivensRotation(GLSL::transpose(qr1.R));
+            qr1 = Decomposition::QR(m);
+            qr2 = Decomposition::QR(GLSL::transpose(qr1.R));
             qr1.R = GLSL::transpose(qr2.R);
             V *= qr1.Q;
             U *= qr2.Q;
@@ -367,7 +309,7 @@ namespace Decomposition {
 
     template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
     constexpr auto SVD(const MAT& mat) {
-        using qr_t = decltype(Decomposition::QR_GivensRotation(mat));
+        using qr_t = decltype(Decomposition::QR(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { VEC S; MAT U; MAT V; };
 
@@ -381,8 +323,8 @@ namespace Decomposition {
 
         // lambda for one iteration in SVD calculation
         const auto iterative_step = [&qr1, &qr2, &U, &V](const MAT& m) {
-            qr1 = Decomposition::QR_GivensRotation(m);
-            qr2 = Decomposition::QR_GivensRotation(GLSL::transpose(qr1.R));
+            qr1 = Decomposition::QR(m);
+            qr2 = Decomposition::QR(GLSL::transpose(qr1.R));
             qr1.R = GLSL::transpose(qr2.R);
             V *= qr1.Q;
             U *= qr2.Q;
@@ -539,26 +481,6 @@ namespace Decomposition {
     }
 
     /**
-    * \brief calculate matrix determinant using LU decomposition
-    * @param {MAT,        in}  matrix
-    * @param {value_type, out} matrix determinant
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr T determinant_using_lu(const MAT& mat) {
-        // LU decomposition
-        auto lowerUpper = Decomposition::LU(mat);
-        T det{ static_cast<T>(lowerUpper.Sign) };
-
-        // determinant calculation
-        Utilities::static_for<0, 1, MAT::columns()>([&det, &lowerUpper](std::size_t i) {
-            det *= lowerUpper.LU(i, i);
-        });
-
-        // output
-        return det;
-    }
-
-    /**
     * \brief calculate matrix determinant using QR decomposition
     * @param {MAT,        in}  matrix
     * @param {value_type, out} matrix determinant
@@ -566,7 +488,7 @@ namespace Decomposition {
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr T determinant_using_qr(const MAT& mat) {
         // QR decomposition
-        auto qr = Decomposition::QR_GivensRotation(mat);
+        auto qr = Decomposition::QR(mat);
         T det{ static_cast<T>(1) };
 
         // determinant calculation
@@ -579,119 +501,36 @@ namespace Decomposition {
     }
 
     /**
-    * \brief invert a matrix using LU decomposition
-    * @param {MAT, in}  matrix
-    * @param {MAT, out} matrix inverse
+    * \brief given a polynomial, return its roots using QR decomposition
+    * @param {array<arithmetic>, in}  polynomial coefficients given as: a[0] + a[1]*x + a[2]*x^2 + a[3]*x^3 + ... + a[n]*x^n
+    * @param {array<arithmetic>, out} polynomial roots
     **/
-    template<GLSL::IFixedCubicMatrix MAT>
-    constexpr MAT inverse_using_lu(const MAT& mat) {
-        using T = typename MAT::value_type;
-        using VEC = typename MAT::vector_type;
-        constexpr std::size_t N{ MAT::columns() };
+    template<typename T, std::size_t N>
+    constexpr std::array<T, N> calculate_polynomial_roots_using_qr(const std::array<T, N>& coefficients) {
+        using mat_t = GLSL::MatrixN<T, N>;
 
-        // LU decomposition
-        auto lowerUpper = Decomposition::LU(mat);
-
-        // inverted matrix
-        MAT out;
-        for (std::size_t j{}; j < N; ++j) {
-            // columns
-            for (std::size_t i{}; i < N; ++i) {
-                out(j, i) = (static_cast<std::size_t>(lowerUpper.Pivot[i]) == j) ? static_cast<T>(1) : T{};
-
-                for (std::size_t k{}; k < i; ++k) {
-                    out(j, i) -= lowerUpper.LU(k, i) * out(j, k);
-                }
+        // construct polynomial upper Hessenberg matrix
+        mat_t H;
+        for (std::size_t k{}; k < N; ++k) {
+            H(0, k) = -coefficients[N - k - 1] / coefficients[N - 1];
+            for (std::size_t j{ 2 }; j < N; ++j) {
+                H(j, k) = T{};
             }
-
-            // rows
-            for (std::int32_t i{ N - 1 }; i >= 0; i--) {
-                for (std::int32_t k{ i + 1 }; k < N; ++k) {
-                    out(j, i) -= lowerUpper.LU(k, i) * out(j, k);
-                }
-
-                assert(!Numerics::areEquals(lowerUpper.LU(i, i), T{}));
-                out(j, i) /= lowerUpper.LU(i, i);
+            if (k != N - 1) {
+                H(k + 1, k) = static_cast<T>(1);
             }
         }
+
+        // balance H and extract its eigenvalues using QR decomposition
+        const mat_t B{ Decomposition::balance_matrix(H) };
+        const auto qr = Decomposition::QR(B);
 
         // output
+        std::array<T, N> out;
+        Utilities::static_for<0, 1, N>([&out, &qr](std::size_t i) {
+            out[i] = qr.R(i, i);
+        });
         return out;
-    }
-
-    /**
-    * \brief given non singular matrix, return the rotation matrix of its polar decomposition.
-    *        in general, polar decomposition decompose a matrix to R*P where:
-    *        > R is an orthogonal unitary matrix representing rotation.
-    *        > P is a positive semi definite symmetric matrix represents deformation/scaling.
-    *          (P might have negative sign for small magnitude singular values)
-    *        here, we only return R. P can be calculated by the user (MAT * Rinv)
-    * @param {IFixedCubicMatrix, in}  matrix to decompose
-    * @param {size_t,            in}  maximal number of iterations (default is 10)
-    * @param {value_type,        in}  minimal rotation matrix squared Frobenius norm for calculation to halt.
-    *                                 since orthogonal matrix Frobenius norm is 1, the tolerance should be larger than 1.
-    *                                 default is 1.1 - meaning operation will stop when squared Frobenius norm will be smaller than 1.1.
-    * @param {IFixedCubicMatrix, out} rotation matrix of polar decomposition
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr MAT PD_rotation(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1.1)) {
-        if constexpr (MAT::columns() == 2) {
-            const T x0{ mat(0, 0) + mat(1, 1) };
-            const T x1{ mat(0, 1) - mat(1, 0) };
-            const T square{ x0 * x0 + x1 * x1 };
-            [[assume(square >= T{})]]
-            const T den{ std::sqrt(square) };
-            assert(den > T{});
-            const T c{  x0 / den };
-            const T s{ -x1 / den };
-
-            return MAT( c, s,
-                       -s, c);
-        }
-        else {
-            MAT R(mat);
-            std::size_t i{};
-            T frobSquared{ std::numeric_limits<T>::max() };
-            while ((i < iter) && (frobSquared > tol)) {
-                const MAT Rinv(GLSL::transpose(Decomposition::inverse_using_lu(R)));
-                R = (R + Rinv) / static_cast<T>(2);
-
-                Utilities::static_for<0, 1, MAT::columns()>([&R, &frobSquared](std::size_t i) {
-                    frobSquared += dot(R[i]);
-                });
-
-                ++i;
-            }
-
-            // output
-            return R;
-        }
-    }
-    template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
-    constexpr MAT PD_rotation(const MAT& mat) {
-        using T = typename MAT::value_type;
-
-        if constexpr (MAT::columns() == 2) {
-            const T x0{ mat(0, 0) + mat(1, 1) };
-            const T x1{ mat(0, 1) - mat(1, 0) };
-            const T den{ std::sqrt(x0 * x0 + x1 * x1) };
-            assert(den > T{});
-            const T c{ x0 / den };
-            const T s{ -x1 / den };
-
-            return MAT( c, s,
-                       -s, c);
-        }
-        else {
-            MAT R(mat);
-            Utilities::static_for<0, 1, N>([&R](std::size_t i) {
-                const MAT Rinv(GLSL::transpose(Decomposition::inverse_using_lu(R)));
-                R = (R + Rinv) / static_cast<T>(2);
-            });
-
-            // output
-            return R;
-        }
     }
 
     /**
@@ -745,42 +584,35 @@ namespace Decomposition {
 namespace Solvers {
 
     /**
-    * \brief solve linear system A*x=b using LU decomposition
+    * \brief solve linear system A*x=b using QR decomposition.
+    *        Notice that QR decomposition is used and not:
+    *        > pseudo-inverse - to avoid increasing the output matrix condition number (happens when multiplying the matrix by its transpose),
+    *        > SVD - high running time complexity.
     *
     * @param {IFixedCubicMatrix, in}  A
-    * @param {IFixedVector,      in}  b
-    * @param {IFixedVector,      out} x
+    * @param {IFixedVector,      in}  B
+    * @param {IFixedVector,      out} X
     **/
     template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
         requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
-    constexpr VEC SolveLU(const MAT& mat, const VEC& b) {
+    constexpr VEC SolveQR(const MAT& A, const VEC& b) {
         using T = typename MAT::value_type;
+        using qr_t = decltype(Decomposition::QR(A));
         constexpr std::size_t N{ MAT::columns() };
 
-        // LU decomposition
-        auto lowerUpper = Decomposition::LU(mat);
+        // QR decomposition
+        const qr_t qr{ Decomposition::QR(A) };
 
-        // x is the permuted copy of B as piv
-        VEC x;
-        Utilities::static_for<0, 1, N>([&x, &lowerUpper, &b](std::size_t i) {
-            x[i] = b[static_cast<std::size_t>(lowerUpper.Pivot[i])];
-        });
-
-        // Solve L*Y = b(pivoted)
-        for (std::size_t k{}; k < N; ++k) {
-            for (std::size_t i{ k + 1 }; i < N; ++i) {
-                x[i] -= x[k] * lowerUpper.LU(k, i);
+        // A * x = b -> {A = R * Q} -> R * x = b * Q'
+        VEC x(GLSL::transpose(qr.Q) * b);
+        for (std::int64_t i{ N - 1 }; i >= 0; --i) {
+            const std::size_t is{ static_cast<std::size_t>(i) };
+            T sum{ x[is] };
+            for (std::int64_t j{ i + 1 }; j <= N - 1; ++j) {
+                const std::size_t js{ static_cast<std::size_t>(j) };
+                sum -= qr.R(js, is) * x[js];
             }
-        }
-
-        // Solve U*X = Y
-        for (std::int64_t k{ N - 1 }; k >= 0; k--) {
-            assert(!Numerics::areEquals(lowerUpper.LU(k, k), T{}));
-            x[k] /= lowerUpper.LU(k, k);
-
-            for (std::size_t i{}; i < static_cast<std::size_t>(k); ++i) {
-                x[i] -= x[k] * lowerUpper.LU(k, i);
-            }
+            x[is] = sum / qr.R(is, is);
         }
 
         // output
@@ -788,7 +620,7 @@ namespace Solvers {
     }
 
     /**
-    * \brief solve linear system A*x=b using Cholesky decomposition. 'A' must be positive definite.
+    * \brief solve linear system A*x=b using Cholesky decomposition. 'A' must be symmetric positive definite.
     *
     * @param {IFixedCubicMatrix, in}  A
     * @param {IFixedVector,      in}  b
@@ -827,32 +659,5 @@ namespace Solvers {
 
         // output
         return x;
-    }
-
-    /**
-    * \brief solve linear system A*x=b (using internally both QR & LU decomposition)
-    *
-    *        Notice that QR decomposition is used and not:
-    *        > pseudo-inverse - to avoid increasing the output matrix condition number (happens when multiplying the matrix by its transpose),
-    *        > SVD - high running time complexity.
-    *
-    * @param {IFixedCubicMatrix, in}  A
-    * @param {IFixedVector,      in}  B
-    * @param {IFixedVector,      out} X
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, GLSL::IFixedVector VEC>
-        requires(std::is_same_v<typename MAT::value_type, typename VEC::value_type> && (MAT::columns() == VEC::length()))
-    constexpr VEC SolveQR(const MAT& A, const VEC& b) {
-        // QR decomposition
-        const auto qr = Decomposition::QR_GivensRotation(A);
-
-        // C = Q * b
-        const VEC C(b * qr.Q);
-
-        // R*x = C
-        auto lowerUpper = Decomposition::LU(qr.R);
-
-        // output
-        return SolveLU(lowerUpper.LU, C);
     }
 };
