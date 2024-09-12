@@ -781,7 +781,7 @@ void test_glsl_extra() {
         GLSL::VectorN<double, 8> axis8;
         Extra::make_random(axis8);
         const GLSL::MatrixN<double, 8> reflect8{ Extra::Householder(GLSL::normalize(axis8)) };
-        assert(std::abs(1.0 + Decomposition::determinant_using_lu(reflect8)) < 1e-6);
+        assert(std::abs(1.0 + Decomposition::determinant_using_qr(reflect8)) < 1e-6);
     }
             
     {
@@ -951,37 +951,6 @@ void test_glsl_solvers() {
     }
 
     {
-        dmat3 polarExpected1( 0.853312, -0.416067, -0.31424,
-                              0.325196,  0.89579,  -0.302999,
-                             -0.407561, -0.156363, -0.899692);
-        auto polar1 = Decomposition::PD_rotation(a, 50);
-        assert(Extra::is_normalized(polar1[0]));
-        assert(Extra::is_normalized(polar1[1]));
-        assert(Extra::is_normalized(polar1[2]));
-        Utilities::static_for<0, 1, 3>([&polar1, &polarExpected1](std::size_t i) {
-            assert(Extra::are_vectors_identical(polar1[i], polarExpected1[i]));
-        });
-
-        auto polar1_f = Decomposition::PD_rotation<50>(a);
-        assert(Extra::is_normalized(polar1_f[0]));
-        assert(Extra::is_normalized(polar1_f[1]));
-        assert(Extra::is_normalized(polar1_f[2]));
-        Utilities::static_for<0, 1, 3>([&polar1_f, &polarExpected1](std::size_t i) {
-            assert(Extra::are_vectors_identical(polar1_f[i], polarExpected1[i]));
-        });
-
-        dmat2 b(51.0, 13.0, -24.0, 7.0);
-        dmat2 polarExpected2(0.843062, -0.537816,
-                             0.537816, 0.843062);
-        dmat2 polar2 = Decomposition::PD_rotation(b);
-        assert(Extra::is_normalized(polar2[0]));
-        assert(Extra::is_normalized(polar2[1]));
-        Utilities::static_for<0, 1, 2>([&polar2, &polarExpected2](std::size_t i) {
-            assert(Extra::are_vectors_identical(polar2[i], polarExpected2[i]));
-        });
-    }
-
-    {
         dmat3 QExpected(0.228375, -0.9790593, 0.076125,
                         0.618929, 0.084383, -0.780901,
                         0.751513, 0.225454, 0.619999);
@@ -1016,10 +985,10 @@ void test_glsl_solvers() {
 
     {
         // chack that balancing a matrix allows faster eigenvalue decomposition
-        mat4 df(12.0f, 16.0f, 38.0f, 92.0f,
-                13.0f, 15.0f, 75.0f, 32.0f,
+        mat4 df(12.0f, 16.0f,  38.0f, 92.0f,
+                13.0f, 15.0f,  75.0f, 32.0f,
                 14.0f, 14.0f, -15.0f, 27.0f,
-                15.0f, 13.0f, 5.0f, 5.0f);
+                15.0f, 13.0f,  5.0f,  5.0f);
         const mat4 balanced_df = Decomposition::balance_matrix(df);       
         const auto shur_balanced_df = Decomposition::Schur(balanced_df, 3);
         assert(Extra::is_orthonormal_matrix(shur_balanced_df.eigenvectors));
@@ -1028,25 +997,19 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(2, 2))) == 38);
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(3, 3))) == 1);
     }
-        
-    {
-        dvec3 b(70.0, 12.0, 50.0);
-        auto solution = Solvers::SolveLU(a, b);
-
-        const dvec3 x(3.71118, 1.74416, -3.75020);
-        Utilities::static_for<0, 1, 3>([&solution, &x](std::size_t i) {
-            assert(std::abs((solution[i] * 1e5) / 1e5 - x[i]) < 1e-5);
-        });
-    }
 
     {
-        dvec3 b(70.0, 12.0, 50.0);
-        auto solution = Solvers::SolveQR(a, b);
+        dmat4 df(12.0, 16.0,  38.0, 92.0,
+                 13.0, 15.0,  75.0, 32.0,
+                 14.0, 14.0, -15.0, 27.0,
+                 15.0, 13.0,  5.0,  5.0);
+        dvec4 b(70.0, 12.0, 50.0, 9.0);
+        auto solution = Solvers::SolveQR(df, b);
 
-        const dvec3 x(3.71118, 1.74416, -3.75020);
-        Utilities::static_for<0, 1, 3>([&solution, &x](std::size_t i) {
-            assert(std::abs((solution[i] * 1e5) / 1e5 - x[i]) < 1e-5);
-        });
+        assert(static_cast<std::int32_t>(std::abs(solution[0]) * 1e5) == 1393187);
+        assert(static_cast<std::int32_t>(std::abs(solution[1]) * 1e5) == 1619759);
+        assert(static_cast<std::int32_t>(std::abs(solution[2]) * 1e5) == 3547185);
+        assert(static_cast<std::int32_t>(std::abs(solution[3]) * 1e5) == 4066615);
     }
 
     {
@@ -1068,29 +1031,10 @@ void test_glsl_solvers() {
     }
 
     {
-        const auto det_via_lu = Decomposition::determinant_using_lu(a);
         const auto det_via_qr = Decomposition::determinant_using_qr(a);
         const auto det = GLSL::determinant(a);
-        assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det_via_qr));
-        assert(static_cast<std::int32_t>(det_via_lu) == static_cast<std::int32_t>(det));
-        assert(static_cast<std::int32_t>(det_via_lu) == -85750);
-    }
-
-    {
-        mat4 df(12.0f, 16.0f, 38.0f, 92.0f,
-                13.0f, 15.0f, 75.0f, 32.0f,
-                14.0f, 14.0f, -15.0f, 27.0f,
-                15.0f, 13.0f, 5.0f, 5.0f);
-        mat4 dinv = Decomposition::inverse_using_lu(df);
-        mat4 invExpected(0.242363f, -0.290946f, -0.609483f, 0.693781f,
-                         -0.292204f, 0.342824f, 0.726677f, -0.741583f,
-                         0.004369f, 0.005397f, -0.023901f, 0.014135f,
-                         0.028270f, -0.023901f, -0.037008f, 0.032639f);
-        Utilities::static_for<0, 1, 4>([&dinv, &invExpected](std::size_t i) {
-            Utilities::static_for<0, 1, 4>([&dinv, &invExpected, i](std::size_t j) {
-                assert(std::abs(std::abs(dinv(i, j)) - std::abs(invExpected(i, j))) < 1e-6);
-            });
-        });
+        assert(static_cast<std::int32_t>(det_via_qr) == static_cast<std::int32_t>(det));
+        assert(static_cast<std::int32_t>(det_via_qr) == -85750);
     }
 
     {
@@ -1127,15 +1071,15 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
-	auto eign4 = Decomposition::Schur(dmat4(12.0, 16.0,  38.0, 92.0,
-                                        	13.0, 15.0,  75.0, 32.0,
-                                        	14.0, 14.0, -15.0, 27.0,
-                                        	15.0, 13.0,   5.0, 5.0));
-	assert(Extra::is_orthonormal_matrix(eign4.eigenvectors));
-	assert(static_cast<std::int32_t>(std::abs(eign4.schur(0, 0))) == 77);
-	assert(static_cast<std::int32_t>(std::abs(eign4.schur(1, 1))) == 39);
-	assert(static_cast<std::int32_t>(std::abs(eign4.schur(2, 2))) == 22);
-	assert(static_cast<std::int32_t>(std::abs(eign4.schur(3, 3))) == 1);
+        auto eign4 = Decomposition::Schur(dmat4(12.0, 16.0,  38.0, 92.0,
+                                                13.0, 15.0,  75.0, 32.0,
+                                                14.0, 14.0, -15.0, 27.0,
+                                                15.0, 13.0,   5.0, 5.0));
+        assert(Extra::is_orthonormal_matrix(eign4.eigenvectors));
+        assert(static_cast<std::int32_t>(std::abs(eign4.schur(0, 0))) == 77);
+        assert(static_cast<std::int32_t>(std::abs(eign4.schur(1, 1))) == 39);
+        assert(static_cast<std::int32_t>(std::abs(eign4.schur(2, 2))) == 22);
+        assert(static_cast<std::int32_t>(std::abs(eign4.schur(3, 3))) == 1);
     }
 
     {
