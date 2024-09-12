@@ -371,8 +371,8 @@ namespace Decomposition {
                 T r{};
                 T c{};
                 for (std::size_t j{}; j < N; ++j) {
-                    c += std::abs(out(j, i));
-                    r += std::abs(out(i, j));
+                    c += std::abs(out(i, j));
+                    r += std::abs(out(j, i));
                 }
                 c -= std::abs(out(i, i));
                 r -= std::abs(out(i, i));
@@ -403,8 +403,8 @@ namespace Decomposition {
                     calculating = true;
                     g = static_cast<T>(1) / f;
                     for (std::size_t j{}; j < N; ++j) {
-                        out(i, j) *= g;
-                        out(j, i) *= f;
+                        out(j, i) *= g;
+                        out(i, j) *= f;
                     }
                 }
             }
