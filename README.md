@@ -85,7 +85,7 @@ auto qr = Decomposition::QR_GivensRotation(a);
 
 // solve set of linear equation using LU decomposition
 vec3 b(70.0, 12.0, 50.0);
-auto solution = Solvers::SolveLU(a, b);
+auto solution = Solvers::SolveQR(a, b);
 // solution = {3.71118, 1.74416, -3.75020}
 
 //
