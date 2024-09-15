@@ -1038,6 +1038,24 @@ void test_glsl_solvers() {
     }
 
     {
+        const auto a_inv_qr = Decomposition::invert_using_qr(a);
+        const auto a_inv_reg = GLSL::inverse(a);
+        Utilities::static_for<0, 1, 3>([&a_inv_qr, &a_inv_reg](std::size_t i) {
+            assert(std::abs(GLSL::length(a_inv_qr[i]) - GLSL::length(a_inv_reg[i])) < 1e-6);
+        });
+
+        auto a4 = dmat4(12.0, 16.0,  38.0, 92.0,
+                           13.0, 15.0,  75.0, 32.0,
+                           14.0, 14.0, -15.0, 27.0,
+                           15.0, 13.0,   5.0, 5.0);
+        const auto a_inv_qr4 = Decomposition::invert_using_qr(a4);
+        const auto a_inv_reg4 = GLSL::inverse(a4);
+        Utilities::static_for<0, 1, 3>([&a_inv_qr4, &a_inv_reg4](std::size_t i) {
+            assert(std::abs(GLSL::length(a_inv_qr4[i]) - GLSL::length(a_inv_reg4[i])) < 1e-6);
+        });
+    }
+
+    {
         auto lambda = Decomposition::spectral_radius(a, 30);
         assert(static_cast<std::uint32_t>(lambda * 10000) == 1561366u);
 
