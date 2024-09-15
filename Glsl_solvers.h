@@ -501,6 +501,35 @@ namespace Decomposition {
     }
 
     /**
+    * \brief invert a matrix using QR decomposition
+    * @param {MAT,        in}  matrix
+    * @param {value_type, out} matrix determinant
+    **/
+    template<GLSL::IFixedCubicMatrix MAT>
+    constexpr MAT invert_using_qr(const MAT& mat) {
+        using qr_t = decltype(Decomposition::QR(mat));
+        constexpr std::size_t N{ MAT::columns() };
+
+        // QR decomposition
+        const qr_t qr{ Decomposition::QR(mat) };
+
+        // invert R matrix (using back susbtition)
+        MAT rInv;
+        Extra::make_identity(rInv);
+        for (std::size_t k{}; k < N; ++k) {
+            for (std::size_t j{}; j < N; ++j) {
+                for (std::size_t i{}; i < k; ++i) {
+                    rInv(k, j) -= rInv(i, j) * qr.R(k, i);
+                }
+                rInv(k, j) /= qr.R(k, k);
+            }
+        }
+
+        // output
+        return (rInv * GLSL::transpose(qr.Q));
+    }
+
+    /**
     * \brief calculate the eigenvalues and eigenvectors of cubic 3x3 symmetric matrix.
     *        notice that this calculation is correct only in cases where the eigenvalues are real and "well separated".
     * @param {IFixedCubicMatrix,                 in}  matrix
