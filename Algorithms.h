@@ -166,7 +166,7 @@ namespace Algoithms {
     template<class InputIt, class OutputIt, class BinaryOp, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(std::forward_iterator<InputIt> && std::forward_iterator<OutputIt> && std::is_invocable_v<BinaryOp, T, T> &&
                  std::is_same_v<T, typename std::decay_t<decltype(*std::declval<OutputIt>())>>)
-    constexpr OutputIt partial_sum(InputIt first, InputIt last, OutputIt d_first, BinaryOp op) {
+    constexpr OutputIt partial_sum(InputIt first, InputIt last, OutputIt d_first, BinaryOp&& op) {
         using input_t = typename std::iterator_traits<InputIt>::value_type;
         if (first == last) {
             return d_first;
