@@ -638,9 +638,9 @@ namespace Numerics {
         const std::size_t size_u{ static_cast<std::size_t>(std::distance(u_first, u_last)) };
         const std::size_t size_v{ static_cast<std::size_t>(std::distance(v_first, v_last)) };
         const std::size_t size{ size_u + size_v - 1};
-        T sum{};
 
         for (std::size_t i{}; i < size; ++i) {
+            T sum{};
             std::size_t iter{ i };
             for (std::size_t j{}; j <= i; ++j) {
                 if ((j < size_u) && (iter < size_v)) {
@@ -649,7 +649,6 @@ namespace Numerics {
                 --iter;
             }
             *(out + i) = sum;
-            sum = T{};
         }
     }
 
