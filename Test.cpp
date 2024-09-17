@@ -187,6 +187,33 @@ void test_numerics() {
     assert(static_cast<std::size_t>(stats.mean * 10) == 129);
     assert(static_cast<std::size_t>(stats.std * 100) == 7329);
 
+    // test convolustion
+    {
+        const std::array<int, 3> u{ {1, 0, 1} };
+        const std::array<int, 2> v{ {2, 7} };
+        std::array<int, 4> w;
+        Numerics::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
+        assert(w[0] == 2);
+        assert(w[1] == 7);
+        assert(w[2] == 2);
+        assert(w[3] == 7);
+    }
+    {
+        const std::array<int, 3> u{ {1, 1, 1} };
+        const std::array<int, 7> v{ {1, 1, 0, 0, 0, 1, 1} };
+        std::array<int, 9> w;
+        Numerics::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
+        assert(w[0] == 1);
+        assert(w[1] == 2);
+        assert(w[2] == 2);
+        assert(w[3] == 1);
+        assert(w[4] == 0);
+        assert(w[5] == 1);
+        assert(w[6] == 2);
+        assert(w[7] == 2);
+        assert(w[8] == 1);
+    }
+
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
