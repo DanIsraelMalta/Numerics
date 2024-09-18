@@ -27,7 +27,7 @@
 #include "Glsl_extra.h"
 
 //
-// matrix decompositions and eigenvalue related operations
+// matrix decompositions and eigenvalue related and based operations
 // 
 
 namespace Decomposition {
@@ -38,6 +38,81 @@ namespace Decomposition {
         SchwarzRutishauser = 1, // use Schwarz-Rutishauser algorithm. better numerical accuracy than gram-schmidt and faster yet slower.
         GivensRotation     = 3  // use "givens rotation" algortihm. numerically precise. slower than other options.
     };
+
+        /**
+    * \brief return a balanced form of a given matrix (matrix whose rows and columns normal are similar while eigenvalues are identical).
+    *        background:
+    *        > The sensitivity of eigenvalues to rounding errors can be reduced by the procedure of balancing.
+    *          Since errors in eigensystem found numerically are generally proportional to the
+    *          Euclidean norm of the matrix (the square root of the sum of the squares of the elements) - the
+    *          idea of balancing is to use similarity transformations to make corresponding rows and columns 
+    *          have comparable norms, thus reducing the overall norm of the matrix while leaving the eigenvalues unchanged.
+    *        > Notice that a symmetric matrix is already balanced.
+    *        > balancing is done using "Parlett and Reinsch" algorithm to balance the L1 norm of input matrix.
+    *
+    * @param {IFixedCubicMatrix, in}  matrix to balance
+    * @param {IFixedCubicMatrix, out} balanced matrix.
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT balance_matrix(const MAT& mat) {
+        using VEC = typename MAT::vector_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        constexpr T radix{ std::numeric_limits<T>::radix };
+        constexpr T radix_squared{ radix * radix };
+        constexpr T norm_ratio{ static_cast<T>(0.95) };
+
+        MAT out(mat);
+        bool converged{ false };
+        while (!converged) {
+            converged = true;
+            
+            for (std::size_t i{}; i < N; ++i) {
+                // calculate row and column norms
+                T r{};
+                T c{};
+                Utilities::static_for<0, 1, N>([&out, &c, &r, i](std::size_t j) {
+                    c += std::abs(out(i, j));
+                    r += std::abs(out(j, i));
+                });
+                c -= std::abs(out(i, i));
+                r -= std::abs(out(i, i));
+
+                // if any norm is zero, skip clanacing
+                if (Numerics::areEquals(c, T{}) || Numerics::areEquals(r, T{})) {
+                    continue;
+                }
+
+                // find integer power of machine radix that is closest to bakancing the matrix
+                T g{ r / radix };
+                T f{ static_cast<T>(1) };
+                const T s{ c + r };
+                while (c < g) {
+                    f *= radix;
+                    c *= radix_squared;
+                }
+
+                g = r * radix;
+                while (c > g) {
+                    f /= radix;
+                    c /= radix;
+                }
+
+                // perform similarity transformation
+                [[assume(f > T{})]];
+                if ((c + r) / f < norm_ratio * s) {
+                    converged = false;
+                    g = static_cast<T>(1) / f;
+                    Utilities::static_for<0, 1, N>([&out, i, g, f](std::size_t j) {
+                        out(j, i) *= g;
+                        out(i, j) *= f;
+                    });
+                }
+            }
+        }
+
+        return out;
+    }
 
     /**
     * \brief return the eigenvalues of a 2x2 ot 3x3 matrix
@@ -212,18 +287,19 @@ namespace Decomposition {
     /**
     * \brief using Schur decomposition - return eigenvector and eigenvalues of given matrix.
     * @param {IFixedCubicMatrix,                     in}  matrix to decompose
+    * @param {bool,                                  in}  should input matrix be balanced? (default is false)
     * @param {size_t,                                in}  maximal number of iterations (default is 10)
     * @param {value_type,                            in}  minimal error in iteration to stop calculation (default is 1e-5)
     * @param {IFixedCubicMatrix, IFixedCubicMatrix}, out} {matrix whose columns are eigenvectors, upper triangular matrix whose diagonal holds eigenvalues }
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr auto Schur(const MAT& mat, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
+    constexpr auto Schur(const MAT& mat, const bool balance_input = false, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using qr_t = decltype(Decomposition::QR(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { MAT eigenvectors; MAT schur; };
         constexpr std::size_t N{ MAT::columns() };
 
-        MAT A(mat);
+        MAT A(balance_input ? Decomposition::balance_matrix(mat)  : mat);
         MAT Q;
         Extra::make_identity(Q);
         qr_t QR;
@@ -244,11 +320,11 @@ namespace Decomposition {
     }
     
     template<std::size_t N, GLSL::IFixedCubicMatrix MAT>
-    constexpr auto Schur(const MAT& mat) {
+    constexpr auto Schur(const MAT& mat, const bool balance_input = false) {
         using qr_t = decltype(Decomposition::QR(mat));
         using out_t = struct { MAT eigenvectors; MAT schur; };
 
-        MAT A(mat);
+        MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
         MAT Q;
         Extra::make_identity(Q);
         qr_t QR;
@@ -340,81 +416,6 @@ namespace Decomposition {
     }
 
     /**
-    * \brief return a balanced form of a given matrix (matrix whose rows and columns normal are similar while eigenvalues are identical).
-    *        background:
-    *        > The sensitivity of eigenvalues to rounding errors can be reduced by the procedure of balancing.
-    *          Since errors in eigensystem found numerically are generally proportional to the
-    *          Euclidean norm of the matrix (the square root of the sum of the squares of the elements) - the
-    *          idea of balancing is to use similarity transformations to make corresponding rows and columns 
-    *          have comparable norms, thus reducing the overall norm of the matrix while leaving the eigenvalues unchanged.
-    *        > Notice that a symmetric matrix is already balanced.
-    *        > balancing is done using "Parlett and Reinsch" algorithm to balance the L1 norm of input matrix.
-    *
-    * @param {IFixedCubicMatrix, in}  matrix to balance
-    * @param {IFixedCubicMatrix, out} balanced matrix.
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
-    constexpr MAT balance_matrix(const MAT& mat) {
-        using VEC = typename MAT::vector_type;
-        constexpr std::size_t N{ MAT::columns() };
-
-        constexpr T radix{ std::numeric_limits<T>::radix };
-        constexpr T radix_squared{ radix * radix };
-        constexpr T norm_ratio{ static_cast<T>(0.95) };
-
-        MAT out(mat);
-        bool converged{ false };
-        while (!converged) {
-            converged = true;
-            
-            for (std::size_t i{}; i < N; ++i) {
-                // calculate row and column norms
-                T r{};
-                T c{};
-                Utilities::static_for<0, 1, N>([&out, &c, &r, i](std::size_t j) {
-                    c += std::abs(out(i, j));
-                    r += std::abs(out(j, i));
-                });
-                c -= std::abs(out(i, i));
-                r -= std::abs(out(i, i));
-
-                // if any norm is zero, skip clanacing
-                if (Numerics::areEquals(c, T{}) || Numerics::areEquals(r, T{})) {
-                    continue;
-                }
-
-                // find integer power of machine radix that is closest to bakancing the matrix
-                T g{ r / radix };
-                T f{ static_cast<T>(1) };
-                const T s{ c + r };
-                while (c < g) {
-                    f *= radix;
-                    c *= radix_squared;
-                }
-
-                g = r * radix;
-                while (c > g) {
-                    f /= radix;
-                    c /= radix;
-                }
-
-                // perform similarity transformation
-                [[assume(f > T{})]];
-                if ((c + r) / f < norm_ratio * s) {
-                    converged = false;
-                    g = static_cast<T>(1) / f;
-                    Utilities::static_for<0, 1, N>([&out, i, g, f](std::size_t j) {
-                        out(j, i) *= g;
-                        out(i, j) *= f;
-                    });
-                }
-            }
-        }
-
-        return out;
-    }
-
-    /**
     * \brief using power iteration method - approximate the spectral radius (absolute value of largest eigenvalue) and appropriate eigenvector.
     *        user supplies two stoppage criteria's:
     *        1. maximal amount of iterations (10 by default)
@@ -488,12 +489,15 @@ namespace Decomposition {
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr T determinant_using_qr(const MAT& mat) {
+        using qr_t = decltype(Decomposition::QR(mat));
+        constexpr std::size_t N{ MAT::columns() };
+
         // QR decomposition
-        auto qr = Decomposition::QR(mat);
+        const qr_t qr{ Decomposition::QR(mat) };
         T det{ static_cast<T>(1) };
 
         // determinant calculation
-        Utilities::static_for<0, 1, MAT::columns()>([&det, &qr](std::size_t i) {
+        Utilities::static_for<0, 1, N>([&det, &qr](std::size_t i) {
             det *= qr.R(i, i);
         });
 
