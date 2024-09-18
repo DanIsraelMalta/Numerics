@@ -115,38 +115,6 @@ namespace Decomposition {
     }
 
     /**
-    * \brief return the eigenvalues of a 2x2 ot 3x3 matrix
-    *
-    * @param {IFixedCubicMatrix, in}  input matrix
-    * @param {IFixedVector,      out} vector holding matrix eigenvalues
-    **/
-    template<GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type>
-        requires(MAT::columns() <= 3)
-    constexpr VEC eigenvalues(const MAT& mat) {
-        using T = typename MAT::value_type;
-        constexpr std::size_t N{ MAT::columns() };
-
-        if constexpr (N == 2) {
-            const T diff{ mat(0, 0) - mat(1, 1) };
-            const T center{ mat(0, 0) + mat(1, 1) };
-            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
-            assert(deltaSquared >= T{});
-            const T delta{ std::sqrt(deltaSquared) };
-
-            return VEC( (center + delta) / static_cast<T>(2), (center - delta) / static_cast<T>(2) );
-        }
-        else {
-            const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
-            const T det{ GLSL::determinant(mat) };
-            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
-                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
-                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
-            const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
-            return VEC(roots[0], roots[2], roots[4]);
-        }
-    }
-
-    /**
     * \brief perform QR decomposition.
     *
     * @param {IFixedCubicMatrix,                      in}  input matrix
@@ -338,7 +306,7 @@ namespace Decomposition {
     }
 
     /**
-    * \brief using Schur decomposition - return eigenvalues of given matrix.
+    * \brief return eigenvalues of given matrix.
     * @param {IFixedCubicMatrix, in}  matrix to decompose
     * @param {bool,              in}  should input matrix be balanced? (default is false)
     * @param {size_t,            in}  maximal number of iterations (default is 10)
@@ -348,38 +316,77 @@ namespace Decomposition {
     template<GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type, class T = typename MAT::value_type>
     constexpr VEC eig(const MAT& mat, const bool balance_input = false, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using qr_t = decltype(Decomposition::QR(mat));
-        constexpr std::size_t N{ MAT::columns() };
 
         MAT A(balance_input ? Decomposition::balance_matrix(mat)  : mat);
-        qr_t QR;
-        T err{ static_cast<T>(10) * tol };
-        std::size_t i{};
-        while ((i < iter) && (err > tol)) {
-            const VEC eigenvalues0{ GLSL::trace(A) };
+        if constexpr (MAT::columns() == 2) {
+            const T diff{ mat(0, 0) - mat(1, 1) };
+            const T center{ mat(0, 0) + mat(1, 1) };
+            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
+            assert(deltaSquared >= T{});
+            const T delta{ std::sqrt(deltaSquared) };
 
-            QR = Decomposition::QR(A);
-            A = QR.R * QR.Q;
-
-            err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigenvalues0));
-            ++i;
+            return VEC((center + delta) / static_cast<T>(2), (center - delta) / static_cast<T>(2));
         }
+        else if constexpr (MAT::columns() == 3) {
+            const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
+            const T det{ GLSL::determinant(mat) };
+            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
+                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
+                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
+            const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
+            return VEC(roots[0], roots[2], roots[4]);
+        }
+        else {
+            qr_t QR;
+            T err{ static_cast<T>(10) * tol };
+            std::size_t i{};
+            while ((i < iter) && (err > tol)) {
+                const VEC eigenvalues0{ GLSL::trace(A) };
 
-        return GLSL::trace(A);
+                QR = Decomposition::QR(A);
+                A = QR.R * QR.Q;
+
+                err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigenvalues0));
+                ++i;
+            }
+
+            return GLSL::trace(A);
+        }
     }
     
     template<std::size_t N, GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type>
     constexpr VEC eig(const MAT& mat, const bool balance_input = false) {
+        using T = typename MAT::value_type;
         using qr_t = decltype(Decomposition::QR(mat));
-        using out_t = struct { MAT eigenvectors; MAT schur; };
 
-        MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
-        qr_t QR;
-        Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
-            QR = Decomposition::QR(A);
-            A = QR.R * QR.Q;
-        });
+        if constexpr (MAT::columns() == 2) {
+            const T diff{ mat(0, 0) - mat(1, 1) };
+            const T center{ mat(0, 0) + mat(1, 1) };
+            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
+            assert(deltaSquared >= T{});
+            const T delta{ std::sqrt(deltaSquared) };
 
-        return GLSL::trace(A);
+            return VEC((center + delta) / static_cast<T>(2), (center - delta) / static_cast<T>(2));
+        }
+        else if constexpr (MAT::columns() == 3) {
+            const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
+            const T det{ GLSL::determinant(mat) };
+            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
+                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
+                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
+            const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
+            return VEC(roots[0], roots[2], roots[4]);
+        }
+        else {
+            MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
+            qr_t QR;
+            Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
+                QR = Decomposition::QR(A);
+                A = QR.R * QR.Q;
+            });
+
+            return GLSL::trace(A);
+        }
     }
 
     /**
