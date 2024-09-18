@@ -1017,11 +1017,15 @@ void test_glsl_solvers() {
                 14.0f, 14.0f, -15.0f, 27.0f,
                 15.0f, 13.0f,  5.0f,  5.0f);      
         const auto shur_balanced_df = Decomposition::Schur(df, true, 3);
+        auto _eig = Decomposition::eig(df, true, 3);
         assert(Extra::is_orthonormal_matrix(shur_balanced_df.eigenvectors));
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(0, 0))) == 76);
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(1, 1))) == 21);
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(2, 2))) == 38);
-        assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(3, 3))) == 1);
+        assert(static_cast<std::int32_t>(std::abs(_eig[0])) == 76);
+        assert(static_cast<std::int32_t>(std::abs(_eig[1])) == 21);
+        assert(static_cast<std::int32_t>(std::abs(_eig[2])) == 38);
+        assert(static_cast<std::int32_t>(std::abs(_eig[3])) == 1);
     }
 
     {
@@ -1096,26 +1100,44 @@ void test_glsl_solvers() {
 
     {
         auto eig = Decomposition::Schur(a, false, 20);
+        auto _eig = Decomposition::eig(a, false, 20);
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1605);
+        assert(static_cast<std::int32_t>(_eig[0] * 100) == 15613);
+        assert(static_cast<std::int32_t>(_eig[1] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eig[2] * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
         eig = Decomposition::Schur(GLSL::Matrix3<double>(21.0, 6.0, 14.0,
                                                          -51.0, -51.0, 24.0,
                                                          4.0, 24.0, 321.0), false, 20);
+        _eig = Decomposition::eig(GLSL::Matrix3<double>(21.0, 6.0, 14.0,
+                                                        -51.0, -51.0, 24.0,
+                                                         4.0, 24.0, 321.0), false, 20);
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 32257);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -4881);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1723);
+        assert(static_cast<std::int32_t>(_eig[0] * 100) == 32257);
+        assert(static_cast<std::int32_t>(_eig[1] * 100) == -4881);
+        assert(static_cast<std::int32_t>(_eig[2] * 100) == 1723);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
         auto eign = Decomposition::Schur<20>(a);
+        auto _eign = Decomposition::eig<20>(a);
         assert(static_cast<std::int32_t>(eign.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eign.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
+        assert(static_cast<std::int32_t>(_eign[0] * 100) == 15613);
+        assert(static_cast<std::int32_t>(_eign[1] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eign[2] * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
         auto eign4 = Decomposition::Schur(dmat4(12.0, 16.0,  38.0, 92.0,
+                                                13.0, 15.0,  75.0, 32.0,
+                                                14.0, 14.0, -15.0, 27.0,
+                                                15.0, 13.0,   5.0, 5.0));
+        auto _eign4 = Decomposition::eig<20>(dmat4(12.0, 16.0,  38.0, 92.0,
                                                 13.0, 15.0,  75.0, 32.0,
                                                 14.0, 14.0, -15.0, 27.0,
                                                 15.0, 13.0,   5.0, 5.0));
@@ -1124,6 +1146,10 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(std::abs(eign4.schur(1, 1))) == 39);
         assert(static_cast<std::int32_t>(std::abs(eign4.schur(2, 2))) == 22);
         assert(static_cast<std::int32_t>(std::abs(eign4.schur(3, 3))) == 1);
+        assert(static_cast<std::int32_t>(std::abs(_eign4[0])) == 77);
+        assert(static_cast<std::int32_t>(std::abs(_eign4[1])) == 38);
+        assert(static_cast<std::int32_t>(std::abs(_eign4[2])) == 23);
+        assert(static_cast<std::int32_t>(std::abs(_eign4[3])) == 1);
     }
 
     {
