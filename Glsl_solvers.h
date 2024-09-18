@@ -39,7 +39,7 @@ namespace Decomposition {
         GivensRotation     = 3  // use "givens rotation" algortihm. numerically precise. slower than other options.
     };
 
-        /**
+    /**
     * \brief return a balanced form of a given matrix (matrix whose rows and columns normal are similar while eigenvalues are identical).
     *        background:
     *        > The sensitivity of eigenvalues to rounding errors can be reduced by the procedure of balancing.
@@ -335,6 +335,51 @@ namespace Decomposition {
         });
 
         return out_t{ Q, A };
+    }
+
+    /**
+    * \brief using Schur decomposition - return eigenvalues of given matrix.
+    * @param {IFixedCubicMatrix, in}  matrix to decompose
+    * @param {bool,              in}  should input matrix be balanced? (default is false)
+    * @param {size_t,            in}  maximal number of iterations (default is 10)
+    * @param {value_type,        in}  minimal error in iteration to stop calculation (default is 1e-5)
+    * @param {IFixedVector,      out} vector holding matrix eigenvalues
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type, class T = typename MAT::value_type>
+    constexpr VEC eig(const MAT& mat, const bool balance_input = false, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
+        using qr_t = decltype(Decomposition::QR(mat));
+        constexpr std::size_t N{ MAT::columns() };
+
+        MAT A(balance_input ? Decomposition::balance_matrix(mat)  : mat);
+        qr_t QR;
+        T err{ static_cast<T>(10) * tol };
+        std::size_t i{};
+        while ((i < iter) && (err > tol)) {
+            const VEC eigenvalues0{ GLSL::trace(A) };
+
+            QR = Decomposition::QR(A);
+            A = QR.R * QR.Q;
+
+            err = GLSL::max(GLSL::abs(GLSL::trace(A) - eigenvalues0));
+            ++i;
+        }
+
+        return GLSL::trace(A);
+    }
+    
+    template<std::size_t N, GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::vector_type>
+    constexpr VEC eig(const MAT& mat, const bool balance_input = false) {
+        using qr_t = decltype(Decomposition::QR(mat));
+        using out_t = struct { MAT eigenvectors; MAT schur; };
+
+        MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
+        qr_t QR;
+        Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
+            QR = Decomposition::QR(A);
+            A = QR.R * QR.Q;
+        });
+
+        return GLSL::trace(A);
     }
 
     /**
