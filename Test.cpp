@@ -965,14 +965,14 @@ void test_glsl_solvers() {
                             -4.0, 24.0, -41.0);
 
     {
-        auto eigs = Decomposition::eigenvalues(a);
+        auto eigs = Decomposition::eig(a);
         assert(static_cast<std::int32_t>(eigs[0] * 10000) == -341966);
         assert(static_cast<std::int32_t>(eigs[1] * 10000) == 1561366);
         assert(static_cast<std::int32_t>(eigs[2] * 10000) == 160599);
 
 
         mat2 b(51.0f, 13.0f, -24.0f, 7.0f);
-        auto eigs2 = Decomposition::eigenvalues(b);
+        auto eigs2 = Decomposition::eig(b);
         assert(static_cast<std::int32_t>(eigs2[0] * 10000) == 421148);
         assert(static_cast<std::int32_t>(eigs2[1] * 10000) == 158851);
     }
@@ -1104,8 +1104,8 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1605);
-        assert(static_cast<std::int32_t>(_eig[0] * 100) == 15613);
-        assert(static_cast<std::int32_t>(_eig[1] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eig[0] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eig[1] * 100) == 15613);
         assert(static_cast<std::int32_t>(_eig[2] * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
@@ -1118,8 +1118,8 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 32257);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -4881);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1723);
-        assert(static_cast<std::int32_t>(_eig[0] * 100) == 32257);
-        assert(static_cast<std::int32_t>(_eig[1] * 100) == -4881);
+        assert(static_cast<std::int32_t>(_eig[0] * 100) == -4881);
+        assert(static_cast<std::int32_t>(_eig[1] * 100) == 32257);
         assert(static_cast<std::int32_t>(_eig[2] * 100) == 1723);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
@@ -1128,8 +1128,8 @@ void test_glsl_solvers() {
         assert(static_cast<std::int32_t>(eign.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eign.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eign.schur(2, 2) * 100) == 1605);
-        assert(static_cast<std::int32_t>(_eign[0] * 100) == 15613);
-        assert(static_cast<std::int32_t>(_eign[1] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eign[0] * 100) == -3419);
+        assert(static_cast<std::int32_t>(_eign[1] * 100) == 15613);
         assert(static_cast<std::int32_t>(_eign[2] * 100) == 1605);
         assert(Extra::is_orthonormal_matrix(eig.eigenvectors));
 
