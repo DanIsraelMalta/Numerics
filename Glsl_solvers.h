@@ -342,12 +342,13 @@ namespace Decomposition {
     /**
     * \brief return a balanced form of a given matrix (matrix whose rows and columns normal are similar while eigenvalues are identical).
     *        background:
-    *        > The sensitivity of eigenvalues to rounding errors dcan be reduced by the procedure of balancing.
+    *        > The sensitivity of eigenvalues to rounding errors can be reduced by the procedure of balancing.
     *          Since errors in eigensystem found numerically are generally proportional to the
     *          Euclidean norm of the matrix (the square root of the sum of the squares of the elements) - the
     *          idea of balancing is to use similarity transformations to make corresponding rows and columns 
     *          have comparable norms, thus reducing the overall norm of the matrix while leaving the eigenvalues unchanged.
     *        > Notice that a symmetric matrix is already balanced.
+    *        > balancing is done using "Parlett and Reinsch" algorithm to balance the L1 norm of input matrix.
     *
     * @param {IFixedCubicMatrix, in}  matrix to balance
     * @param {IFixedCubicMatrix, out} balanced matrix.
@@ -362,18 +363,18 @@ namespace Decomposition {
         constexpr T norm_ratio{ static_cast<T>(0.95) };
 
         MAT out(mat);
-        bool calculating{ true };
-        while (calculating) {
-            calculating = false;
+        bool converged{ false };
+        while (!converged) {
+            converged = true;
             
             for (std::size_t i{}; i < N; ++i) {
                 // calculate row and column norms
                 T r{};
                 T c{};
-                for (std::size_t j{}; j < N; ++j) {
+                Utilities::static_for<0, 1, N>([&out, &c, &r, i](std::size_t j) {
                     c += std::abs(out(i, j));
                     r += std::abs(out(j, i));
-                }
+                });
                 c -= std::abs(out(i, i));
                 r -= std::abs(out(i, i));
 
@@ -400,12 +401,12 @@ namespace Decomposition {
                 // perform similarity transformation
                 [[assume(f > T{})]];
                 if ((c + r) / f < norm_ratio * s) {
-                    calculating = true;
+                    converged = false;
                     g = static_cast<T>(1) / f;
-                    for (std::size_t j{}; j < N; ++j) {
+                    Utilities::static_for<0, 1, N>([&out, i, g, f](std::size_t j) {
                         out(j, i) *= g;
                         out(i, j) *= f;
-                    }
+                    });
                 }
             }
         }
