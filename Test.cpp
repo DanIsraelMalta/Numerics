@@ -1015,9 +1015,8 @@ void test_glsl_solvers() {
         mat4 df(12.0f, 16.0f,  38.0f, 92.0f,
                 13.0f, 15.0f,  75.0f, 32.0f,
                 14.0f, 14.0f, -15.0f, 27.0f,
-                15.0f, 13.0f,  5.0f,  5.0f);
-        const mat4 balanced_df = Decomposition::balance_matrix(df);       
-        const auto shur_balanced_df = Decomposition::Schur(balanced_df, 3);
+                15.0f, 13.0f,  5.0f,  5.0f);      
+        const auto shur_balanced_df = Decomposition::Schur(df, true, 3);
         assert(Extra::is_orthonormal_matrix(shur_balanced_df.eigenvectors));
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(0, 0))) == 76);
         assert(static_cast<std::int32_t>(std::abs(shur_balanced_df.schur(1, 1))) == 21);
@@ -1096,7 +1095,7 @@ void test_glsl_solvers() {
     }
 
     {
-        auto eig = Decomposition::Schur(a, 20);
+        auto eig = Decomposition::Schur(a, false, 20);
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 15613);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -3419);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1605);
@@ -1104,7 +1103,7 @@ void test_glsl_solvers() {
 
         eig = Decomposition::Schur(GLSL::Matrix3<double>(21.0, 6.0, 14.0,
                                                          -51.0, -51.0, 24.0,
-                                                         4.0, 24.0, 321.0), 20);
+                                                         4.0, 24.0, 321.0), false, 20);
         assert(static_cast<std::int32_t>(eig.schur(0, 0) * 100) == 32257);
         assert(static_cast<std::int32_t>(eig.schur(1, 1) * 100) == -4881);
         assert(static_cast<std::int32_t>(eig.schur(2, 2) * 100) == 1723);
