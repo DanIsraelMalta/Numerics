@@ -253,6 +253,82 @@ namespace Extra {
     }
 
     /**
+    * \brief perform generalized vector addition, i.e. - return alp?a * x + y
+    *        where alph is a scalar, x and y are vectors.
+    *        this is BLAS level 1 function.
+    * @param{value_type,        in}  alpha
+    * @param{IFixedVector,      in}  x
+    * @param{IFixedVector,      in}  y
+    * @param{IFixedVector,      out} alp?a * x + y
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr VEC axpy(const T alpha, const VEC& x, const VEC& y) {
+        constexpr std::size_t N{ VEC::length() };
+
+        // perform generalized vector addition
+        VEC out;
+        Utilities::static_for<0, 1, N>([&out, &x, &y, alpha](std::size_t i) {
+            out[i] = std::fma(alpha, x[i], y[i]);
+        });
+        return out;
+    }
+
+    /**
+    * \brief perform generalized matrix-vector multiplication, i.e. - return alp?a * M * x + beta * y
+    *        where alph and beta are scalars, x and y are vectors and M is a matrix.
+    *        this is BLAS level 2 function.
+    * @param{value_type,        in}  alpha
+    * @param{IFixedCubicMatrix, in}  M
+    * @param{IFixedVector,      in}  x
+    * @param{value_type,        in}  beta
+    * @param{IFixedVector,      in}  y
+    * @param{IFixedVector,      out} alp?a * M * x + beta * y
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class VEC = typename MAT::value_type, class T = typename MAT::value_type>
+    constexpr VEC gemv(const T alpha, const MAT& A, const VEC& x, const T beta, const VEC& y) {
+        constexpr std::size_t N{ MAT::columns() };
+
+        // transpose matrix A so we calculate x*M' instead of M*x
+        const MAT AT(GLSL::transpose(A));
+
+        // perform generalized matrix-vector multiplication
+        VEC out;
+        Utilities::static_for<0, 1, N>([&out, &AT, &x, &y, alpha, beta](std::size_t i) {
+            out[i] = std::fma(alpha, GLSL::dot(x, AT[i]),  beta * y[i]);
+        });
+        return out;
+    }
+
+    /**
+    * \brief perform generalized matrix-matrix multiplication, i.e. - return alp?a * A * B + beta * C
+    *        where alph and beta are scalars, A and B and C are matrices.
+    *        this is BLAS level 3 function.
+    * @param{value_type,        in}  alpha
+    * @param{IFixedCubicMatrix, in}  A
+    * @param{IFixedCubicMatrix, in}  B
+    * @param{value_type,        in}  beta
+    * @param{IFixedCubicMatrix, in}  C
+    * @param{IFixedVector,      out} alpha * A * B + beta * C
+    **/
+    template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
+    constexpr MAT gemm(const T alpha, const MAT& A, const MAT& B, const T beta, const MAT& C) {
+        using VEC = typename MAT::value_type;
+        constexpr std::size_t N{ MAT::columns() };
+
+        // transpose matrix A so we calculate B*A instead of A*B
+        const MAT AT(GLSL::transpose(A));
+
+        // perform generalized matrix-matrix multiplication
+        MAT out;
+        Utilities::static_for<0, 1, N>([&out, &B, &AT, &C, alpha, beta](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&out, &B, &AT, &C, alpha, beta, i](std::size_t j) {
+                out(i, j) = std::fma(alpha, GLSL::dot(B[i], AT[j]), beta * C(i, j));
+            });
+        });
+        return out;
+    }
+
+    /**
     * \brief create a plane going through 3 points
     * @param {Vector3, in}  point #0
     * @param {Vector3, in}  point #1
