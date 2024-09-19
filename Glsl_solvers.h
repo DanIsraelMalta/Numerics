@@ -602,14 +602,18 @@ namespace Decomposition {
         assert(Extra::is_symmetric(mat));
         
         // eigenvalues
-        const VEC eigenvalues{ Decomposition::eigenvalues(mat) };
+        const VEC eigenvalues{ Decomposition::eig(mat) };
         
         // eigenvectors
         MAT eigenvectors(T{});
-        Utilities::static_for<0, 1, 3>([&mat, &eigenvectors, eigenvalues](std::size_t i) {
-            const VEC r1(mat(0, 0) - eigenvalues[i], mat(0, 1),                  mat(0, 2));
-            const VEC r2(mat(0, 1),                  mat(1, 1) - eigenvalues[i], mat(1, 2));
-            const VEC r3(mat(0, 2),                  mat(1, 2),                  mat(2, 2) - eigenvalues[i]);
+        VEC r1(mat[0]);
+        VEC r2(mat[1]);
+        VEC r3(mat[2]);
+        Utilities::static_for<0, 1, 3>([&mat, &eigenvectors, &r1, &r2, &r3, eigenvalues](std::size_t i) {
+            const T value{ eigenvalues[i] };
+            r1[0] = mat(0, 0) - value;
+            r2[1] = mat(1, 1) - value;
+            r3[2] = mat(2, 2) - value;
             const VEC e1{ GLSL::cross(r1, r2) };
             VEC e2{ GLSL::cross(r2, r3) };
             VEC e3{ GLSL::cross(r3, r1) };
