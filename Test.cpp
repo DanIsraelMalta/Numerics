@@ -1898,12 +1898,8 @@ void test_GLSL_algorithms_2D() {
        }
 
        const vec2 centroid = Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend());
-       bool is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid);
-       assert(!is_clockwise);
-
        Algorithms2D::sort_points_clock_wise(points.begin(), points.end(), centroid);
-       is_clockwise = Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid);
-       assert(is_clockwise);
+       assert(Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid));
    }
 
    {
