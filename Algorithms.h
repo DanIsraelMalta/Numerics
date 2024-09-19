@@ -47,6 +47,39 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::find_if
+    **/
+    template<class It, class UnaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<UnaryPredicate, T>)
+    constexpr It find_if(It first, It last, UnaryPredicate&& p) {
+        for (; first != last; ++first) {
+            if (p(*first)) {
+                return first;
+            }
+        }
+
+        return last;
+    }
+
+    /**
+    * \brief local implementation of std::remove_if
+    **/
+    template<class It, class UnaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<UnaryPredicate, T>)
+    constexpr It remove_if(It first, It last, UnaryPredicate&& p) {
+        first = std::find_if(first, last, p);
+        if (first != last) {
+            for (It i{ first }; i != last; ++i) {
+                if (!p(*i)) {
+                    *first++ = std::move(*i);
+                }
+            }
+        }
+
+        return first;
+    }
+
+    /**
     * \brief local implementation of std::iota
     **/
     template<class It, class T = typename std::decay_t<decltype(*std::declval<It>())>>
