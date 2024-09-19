@@ -866,6 +866,38 @@ void test_glsl_extra() {
             assert(index == i);
         }
     }
+
+    {
+        const double alpha{ 10.0f * static_cast<double>(rand()) / RAND_MAX };
+        const double beta{ 10.0f * static_cast<double>(rand()) / RAND_MAX };
+        dmat4 A, B, C;
+        dvec4 x, y;
+        for (std::size_t i{}; i < 5; ++i) {
+            Utilities::static_for<0, 1, 4>([&A, &B, &C, &x, &y](std::size_t i) {
+                Utilities::static_for<0, 1, 4>([&A, &B, &C, i](std::size_t j) {
+                    A(i, j) = static_cast<double>(10.0f * static_cast<double>(rand()) / RAND_MAX);
+                    B(i, j) = static_cast<double>(10.0f * static_cast<double>(rand()) / RAND_MAX);
+                    C(i, j) = static_cast<double>(10.0f * static_cast<double>(rand()) / RAND_MAX);
+                });
+                x[i] = static_cast<double>(10.0 * static_cast<double>(rand()) / RAND_MAX);
+                y[i] = static_cast<double>(10.0 * static_cast<double>(rand()) / RAND_MAX);
+            });
+
+            dvec4 regular_s{ x * alpha + y };
+            dvec4 specialized_s{ Extra::axpy(alpha, x, y) };
+            assert(GLSL::max(GLSL::abs(regular_s - specialized_s)) < 1e-6);
+
+            dvec4 regular_v{ A * x * alpha + y * beta };
+            dvec4 specialized_v{ Extra::gemv(alpha, A, x, beta, y) };
+            assert(GLSL::max(GLSL::abs(regular_v - specialized_v)) < 1e-6);
+
+            dmat4 regular_m{ B * A * alpha + C * beta };
+            dmat4 specialized_m{ Extra::gemm(alpha, B, A, beta, C) };
+            Utilities::static_for<0, 1, 4>([&regular_m, &specialized_m](std::size_t j) {
+                assert(GLSL::max(GLSL::abs(regular_m[j] - specialized_m[j])) < 1e-6);
+            });
+        }
+    }
 }
 
 void test_glsl_transformation() {
