@@ -26,6 +26,7 @@
 #include "Glsl.h"
 #include "Glsl_space_partitioning.h"
 #include "Glsl_axis_aligned_bounding_box.h"
+#include "Glsl_extra.h"
 #include "Algorithms.h"
 #include <iterator>
 #include <vector>
@@ -53,7 +54,8 @@ namespace Clustering {
     constexpr auto get_density_based_clusters(const InputIt first, const InputIt last, SP& spacePartition,
                                               const T minimal_distance, const std::size_t minimal_points) {
         using query_t = decltype(spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, *first, minimal_distance));
-        using out_t = struct { std::vector<std::vector<std::size_t>> clusters; std::vector<std::size_t> noise; };
+        using indices_t = std::vector<std::size_t>;
+        using out_t = struct { std::vector<indices_t> clusters; indices_t noise; };
 
         // partition space
         spacePartition.construct(first, last);
@@ -62,7 +64,7 @@ namespace Clustering {
         const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
         std::vector<bool> visited(len, false);
         std::vector<bool> noise(len, false);
-        std::vector<std::vector<std::size_t>> clusterIndices;
+        std::vector<indices_t> clusterIndices;
         for (std::size_t i{}; i < len; ++i) {
             if (visited[i]) {
                 continue;
@@ -75,7 +77,7 @@ namespace Clustering {
                 noise[i] = true;
             }
             else {
-                clusterIndices.emplace_back(std::vector<std::size_t>{});
+                clusterIndices.emplace_back(indices_t{});
                 
                 // expand cluster
                 std::deque<std::size_t> neighborDeque;
@@ -112,20 +114,22 @@ namespace Clustering {
         }
 
         // accumelate noise
-        std::vector<std::size_t> notClusters;
+        indices_t notClusters;
         for (std::size_t i{}; i < len; ++i) {
             if (noise[i]) {
                 notClusters.emplace_back(i);
             }
         }
 
+        // remove possible empty clusters
+        Algoithms::remove_if(clusterIndices.begin(), clusterIndices.end(), [](const indices_t& e) { return e.size() == 0; });
+
         // output
         return out_t{ clusterIndices, notClusters };
     }
 
     /**
-    * \brief perform clustering operation using k-means and Euclidean distance as metric.
-    *        notice that this function uses ISpacePartitioning object from "Glsl_space_partitioning.h" for neighbour query.
+    * \brief perform clustering operation using k-means algorithm.
     * @param {forward_iterator,          in}  iterator to point cloud collection first point
     * @param {forward_iterator,          in}  iterator to point cloud collection last point
     * @param {size_t,                    in}  number of clusters
@@ -138,7 +142,7 @@ namespace Clustering {
     constexpr std::vector<std::vector<std::size_t>> k_means(const InputIt first, const InputIt last, const std::size_t k,
                                                             const std::size_t max_iterations, const T tol) {
         using point_cloud_aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(first, last));
-        
+
         // place centers in random manner
         std::vector<VEC> centers(k);
         const point_cloud_aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
@@ -183,10 +187,11 @@ namespace Clustering {
                 ++count[cluster_index];
             }
             for (std::size_t j{}; j < k; ++j) {
-                assert(count[j] > 0);
-                const VEC newCenter{ sum[j] / static_cast<T>(count[j]) };
-                check_tolerance &= GLSL::max(GLSL::abs(centers[j] - newCenter)) <= tol;
-                centers[j] = newCenter;
+                if (count[j] > 0) [[likely]] {
+                    const VEC newCenter{ sum[j] / static_cast<T>(count[j]) };
+                    check_tolerance &= GLSL::max(GLSL::abs(centers[j] - newCenter)) <= tol;
+                    centers[j] = newCenter;
+                }
             }
             
             // update loop iterator
