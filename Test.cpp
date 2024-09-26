@@ -215,6 +215,22 @@ void test_numerics() {
         assert(w[8] == 1);
     }
 
+    // test filter
+    {
+        // FIR filter (3 taps moving average)
+        const std::array<double, 3> b{ {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0} };
+        const std::array<double, 1> a{ {1.0} };
+        const std::array<double, 6> x{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
+        std::array<double, 6> y;
+        Numerics::filter<3, 1>(x.begin(), x.end(), y.begin(), b, a);
+        assert(static_cast<std::int32_t>(y[0] * 3.0) == 2);
+        assert(static_cast<std::int32_t>(y[1] * 3.0) == 3);
+        assert(static_cast<std::int32_t>(y[2] * 3.0) == 9);
+        assert(static_cast<std::int32_t>(y[3] * 3.0) == 8); // 2.99999 ....
+        assert(static_cast<std::int32_t>(y[4] * 3.0) == 12);
+        assert(static_cast<std::int32_t>(y[5] * 3.0) == 9);;
+    }
+
     // test partition
     std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
