@@ -899,6 +899,30 @@ void test_glsl_extra() {
             });
         }
     }
+
+    {
+        const ivec3 u(1, 0, 1);
+        const ivec2 v(2, 7);
+        auto w = Extra::conv(u, v);
+        assert(w[0] == 2);
+        assert(w[1] == 7);
+        assert(w[2] == 2);
+        assert(w[3] == 7);
+    }
+    {
+        const ivec3 u(1, 1, 1);
+        const GLSL::VectorN<int, 7> v(1, 1, 0, 0, 0, 1, 1);
+        auto w = Extra::conv(u, v);
+        assert(w[0] == 1);
+        assert(w[1] == 2);
+        assert(w[2] == 2);
+        assert(w[3] == 1);
+        assert(w[4] == 0);
+        assert(w[5] == 1);
+        assert(w[6] == 2);
+        assert(w[7] == 2);
+        assert(w[8] == 1);
+    }
 }
 
 void test_glsl_transformation() {
