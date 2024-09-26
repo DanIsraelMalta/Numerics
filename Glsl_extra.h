@@ -329,6 +329,37 @@ namespace Extra {
     }
 
     /**
+    * \brief return the convolution between two vectors.
+    * @param {IFixedVector, in}  first vector
+    * @param {IFixedVector, in}  second vector
+    * @param {IFixedVector, out} vector holding the convolution between first and second collections
+    **/
+    template<GLSL::IFixedVector VEC1, GLSL::IFixedVector VEC2>
+        requires(std::is_same_v<typename VEC1::value_type, typename VEC1::value_type>)
+    constexpr auto conv(const VEC1& u, const VEC2& v) {
+        constexpr std::size_t N1{ VEC1::length() };
+        constexpr std::size_t N2{ VEC2::length() };
+        constexpr std::size_t M{ N1 + N2 - 1 };
+        using T = typename VEC1::value_type;
+        using out_t = GLSL::VectorN<T, M>;
+
+        out_t out;
+        for (std::size_t i{}; i < M; ++i) {
+            T sum{};
+            std::size_t iter{ i };
+            for (std::size_t j{}; j <= i; ++j) {
+                if ((j < N1) && (iter < N2)) {
+                    sum += u[j] * v[iter];
+                }
+                --iter;
+            }
+            out[i] = sum;
+        }
+
+        return out;
+    }
+
+    /**
     * \brief create a plane going through 3 points
     * @param {Vector3, in}  point #0
     * @param {Vector3, in}  point #1
