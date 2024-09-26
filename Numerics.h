@@ -653,6 +653,64 @@ namespace Numerics {
     }
 
     /**
+    * \brief apply "Transposed-Direct-Form-II structure of the IIR filter" on given signal/collection as time domain difference equation
+    * @param {size_t} amount of coefficients in numerator (NB)
+    * @param {size_t} amount of coefficients in denominator (NA; if NA > 1 - its an infinite impulse response filter, otherwise its a finite impulse response filter)
+    * @param {forward_iterator,  in}  iterator to first element on which filter is applied
+    * @param {forward_iterator,  in}  iterator to last element on which filter is applied
+    * @param {forward_iterator,  out} iterator to begining of collection which will hold the filtered output
+    * @param {array<arithmetic>, in}  Numerator coefficients of rational transfer function (has NB elements)
+    * @param {array<arithmetic>, in}  Denominator coefficients of rational transfer function (has NA elements)
+    * @param {array<arithmetic>, in}  Initial conditions for filter delays (default is zeros)
+    **/
+    template<std::size_t NB, std::size_t NA,
+             std::forward_iterator It, std::forward_iterator Ot,
+             class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<Ot>())>>)
+    constexpr void filter(const It x_first, const It x_last, Ot out,
+                          const std::array<T, NB>& b, const std::array<T, NA>& a, const std::array<T, Numerics::max(NB, NA)>& z = {{T{}}}) {
+        constexpr std::size_t coeff_size{ Numerics::max(NB, NA) };
+        assert(!Numerics::areEquals(a[0], T{}));
+
+        // local copy of delay vector
+        std::array<T, coeff_size> Z(z);
+        
+        // normalized Numerator coefficients and equalize its size to Denominator
+        std::array<T, coeff_size> bn{ {T{}} };
+        const T a0{ a[0] };
+        Utilities::static_for<0, 1, NB>([&bn, &b, a0](std::size_t i) {
+            bn[i] = b[i] / a0;
+        });
+
+        // normalized Denominator coefficients and equalize its size to Numerator
+        std::array<T, coeff_size> an{ {T{}} };
+        Utilities::static_for<0, 1, NA>([&an, &a](std::size_t i) {
+            an[i] = a[i] / a[0];
+        });
+        
+        // perform filter operation
+        const std::size_t size_x{ static_cast<std::size_t>(std::distance(x_first, x_last)) };
+        for (std::size_t m{}; m < size_x; ++m) {
+            const T x_m{ *(x_first + m) };
+            const T out_m{ std::fma(bn[0], x_m, Z[0]) };
+            *(out + m) = out_m;
+
+            // infinite impulse response filter
+            if constexpr (NA > 1) {
+                Utilities::static_for<1, 1, coeff_size>([&bn, &an, &Z, x_m, out_m](std::size_t i) {
+                    Z[i - 1] = std::fma(bn[i], x_m, Z[i]) - an[i] * out_m;
+                });
+            }
+            //finite impulse response filter
+            else {
+                Utilities::static_for<1, 1, coeff_size>([&bn, &Z, x_m](std::size_t i) {
+                    Z[i - 1] = std::fma(bn[i], x_m, Z[i]);
+                });
+            }
+        }
+    }
+
+    /**
     * \brief Apply a kernal, in ordererd manner, on variadic amount of random access arithmetic ranges and return the result in a diffrent range.
     *        Although operation will be element wise, kernel should be given in scalar manner.
     * 
