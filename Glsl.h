@@ -2498,3 +2498,11 @@ using mat4 = GLSL::Matrix4<float>;
 using dmat2 = GLSL::Matrix2<double>;
 using dmat3 = GLSL::Matrix3<double>;
 using dmat4 = GLSL::Matrix4<double>;
+
+// given vector type, return appropriate matrix type in struct type called 'matrix_type'
+template<GLSL::IFixedVector VEC> struct appropriate_matrix_type {
+    using matrix_type = std::conditional_t<VEC::length() == 2, GLSL::Matrix2<typename VEC::value_type>,
+                        std::conditional_t<VEC::length() == 3, GLSL::Matrix3<typename VEC::value_type>,
+                        std::conditional_t<VEC::length() == 4, GLSL::Matrix4<typename VEC::value_type>,
+                                                               GLSL::MatrixN<typename VEC::value_type, VEC::length()>>>>;
+};
