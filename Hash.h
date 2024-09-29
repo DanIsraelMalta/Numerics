@@ -52,7 +52,7 @@ namespace Hash {
         constexpr out_t divider{ std::pow(2, static_cast<out_t>(bits)) };
 
         // heptaplex collapse noise
-#define HEPTAPLEX(X, Y, Z) ~(~X - Y - Z) * ~(X - ~Y - Z) * ~(X - Y - ~Z)
+#define HEPTAPLEX(X, Y, Z) ~(~(X) - (Y) - (Z)) * ~((X) - ~(Y) - (Z)) * ~((X) - (Y) - ~(Z))
         x = HEPTAPLEX(x, y, z);
         y = HEPTAPLEX(x, y, z);
         z = x ^ y ^ HEPTAPLEX(x, y, z);
