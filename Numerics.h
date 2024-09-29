@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <bit> // std::bit_cast
 #include <limits> // std::numeric_limits
+#include <climits> // CHAR_BIT
 #include <cmath> // std::signbit, std::isnan, std::isinf
 #include "Utilities.h"
 #include "Concepts.h"
@@ -55,6 +56,21 @@ namespace Numerics {
             return 1.0e-14;
 #endif
         }
+    }
+
+    /**
+    * \bried given amount of bits, return the number of size_t's needed to store them
+    * @param {size_t, in}  number of bits
+    * @param {size_t, out} number of size_t's needed to store given amount of bits
+    **/
+    constexpr std::size_t NumBitFields(const std::size_t num_bits) noexcept {
+        constexpr std::size_t num_field_bits{ sizeof(std::size_t) * CHAR_BIT };
+        return num_bits ? (1 + ((num_bits - 1) / num_field_bits)) : 0;
+    }
+    template<std::size_t num_bits>
+    constexpr std::size_t NumBitFields() noexcept {
+        constexpr std::size_t num_field_bits{ sizeof(std::size_t) * CHAR_BIT };
+        return num_bits ? (1 + ((num_bits - 1) / num_field_bits)) : 0;
     }
 
     /**
