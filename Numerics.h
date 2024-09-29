@@ -205,7 +205,7 @@ namespace Numerics {
     template<class T, class V>
         requires(std::is_floating_point_v<T> && std::is_integral_v<V>)
     constexpr bool in_range(const V value) noexcept {
-        constexpr std::size_t digits{ std::numeric_limits<T>::digits };
+        constexpr std::size_t digits{ static_cast<std::size_t>(std::numeric_limits<T>::digits) };
         return static_cast<std::size_t>(std::ceil(std::log2l(value))) <= digits;
     }
 
