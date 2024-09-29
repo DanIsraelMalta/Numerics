@@ -317,8 +317,8 @@ namespace PointDistance {
             else {
                 [[assume(d >= T{})]];
                 const T h{ static_cast<T>(2) * m * n * std::sqrt(d) };
-                const T s{ std::copysign(std::pow(std::abs(q + h), static_cast<T>(1 / 3)), q + h) };
-                const T u{ std::copysign(std::pow(std::abs(q - h), static_cast<T>(1 / 3)), q - h) };
+                const T s{ std::copysign(std::pow(std::abs(q + h), static_cast<T>(1.0 / 3.0)), q + h) };
+                const T u{ std::copysign(std::pow(std::abs(q - h), static_cast<T>(1.0 / 3.0)), q - h) };
                 const T rx{ -s - u - static_cast<T>(4) * c + static_cast<T>(2) * m2 };
                 const T ry{ (s - u) * std::sqrt(static_cast<T>(3)) };
                 const T rxry{ rx * rx + ry * ry };
