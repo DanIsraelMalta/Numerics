@@ -84,6 +84,10 @@ void test_variadic() {
 }
 
 void test_numerics() {
+    // test NumBitFields
+    assert(Numerics::NumBitFields(137) == 3);
+    assert(Numerics::NumBitFields<137>() == 3);
+    
     // test ulp_distance_between
     assert(Numerics::ulp_distance_between(0.0f, 0.0f) == 0);
     assert(Numerics::ulp_distance_between(0.0f, 1.0f) == 1065353216);
