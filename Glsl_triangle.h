@@ -274,18 +274,18 @@ namespace Triangle {
 
         // lambda which permutes triangle vertices to the left
         const auto permute_left = [](vec_t& a, vec_t& b, vec_t& c) {
-            const vec_t temp(a);
-            a = b;
-            b = c;
-            c = temp;
+            vec_t temp(a);
+            a = MOV(b);
+            b = MOV(c);
+            c = MOV(temp);
         };
 
         // lambda which permutes triangle vertices to the right
         const auto permute_right = [](vec_t& a, vec_t& b, vec_t& c) {
-            const vec_t temp(c);
-            c = b;
-            b = a;
-            a = temp;
+            vec_t temp(c);
+            c = MOV(b);
+            b = MOV(a);
+            a = MOV(temp);
         };
 
         // lambda which permutes triangle vertex 'a' such that it would "lie on its side"
@@ -313,9 +313,9 @@ namespace Triangle {
         const auto make_a_positive = [](const vec_t& a1, const vec_t& a2, vec_t& b2, vec_t& c2) {
             const std::int32_t o{Triangle::point_triangle_orientation(a1, a2, b2, c2) };
             if (o < 0) {
-                const vec_t temp{ c2 };
-                c2 = b2;
-                b2 = temp;
+                vec_t temp{ c2 };
+                c2 = MOV(b2);
+                b2 = MOV(temp);
             }
         };
 
