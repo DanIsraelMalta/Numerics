@@ -1863,6 +1863,25 @@ void test_GLSL_algorithms_2D() {
     }
 
     {
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                    vec2(1.0f, 2.0f)} };
+        auto area = Algorithms2D::Internals::get_polygon_area(polygon.begin(), polygon.end());
+        assert(static_cast<std::int32_t>(area * 10.0f) == 445);
+
+        for (auto it{ polygon.begin() }, nt{ polygon.begin() + 1 }; nt != polygon.end(); ++it, ++nt) {
+            assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, it, nt));
+        }
+
+        assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin(),     polygon.begin() + 2));
+        assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 3, polygon.begin() + 11));
+        assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 9, polygon.begin() + 11));
+        assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 2, polygon.begin() + 8));
+        assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 6, polygon.begin() + 8));
+        assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin(), polygon.begin() + 4));  // false
+    }
+    
+    {
         std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
                                     vec2(1.0f, 2.0f)} };
