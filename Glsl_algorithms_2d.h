@@ -132,6 +132,32 @@ namespace Algorithms2D {
         }
 
         /**
+        * \brief test if two segments intersect
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {bool,         out} true if two segments intersect, false otherwise
+        **/
+        template<GLSL::IFixedVector VEC>
+            requires(VEC::length() == 2)
+        constexpr bool do_segments_intersect(const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) noexcept {
+            using T = typename VEC::value_type;
+            const VEC s1{ a1 - a0 };
+            const VEC s2{ b1 - b0 };
+            const T denom{ s1.x * s2.y - s2.x * s1.y};
+            if (Numerics::areEquals(denom, T{})) {
+                return false;
+            }
+
+            const VEC ab{ a0 - b0 };
+            const T s{ ( s1.x * ab.y - s1.y * ab.x) / denom };
+            const T t{ ( s2.x * ab.y - s2.y * ab.x) / denom };
+            return (s >= T{} && s <= static_cast<T>(1.0) &&
+                    t >= T{} && t <= static_cast<T>(1.0));
+        }
+
+        /**
         * \brief project point on segment
         * @param {IFixedVector,               in}  segment point #1
         * @param {IFixedVector,               in}  segment point #2
@@ -239,7 +265,37 @@ namespace Algorithms2D {
         }
 
         /**
-        * \brief given a collection of points whice define segments of closed polygon and a point, return the indices of points which define the segment which is closest to the point
+        * \brief given a polygon, return its area
+        * @param {forward_iterator, in}  iterator to polygon first point
+        * @param {forward_iterator, in}  iterator to polygon last point
+        * @param {value_type,       out} polygon area
+        **/
+        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = VEC::value_type>
+            requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+        constexpr T get_polygon_area(const InputIt first, const InputIt last) {
+            // vertex has no area
+            if (std::distance(first, last) == 0) {
+                return T{};
+            }
+
+            // housekeeping
+            T area{};
+            const auto accumulate_area = [&area](const VEC v0, const VEC v1) {
+                area += (v0.x * v1.y - v1.x * v0.y);
+            };
+
+            // accumulate polygon triangles area
+            for (auto it{ first }, nt{first + 1}; nt != last; ++it, ++nt) {
+                accumulate_area(*it, *nt);
+            }
+            accumulate_area(*(last - 1), *first);
+
+            // output
+            return std::abs(area / static_cast<T>(2.0));
+        }
+
+        /**
+        * \brief given a collection of points which define segments of closed polygon and a point, return the indices of points which define the segment which is closest to the point
         * @param {vector<IFixedVector>, in}  cloud of points, each two consecutive points define a segment
         * @param {IFixedVector,         in}  point
         * @param {{value_type, size_t}, out} {squared distance, index of point #1 in collection which define closest segment}
@@ -389,7 +445,7 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
         using out_t = struct { VEC p0; VEC p1; VEC p2; VEC p3; };
 
-        // iterate over all convex hull edges and find minimal area bounding rectangke
+        // iterate over all convex hull edges and find minimal area bounding rectangle
         T area{ std::numeric_limits<T>::max() };
         VEC p0;
         VEC p1;
@@ -418,7 +474,7 @@ namespace Algorithms2D {
             // project points on line connecting convex hull edge and find minimal/maximal points.
             // project points on orthogonal line to edge (should be going inside the convex hull) and find maximal point.
             for (const VEC point: hull) {
-                // project points on segment tangential and orthogonal directions (orthogonal tawrds inside hull)
+                // project points on segment tangential and orthogonal directions (orthogonal towards inside hull)
                 const auto projOnDir{ Internals::project_point_on_segment(v0, v1, point) };
                 const auto projOnNormal_0{ Internals::project_point_on_segment(v0, v2_0, point) };
                 const auto projOnNormal_1{ Internals::project_point_on_segment(v1, v2_1, point) };
@@ -604,7 +660,7 @@ namespace Algorithms2D {
             return circle;
         };
 
-        // iterate over remaining points and find minimal enclosling circle
+        // iterate over remaining points and find minimal enclosing circle
         out_t circle{ Internals::get_circumcircle(hull[0], hull[1], hull[2], hull[3]) };
         for (std::size_t i{ 4 }; i < N; ++i) {
             const VEC p{ hull[i] };
@@ -694,8 +750,8 @@ namespace Algorithms2D {
     * @param {forward_iterator,     in}  iterator to point cloud collection first point
     * @param {forward_iterator,     in}  iterator to point cloud collection last point
     * @param {value_type,           in}  concave threshold. the minimal ratio between segment length with added point and original segment length.
-    *                                    if the value is smallter than the threshold - the point is part of the concave.
-    *                                    the larger the threshold - the more points will be part of the concvave.
+    *                                    if the value is smaller than the threshold - the point is part of the concave.
+    *                                    the larger the threshold - the more points will be part of the concave.
     *                                    default is 0, i.e - convex hull
     * @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
     **/
@@ -954,9 +1010,11 @@ namespace Algorithms2D {
     * @param {forward_iterator, in}  iterator to last point in polygon
     * @param {int32_t,          out} true if polygon is convex, false otherwise
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+
         // housekeeping
         const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
         if (len < 4) {
@@ -972,5 +1030,66 @@ namespace Algorithms2D {
         }
 
         return true;
+    }
+
+    /**
+    * \brief given a closed non intersecting polygon and two of its vertices, check if line connecting these vertices is inside or outside the polygon.
+    *        notice that segments connecting neighbouring vertices will be declared as "inside polygon".
+    * @param {forward_iterator, in}  iterator to first point in polygon
+    * @param {forward_iterator, in}  iterator to last point in polygon
+    * @param {value_type,       in}  polygon area
+    * @param {forward_iterator, in}  iterator to first vertex
+    * @param {forward_iterator, in}  iterator to second vertex
+    * @param {bool,             out} true if segment connecting vertices is inside polygon, false otherwise
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr bool is_line_connecting_polygon_vertices_inside_polygon(const InputIt first, const InputIt last, const T area, const InputIt i0, const InputIt i1) {
+        // if segment connects neighbouring vertices - it is "inside polygon"
+        if ((Extra::are_vectors_identical(*first, *i0) && Extra::are_vectors_identical(*(last - 1), *i1)) ||
+            Extra::are_vectors_identical(*(i0 + 1), *i1)) {
+            return true;
+        }
+
+        // lambda to check if any of four vectors are identical
+        const auto is_any_identical = [](const VEC& a, const VEC& b, const VEC& c, const VEC& d) -> bool {
+            return (Extra::are_vectors_identical(a, c) || Extra::are_vectors_identical(b, d) ||
+                    Extra::are_vectors_identical(a, d) || Extra::are_vectors_identical(b, c));
+        };
+
+        // lambda to check if line connecting two vertices (i0-i1) intersects polygon edges
+        const auto does_segment_intersect_polygon = [first, last, i0, i1, &is_any_identical]() -> bool {
+            const VEC p0{ *i0 };
+            const VEC p1{ *i1 };
+
+            InputIt it{ first };
+            InputIt nt{ first + 1 };
+            for (; nt != last; ++it, ++nt) {
+                if (is_any_identical(*it, *nt, p0, p1)) {
+                    continue;
+                }
+                if (Algorithms2D::Internals::do_segments_intersect(p0, p1, *it, *nt)) {
+                    return true;
+                }
+            }
+
+            if (is_any_identical(*first, *(last - 1), p0, p1)) {
+                return false;
+            }
+            return Algorithms2D::Internals::do_segments_intersect(p0, p1, *first, *(last - 1));
+        };
+
+        // lambda to check if line connecting two polygon vertices (i0, i1) is inside or outside the polygon
+        const auto is_line_inside_polygon = [first, last, i0, i1, area]() -> bool {
+            const T area_from_polygon_start_to_segment_start{ Algorithms2D::Internals::get_polygon_area(first, i0) };
+            const T area_from_segment_end_to_polygon_end{ Algorithms2D::Internals::get_polygon_area(i1, last) };
+            const VEC p0{ *i0 };
+            const VEC p1{ *i1 };
+            const T area_segment{ (p0.x * p1.y - p1.x * p0.y) / static_cast<T>(2.0) };
+            return (area_from_polygon_start_to_segment_start + area_segment + area_from_segment_end_to_polygon_end <= area);
+        };
+
+        // test segment
+        return does_segment_intersect_polygon() ? false : is_line_inside_polygon();
     }
 }
