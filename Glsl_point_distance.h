@@ -74,24 +74,6 @@ namespace PointDistance {
     }
 
     /**
-    * \brief return the unsigned distance of a point from segment
-    * @param {IFixedVector, in}  point
-    * @param {IFixedVector, in}  segment point #1
-    * @param {IFixedVector, in}  segment point #2
-    * @param {value_type,   out} signed distance
-    **/
-    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr T udf_to_segment(const VEC& p, const VEC& a, const VEC& b) {
-        const VEC pa{ p - a };
-        const VEC ba{ b - a };
-        const T dot{ GLSL::dot(ba) };
-        assert(!Numerics::areEquals(dot, T{}));
-        const T h{ Numerics::clamp<T{}, static_cast<T>(1)>(GLSL::dot(pa, ba) / dot) };
-        return GLSL::length(pa - ba * h);
-    }
-
-    /**
     * \brief return the signed distance of a point from circle/sphere
     * @param {IFixedVector, in}  point
     * @param {IFixedVector, in}  circle/sphere center
