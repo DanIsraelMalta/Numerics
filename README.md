@@ -186,7 +186,7 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
 
 It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
-As an example, here is a graphic representation of the calculated top/bottom envelope of a sine signal:
+As an example, here is a graphic representation of the calculated top/bottom envelope of a sine signal and a different bounding shapes for a polygon:
 ```cpp
    {
        // define 2D signal
