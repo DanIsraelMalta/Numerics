@@ -338,11 +338,11 @@ namespace Algorithms2D {
         *          array<forward_iterator, 2>,        iterator from minimal y coordinate to maximal y coordinate}
         *          array<value_type, 2>,              minimal and maximal x values,
         *          array<value_type, 2>,},      out}  minimal and maximal y values}
-        *
         **/
-        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
             requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
         constexpr auto get_monotone_chains(const InputIt first, const InputIt last) {
+            using T = typename VEC::value_type;
             using out_t = struct {
                 std::array<InputIt, 2> x_monotone_chain;
                 std::array<InputIt, 2> y_monotone_chain;
@@ -713,9 +713,9 @@ namespace Algorithms2D {
         using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
         bool clockwise{ false };
-        for (iter_size_t len{ std::distance(first, last) }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
-            const VEC a{ *(first + i) };
-            const VEC b{ *(first + j) };
+        for (InputIt f{ first }, s{ first + 1 }; s != last; ++f, ++s) {
+            const VEC a{ *f };
+            const VEC b{ *s };
             const T angle_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
             const T angle_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
 
@@ -1091,5 +1091,75 @@ namespace Algorithms2D {
 
         // test segment
         return does_segment_intersect_polygon() ? false : is_line_inside_polygon();
+    }
+
+    /**
+    * \brief given a closed polygon (as a collection of points) return iterators to its reflex vertices (vertice whose angle is bigger than PI)
+    * @param {forward_iterator,         in}  iterator to first point in polygon
+    * @param {forward_iterator,         in}  iterator to last point in polygon
+    * @param {vector<forward_iterator>, out} vector of iterators to reflex vertices
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<InputIt> get_reflex_vertices(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+        // housekeeping
+        const VEC centroid{ Algorithms2D::Internals::get_centroid(first, last) };
+        const bool is_clockwise{ Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid) };
+
+        // lambda to check if vertex 'b' in a list of three consecutive vertices (a->b->c) is reflex vertex
+        const auto is_reflex_vertex = [&is_clockwise](const InputIt a, const InputIt b, const InputIt c) -> bool {
+            const vec2 A{ *b - *a };
+            const vec2 B{ *c - *b };
+            const float det{ A.x * B.y - A.y * B.x };
+            return (is_clockwise && det < T{}) || (!is_clockwise && det > T{});
+        };
+
+        // iterate over all vertices
+        std::vector<InputIt> reflex;
+        for (InputIt f{ first }, s{ first + 1 }, t{ first + 2 }; t != last; ++f, ++s, ++t) {
+            if (is_reflex_vertex(f, s, t)) {
+                reflex.emplace_back(s);
+            }
+        }
+        if (is_reflex_vertex(last - 1, first, first + 1)) {
+            reflex.emplace_back(first);
+        }
+
+        // output
+        return reflex;
+    }
+
+    /**
+    * \brief given a closed polygon (as a collection of points) return iterators to its cusp vertices (vertice whose adjacent vertices x or y coordinates are either both above or below it)
+    * @param {forward_iterator,         in}  iterator to first point in polygon
+    * @param {forward_iterator,         in}  iterator to last point in polygon
+    * @param {integral,                 in}  0 - look for cusps in X coordinate, 1 - look for cusps in Y coordinate (0/x by default)
+    * @param {vector<forward_iterator>, out} vector of iterators to reflex vertices
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<InputIt> get_cusp_vertices(const InputIt first, const InputIt last, const std::int8_t coordinate = 0) {
+        using T = typename VEC::value_type;
+        assert(coordinate == 0 || coordinate == 1);
+
+        // lambda to check if vertex 'b' in a list of three consecutive vertices (a->b->c) is cusp vertex
+        const auto is_cusp_vertex = [coordinate](const InputIt a, const InputIt b, const InputIt c) -> bool {
+            return ((*a)[coordinate] > (*b)[coordinate]) && ((*c)[coordinate] > (*b)[coordinate]);
+        };
+
+        // iterate over all vertices
+        std::vector<InputIt> cusps;
+        for (InputIt f{ first }, s{ first + 1 }, t{ first + 2 }; t != last; ++f, ++s, ++t) {
+            if (is_cusp_vertex(f, s, t)) {
+                cusps.emplace_back(s);
+            }
+        }
+        if (is_cusp_vertex(last - 1, first, first + 1)) {
+            cusps.emplace_back(first);
+        }
+
+        // output
+        return cusps;
     }
 }
