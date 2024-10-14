@@ -1880,7 +1880,30 @@ void test_GLSL_algorithms_2D() {
         assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 6, polygon.begin() + 8));
         assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin(), polygon.begin() + 4));  // false
     }
-    
+
+    {
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                    vec2(1.0f, 2.0f)} };
+
+        // get reflex vertices
+        const auto reflex_vertices = Algorithms2D::get_reflex_vertices(polygon.begin(), polygon.end());
+        const std::vector<vec2> reflexis{ { vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(8.0f, 9.0f),
+                                            vec2(2.0f, 8.0f), vec2(2.0f, 6.0f) }};
+        for (std::size_t i{}; i < reflexis.size(); ++i) {
+            assert(GLSL::max(GLSL::abs(reflexis[i] - *reflex_vertices[i])) < 1e-6f);
+        }
+
+        // get cusps in x
+        const auto cusp_x_vertices = Algorithms2D::get_cusp_vertices(polygon.begin(), polygon.end());
+        assert(cusp_x_vertices.size() == 1);
+        assert(GLSL::max(GLSL::abs(vec2(4.0f, 6.0f) - *cusp_x_vertices[0])) < 1e-6f);
+
+        // get cusps in y
+        const auto cusp_y_vertices = Algorithms2D::get_cusp_vertices(polygon.begin(), polygon.end(), 1);
+        assert(cusp_y_vertices.size() == 0);
+    }
+        
     {
         std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
