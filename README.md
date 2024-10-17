@@ -188,6 +188,7 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
 As an example, here is a graphic representation of the calculated top/bottom envelope of a sine signal and a different bounding shapes for a polygon:
 ```cpp
+   // find a 2D signal envelope
    {
        // define 2D signal
        std::vector<vec2> points;
@@ -209,6 +210,7 @@ As an example, here is a graphic representation of the calculated top/bottom env
        envelope_test_svg.to_file("envelope_test_svg.svg");
    }
 
+   // find convex hull and bounding shapes
    {
        // define polygon
        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
