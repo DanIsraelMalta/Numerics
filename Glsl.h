@@ -2506,3 +2506,17 @@ template<GLSL::IFixedVector VEC> struct appropriate_matrix_type {
                         std::conditional_t<VEC::length() == 4, GLSL::Matrix4<typename VEC::value_type>,
                                                                GLSL::MatrixN<typename VEC::value_type, VEC::length()>>>>;
 };
+
+// given vector type, return appropriate vector type with one more dimension
+template<GLSL::IFixedVector VEC> struct next_vector_type {
+    static_assert(VEC::length() < 4);
+    using vector_type = std::conditional_t<VEC::length() == 2, GLSL::Vector3<typename VEC::value_type>,
+                                                               GLSL::Vector4<typename VEC::value_type>>;
+};
+
+// given vector type, return appropriate vector type with one less dimension
+template<GLSL::IFixedVector VEC> struct prev_vector_type {
+    static_assert(VEC::length() > 2 && VEC::length() < 5);
+    using vector_type = std::conditional_t<VEC::length() == 4, GLSL::Vector3<typename VEC::value_type>,
+                                                               GLSL::Vector2<typename VEC::value_type>>;
+};
