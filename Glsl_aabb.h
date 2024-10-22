@@ -26,91 +26,145 @@
 #include "Glsl.h"
 
 //
-// axis aligned bounding box related functions
+// primitives axis aligned bounding boxes
+// (https://iquilezles.org/articles/diskbbox/, https://iquilezles.org/articles/ellipses/)
 //
-namespace Aabb {
+
+namespace AxisLignedBoundingBox {
 
     /**
-    * \brief return aabb centroid
-    * @param {Vector2|Vector3, in}  aabb min
-    * @param {Vector2|Vector3, in}  aabb max
-    * @param {Vector2|Vector3, out} aabb centroid
+    * \brief return the axis aligned bounding box of a disk
+    * @param {IFixedVector,                 in}  disk center
+    * @param {IFixedVector,                 in}  disk normal (should be normalized)
+    * @param {value_type,                   in}  disk radius
+    * @param {[IFixedVector, IFixedVector], out} {aabb min, aabb max}
     **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr VEC centroid(const VEC& min, const VEC& max) noexcept {
-        using T = typename VEC::value_type;
-        return (min + max) / static_cast<T>(2);
-    }
-
-    /**
-    * \brief return aabb diagnoal
-    * @param {Vector2|Vector3, in}  aabb min
-    * @param {Vector2|Vector3, in}  aabb max
-    * @param {Vector2|Vector3, out} aabb diagnoal
-    **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr VEC diagnonal(const VEC& min, const VEC& max) noexcept {
-        return GLSL::abs(max - min);
-    }
-
-    /**
-    * \brief test if point is inside aabb
-    * @param {Vector2|Vector3, in}  point
-    * @param {Vector2|Vector3, in}  aabb min
-    * @param {Vector2|Vector3, in}  aabb max
-    * @param {bool,            out} true if point is inside aabb, false otherwise
-    **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr bool is_point_inside(const VEC& p, const VEC& min, const VEC& max) noexcept {
-        return GLSL::lessThanEqual(p, max) && GLSL::lessThanEqual(min, p);
-    }
-
-    /**
-    * \brief expand an aabb to include a given point
-    * @param {Vector2|Vector3,                    in} point
-    * @param {Vector2|Vector3,                    in} aabb min
-    * @param {Vector2|Vector3,                    in} aabb max
-    * @param {{Vector2|Vector3, Vector2|Vector3}, out} {expanded min, expanded max}
-    **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr auto expand(const VEC& p, const VEC& min, const VEC& max) noexcept {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 3)
+    constexpr auto disk_aabb(const VEC& c, const VEC& n, const T rad) {
         using out_t = struct { VEC min; VEC max; };
-        return out_t{ GLSL::min(min, p), GLSL::max(max, p) };
+        constexpr VEC one(static_cast<T>(1));
+        assert(Numerics::areEquals(GLSL::length(n), static_cast<T>(1)));
+
+        const VEC one_minus_n2{ one - n * n };
+        assert(one_minus_n2.x >= T{});
+        assert(one_minus_n2.y >= T{});
+        assert(one_minus_n2.z >= T{});
+        [[assume(one_minus_n2.x >= T{})]];
+        [[assume(one_minus_n2.y >= T{})]];
+        [[assume(one_minus_n2.z >= T{})]];
+        const VEC e{ rad * GLSL::sqrt(one_minus_n2) };
+
+        return out_t{ c - e , c + e };
     }
 
     /**
-    * \brief square an aabb using its longest side (square center is aabb center)
-    * @param {Vector2|Vector3,                    in} aabb min
-    * @param {Vector2|Vector3,                    in} aabb max
-    * @param {{Vector2|Vector3, Vector2|Vector3}, out} {square min, square max}
+    * \brief return the axis aligned bounding box of a cylinder
+    * @param {IFixedVector,                 in}  cylinder edge point #1
+    * @param {IFixedVector,                 in}  cylinder edge point #2
+    * @param {value_type,                   in}  cylinder radius
+    * @param {[IFixedVector, IFixedVector], out} {aabb min, aabb max}
     **/
-    template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr auto square(const VEC& p, const VEC& min, const VEC& max) noexcept {
-        using T = typename VEC::value_type;
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 3)
+    constexpr auto cylinder_aabb(const VEC& pa, const VEC& pb, const T ra) {
         using out_t = struct { VEC min; VEC max; };
-        
-        const VEC diag{ Aabb::diagnonal(min, max) / static_cast<T>(2) };
-        const VEC cntr{ min + diag };
-        const T mmax{ GLSL::max(GLSL::abs(diag)) };
+        constexpr VEC one(static_cast<T>(1));
 
-        return out_t{ cntr + mmax , cntr - mmax };
+        const VEC a{ pb - pa };
+        const T dot{ GLSL::dot(a) };
+        assert(dot > T{});
+        const VEC squared{ one - a * a / dot };
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
+        const VEC e{ ra * GLSL::sqrt(one - a * a / dot) };
+
+        return out_t{ GLSL::min(pa - e, pb - e), GLSL::max(pa + e, pb + e) };
     }
 
     /**
-    * \brief given a point and aabb, return point on aabb closest to the point
-    * @param {Vector2|Vector3,  in} point
-    * @param {Vector2|Vector3,  in} aabb min
-    * @param {Vector2|Vector3,  in} aabb max
-    * @param {Vector2|Vector3, out} closest corner
+    * \brief return the axis aligned bounding box of a cone
+    * @param {IFixedVector,                 in}  cone edge point #1
+    * @param {IFixedVector,                 in}  cone edge point #2
+    * @param {value_type,                   in}  cone radius at point #1
+    * @param {value_type,                   in}  cone radius at point #2
+    * @param {[IFixedVector, IFixedVector], out} {aabb min, aabb max}
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 3)
+    constexpr auto cone_aabb(const VEC& pa, const VEC& pb, const T ra, const T rb) {
+        using out_t = struct { VEC min; VEC max; };
+        constexpr VEC one(static_cast<T>(1));
+
+        const VEC a{ pb - pa };
+        const T dot{ GLSL::dot(a) };
+        assert(dot > T{});
+        const VEC squared{ one - a * a / dot };
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
+        const VEC e{ GLSL::sqrt(squared) };
+        const VEC era{ e * ra };
+        const VEC erb{ e * rb };
+
+        return out_t{ GLSL::min(pa - era, pb - erb), GLSL::max(pa + era, pb + erb) };
+    }
+
+    /**
+    * \brief return the axis aligned bounding box of a planar/flat ellipse.
+    *        the ellipse plane is defined by its axes.
+    * @param {IFixedVector,                 in}  ellipse center
+    * @param {IFixedVector,                 in}  vector connecting ellipse edge points along long axis
+    * @param {IFixedVector,                 in}  vector connecting ellipse edge points along small axis
+    * @param {[IFixedVector, IFixedVector], out} {aabb min, aabb max}
     **/
     template<GLSL::IFixedVector VEC>
-        requires((VEC::length() == 2) || (VEC::length() == 3))
-    constexpr auto closest_point(const VEC& p, const VEC& min, const VEC& max) noexcept {
-        return GLSL::clamp(p, min, max);
+        requires(VEC::length() == 3)
+    constexpr auto ellipse_aabb(const VEC& c, const VEC& u, const VEC& v) {
+        using out_t = struct { VEC min; VEC max; };
+
+        const VEC squared{ u * u + v * v };
+        [[assume(squared.x >= T{})]];
+        [[assume(squared.y >= T{})]];
+        [[assume(squared.z >= T{})]];
+        const VEC e{ GLSL::sqrt(squared) };
+
+        return out_t{ c - e, c + e };
     }
+
+    /**
+    * \brief return the axis aligned bounding box of a sphere.
+    * @param {IFixedVector,                 in}  sphere center
+    * @param {value_type,                   in}  sphere radius
+    * @param {[IFixedVector, IFixedVector], out} {aabb min, aabb max}
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 3)
+    constexpr auto sphere_aabb(const VEC& center, const T radius) {
+        using out_t = struct { GLSL::Vector3<T> min; GLSL::Vector3<T> max; };
+        return out_t{ center - radius, center + radius };
+    }
+
+    /**
+	* \brief given point cloud - return its axis aligned bounding box
+	* @param {forward_iterator,             in}  iterator to collection first point
+	* @param {forward_iterator,             in}  iterator to collection last point
+	* @param {{IFixedVector, IFixedVector}, out} {aabb min, aabb max}
+	**/
+	template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+		requires(GLSL::is_fixed_vector_v<VEC>)
+	constexpr auto point_cloud_aabb(const InputIt first, const InputIt last) noexcept {
+        using T = typename VEC::value_type;
+		using out_t = struct { VEC min; VEC max; };
+
+		VEC min(std::numeric_limits<T>::max());
+		VEC maxNegative(std::numeric_limits<T>::max());
+        for (auto it{ first }; it != last; ++it) {
+			min = GLSL::min(min, *it);
+			maxNegative = GLSL::min(maxNegative, -*it);
+		}
+
+		return out_t{ min, -maxNegative };
+	}
 }
