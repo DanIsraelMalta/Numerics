@@ -46,7 +46,7 @@ namespace Numerics {
         if constexpr (sizeof(T) == sizeof(float)) {
             return 1.0e-5f;
         } // for 64bit floating point use 14 digits
-        else if (sizeof(T) == sizeof(double)) {
+        else if constexpr (sizeof(T) == sizeof(double)) {
             return 1.0e-14;
         } // 17 digits (except for MSVC, since they are same as doubles - https://msdn.microsoft.com/en-us/library/9cx8xs15.aspx)
         else {
@@ -59,7 +59,7 @@ namespace Numerics {
     }
 
     /**
-    * \bried given amount of bits, return the number of size_t's needed to store them
+    * \brief given amount of bits, return the number of size_t's needed to store them
     * @param {size_t, in}  number of bits
     * @param {size_t, out} number of size_t's needed to store given amount of bits
     **/
@@ -315,7 +315,7 @@ namespace Numerics {
     }
 
     /**
-    * \brief return the divison of two integrals, rounded up
+    * \brief return the division of two integrals, rounded up
     * @param {arithmetic, in}  numerator
     * @param {arithmetic, in}  denominator
     * @param {arithmetic, out} rounded up (numerator / denominator)
@@ -346,7 +346,7 @@ namespace Numerics {
     }
 
     /**
-    * \brief return the divison of two integrals, rounded down
+    * \brief return the division of two integrals, rounded down
     * @param {integral, in}  numerator
     * @param {integral, in}  denominator
     * @param {integral, out} rounded low (numerator / denominator)
@@ -364,11 +364,9 @@ namespace Numerics {
         requires(std::is_integral_v<decltype(num)> && std::is_integral_v<decltype(den)> && den != 0)
     constexpr auto roundedLowDivision() {
         using T = decltype(den);
-        T q{ num / den };
-        if (constexpr T r{ num % den }; (r != T{}) && ((r < T{}) != (den < T{}))) {
-            --q;
-        }
-        return q;
+        constexpr T q{ num / den };
+        constexpr T r{ num % den };
+        return ((r != T{}) && ((r < T{}) != (den < T{}))) ? q - 1 : q;
     }
 
     /**
