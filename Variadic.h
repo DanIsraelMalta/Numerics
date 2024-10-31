@@ -31,8 +31,8 @@
 namespace Variadic {
 
     /**
-    * \brief in place iteratrion and mutation of variadic elements
-    * @param {FUNC, in} unary opeations
+    * \brief in place iteration and mutation of variadic elements
+    * @param {FUNC, in} unary operations
     * @param {...,  in} variadic arguments which can be mutated during operation
     **/
     template<class FUNC, class...Ts>
@@ -42,7 +42,7 @@ namespace Variadic {
     }
 
     /**
-    * \brief short circuted test to check if variadic amount of elements are lower than a given value
+    * \brief short circuited test to check if variadic amount of elements are lower than a given value
     * @param {OrderedDescending,    in}  value
     * @param {OrderedDescending..., in}  values
     * @param {OrderedDescending,    out} true if all values are lower than a given value, false otherwise
@@ -59,7 +59,7 @@ namespace Variadic {
     };
 
     /**
-    * \brief short circuted test to check if variadic amount of elements are greater than a given value
+    * \brief short circuited test to check if variadic amount of elements are greater than a given value
     * @param {OrderedAscending,    in}  value
     * @param {OrderedAscending..., in}  values
     * @param {OrderedAscending,    out} true if all values are greater than a given value, false otherwise
@@ -76,7 +76,7 @@ namespace Variadic {
     };
 
     /**
-    * \brief short circuted test to check if variadic amount of elements are within given range
+    * \brief short circuited test to check if variadic amount of elements are within given range
     * @param {PartiallyOrdered,    in}  min value
     * @param {PartiallyOrdered,    in}  max value
     * @param {PartiallyOrdered..., in}  values
