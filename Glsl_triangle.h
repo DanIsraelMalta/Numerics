@@ -43,9 +43,6 @@ namespace Triangle {
         using T = typename VEC::value_type;
 
         // triangle sides length, sorted in ascending order
-        const VEC v10{ v1 - v0 };
-        const VEC v21{ v2 - v1 };
-        const VEC v20{ v2 - v0 };
         std::array<T, 3> sides{ { GLSL::length(v1 - v0),
                                   GLSL::length(v2 - v1),
                                   GLSL::length(v2 - v0) } };
