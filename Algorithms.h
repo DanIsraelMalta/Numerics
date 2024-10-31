@@ -245,7 +245,7 @@ namespace Algoithms {
         };
 
         // lambda to perform quick select algorithm in recursive manner
-        const auto quickselect = [&partition_with_pivot, &vec, len](const std::size_t k, const std::size_t left, const std::size_t right, auto&& recursive_driver) {
+        const auto quickselect = [&partition_with_pivot, len](const std::size_t k, const std::size_t left, const std::size_t right, auto&& recursive_driver) {
             if (left == right) {
                 return;
             }
@@ -411,10 +411,9 @@ namespace Algoithms {
             }
             };
 
-        // lambda to sort a colection in recursive manner
-        const auto sort = [&partition_with_pivot, &partition_with_pivot_reverse,
-            &small_sort, &heap_sort, &median5, C = FWD(comp)]
-            (It f, It l, std::size_t limit, auto&& recursive_driver) {
+        // lambda to sort a collection in recursive manner
+        const auto sort = [&partition_with_pivot, &partition_with_pivot_reverse, &small_sort, &heap_sort, &median5]
+                          (It f, It l, std::size_t limit, auto&& recursive_driver) {
             for (;;) {
                 const std::size_t len{ static_cast<std::size_t>(l - f) };
                 if (len < 16) {
