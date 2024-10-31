@@ -265,7 +265,6 @@ namespace Decomposition {
         using qr_t = decltype(Decomposition::QR(mat));
         using VEC = typename MAT::vector_type;
         using out_t = struct { MAT eigenvectors; MAT schur; };
-        constexpr std::size_t N{ MAT::columns() };
 
         MAT A(balance_input ? Decomposition::balance_matrix(mat)  : mat);
         MAT Q;
@@ -296,7 +295,7 @@ namespace Decomposition {
         MAT Q;
         Extra::make_identity(Q);
         qr_t QR;
-        Utilities::static_for<0, 1, N>([&A, &Q, &QR](std::size_t i) {
+        Utilities::static_for<0, 1, N>([&A, &Q, &QR]() {
             QR = Decomposition::QR(A);
             A = QR.R * QR.Q;
             Q *= QR.Q;
@@ -380,7 +379,7 @@ namespace Decomposition {
         else {
             MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
             qr_t QR;
-            Utilities::static_for<0, 1, N>([&A, &QR](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&A, &QR]() {
                 QR = Decomposition::QR(A);
                 A = QR.R * QR.Q;
             });
@@ -460,7 +459,7 @@ namespace Decomposition {
 
         // calculate SVD
         iterative_step(mat);
-        Utilities::static_for<1, 1, N>([&qr1, &iterative_step](std::size_t i) {
+        Utilities::static_for<1, 1, N>([&qr1, &iterative_step]() {
             iterative_step(qr1.R);
         });
 
@@ -519,7 +518,7 @@ namespace Decomposition {
 
         // eigenvector calculation via power iteration
         VEC eigenvector_next;
-        Utilities::static_for<0, 1, N>([&mat, &eigenvector, &eigenvector_next](std::size_t i) {
+        Utilities::static_for<0, 1, N>([&mat, &eigenvector, &eigenvector_next]() {
             eigenvector_next = eigenvector * mat;
 
             const T max{ GLSL::max(eigenvector_next) };
