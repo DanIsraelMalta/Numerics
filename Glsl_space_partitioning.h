@@ -477,13 +477,13 @@ namespace SpacePartitioning {
         private:
             // properties
             std::vector<std::vector<std::size_t>> bins;
-            index_array_t numCells;           // number of cells in each dimension
-            index_array_t gridMin;            // grid cells minimal values
-            index_array_t gridMax;            // grid cells maximal values
-            point_t min;                      // grid min position
-            point_t max;                      // grid max position
-            point_t offset;                   // grid offset from coordinate system zero
-            const point_t* first{ nullptr };  // iterator for point cloud start 
+            index_array_t numCells{ {0} };           // number of cells in each dimension
+            index_array_t gridMin{ {0} };            // grid cells minimal values
+            index_array_t gridMax{ {0} };            // grid cells maximal values
+            point_t min{};                           // grid min position
+            point_t max{};                           // grid max position
+            point_t offset{};                        // grid offset from coordinate system zero
+            const point_t* first{ nullptr };         // iterator for point cloud start 
 
             /**
             * \brief given point in space, offset and k-value, return position in grid
