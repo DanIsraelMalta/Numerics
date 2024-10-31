@@ -178,32 +178,31 @@ namespace Extra {
 
     /**
     * \brief return the outer product of two vectors
-    * @param  {Vector2|Vector3|Vector4, in}  x
-    * @param  {Vector2|Vector3|Vector4, in}  y
-    * @return {Matrix2|Matrix3|Matrix4, out} outer product between x and y
+    * @param  {IFixedVector,      in}  x
+    * @param  {IFixedVector,      in}  y
+    * @return {IFixedCubicMatrix, out} outer product between x and y
     **/
-    template<GLSL::IFixedVector VEC>
-        requires(VEC::length() <= 4)
-    constexpr auto outer_product(const VEC& x, const VEC& y) noexcept {
+    template<GLSL::IFixedVector VEC, class MAT = appropriate_matrix_type<VEC>::matrix_type>
+    constexpr MAT outer_product(const VEC& x, const VEC& y) noexcept {
         using T = typename VEC::value_type;
         constexpr std::size_t N{ VEC::length() };
         if constexpr (N == 2) {
-            return GLSL::Matrix2<T>(x[0] * y[0], x[0] * y[1],
-                                    x[1] * y[0], x[1] * y[1]);
+            return MAT(x[0] * y[0], x[0] * y[1],
+                       x[1] * y[0], x[1] * y[1]);
         }
         else if constexpr (N == 3) {
-            return GLSL::Matrix3<T>(x[0] * y[0], x[0] * y[1], x[0] * y[2],
-                                    x[1] * y[0], x[1] * y[1], x[1] * y[2],
-                                    x[2] * y[0], x[2] * y[1], x[2] * y[2]);
+            return MAT(x[0] * y[0], x[0] * y[1], x[0] * y[2],
+                       x[1] * y[0], x[1] * y[1], x[1] * y[2],
+                       x[2] * y[0], x[2] * y[1], x[2] * y[2]);
         }
         else if constexpr (N == 4) {
-            return GLSL::Matrix4<T>(x[0] * y[0], x[0] * y[1], x[0] * y[2], x[0] * y[3],
-                                    x[1] * y[0], x[1] * y[1], x[1] * y[2], x[1] * y[3],
-                                    x[2] * y[0], x[2] * y[1], x[2] * y[2], x[2] * y[3],
-                                    x[3] * y[0], x[3] * y[1], x[3] * y[2], x[3] * y[3]);
+            return MAT(x[0] * y[0], x[0] * y[1], x[0] * y[2], x[0] * y[3],
+                       x[1] * y[0], x[1] * y[1], x[1] * y[2], x[1] * y[3],
+                       x[2] * y[0], x[2] * y[1], x[2] * y[2], x[2] * y[3],
+                       x[3] * y[0], x[3] * y[1], x[3] * y[2], x[3] * y[3]);
         }
         else {
-            GLSL::MatrixN<T, N> out;
+            MAT out;
 
             Utilities::static_for<0, 1, N>([&out, &x, &y](std::size_t i) {
                 Utilities::static_for<0, 1, N>([&out, &x, &y, i](std::size_t j) {
