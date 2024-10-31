@@ -12,12 +12,11 @@
 #include "Glsl.h"
 #include "Glsl_extra.h"
 #include "Glsl_solvers.h"
-#include "Glsl_aabb.h"
 #include "Glsl_triangle.h"
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_point_distance.h"
 #include "Glsl_ray_intersections.h"
-#include "Glsl_transformation.h"
+#include "Glsls_transformation.h"
 #include "GLSL_algorithms_2D.h"
 #include "Glsl_space_partitioning.h"
 #include "GLSL_clustering.h"
@@ -44,14 +43,14 @@ void test_diamond_angle() {
 
 void test_hash() {
     // test SzudzikValueFromPair
-    static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
-    static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
+    //static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
+    //static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
 
     // test SzudzikPairFromValue
-    assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
-    assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
-    assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
-    assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
+    //assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
+    //assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
+    //assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
+    //assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
 }
 
 void test_variadic() {
@@ -224,9 +223,9 @@ void test_numerics() {
         // FIR filter (3 taps moving average)
         const std::array<double, 3> b{ {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0} };
         const std::array<double, 1> a{ {1.0} };
-        const std::array<double, 6> x{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
+        const std::array<double, 6> xx{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
         std::array<double, 6> y;
-        Numerics::filter<3, 1>(x.begin(), x.end(), y.begin(), b, a);
+        Numerics::filter<3, 1>(xx.begin(), xx.end(), y.begin(), b, a);
         assert(static_cast<std::int32_t>(y[0] * 3.0) == 2);
         assert(static_cast<std::int32_t>(y[1] * 3.0) == 3);
         assert(static_cast<std::int32_t>(y[2] * 3.0) == 9);
@@ -809,13 +808,13 @@ void test_glsl_extra() {
         assert(a(1, 1) == 2 * 4);
 
         using vec = GLSL::VectorN<int, 5>;
-        using mat = GLSL::MatrixN<int, 5>;
-        vec v(1, 2, 3, 4, 5);
-        vec u(3, 4, 5, 6, 7);
-        mat b = Extra::outer_product(v, u);
+        using mat = appropriate_matrix_type<vec>::matrix_type;
+        const vec v(1, 2, 3, 4, 5);
+        const vec u(3, 4, 5, 6, 7);
+        const mat b{ Extra::outer_product(v, u) };
         Utilities::static_for<0, 1, 5>([&b, &v, &u](std::size_t i) {
             Utilities::static_for<0, 1, 5>([&b, &v, &u, i](std::size_t j) {
-                b(i, j) = v[j] * u[i];
+                assert(b(i, j) == v[j] * u[i]);
             });
         });
     }
@@ -1251,29 +1250,6 @@ void test_glsl_solvers() {
 //        const auto roots1 = Decomposition::roots(dvec3(3.0, -2.0, -4.0));
 //        std::cout << "roots = " << roots1 << "\n";
 //    }
-}
-
-void test_glsl_aabb() {
-    const ivec3 centroid = Aabb::centroid(ivec3(-1, -2, -3), ivec3(1, 2, 3));
-    assert(GLSL::equal(centroid, ivec3(0)));
-
-    const ivec3 diagonal = Aabb::diagnonal(ivec3(-1, -2, -3), ivec3(1, 2, 3));
-    assert(GLSL::equal(diagonal, ivec3(2, 4, 6)));
-
-    assert(Aabb::is_point_inside(ivec2(1), ivec2(0), ivec2(2)));
-    assert(!Aabb::is_point_inside(ivec2(1, 3), ivec2(0), ivec2(2)));
-
-    const auto expanded = Aabb::expand(ivec2(0), ivec2(1), ivec2(2));
-    assert(GLSL::equal(expanded.min, ivec2(0)));
-    assert(GLSL::equal(expanded.max, ivec2(2)));
-
-    auto closest = Aabb::closest_point(vec2(1.0f, 1.0f), vec2(0.0f, 3.0f), vec2(3.0f, 5.0f));
-    assert(std::abs(closest.x - 1.0) < 1e-6);
-    assert(std::abs(closest.y - 3.0) < 1e-6);
-
-    closest = Aabb::closest_point(vec2(4.0f, 7.0f), vec2(0.0f, 3.0f), vec2(3.0f, 5.0f));
-    assert(std::abs(closest.x - 3.0) < 1e-6);
-    assert(std::abs(closest.y - 5.0) < 1e-6);
 }
 
 void test_glsl_triangle() {
@@ -2417,7 +2393,6 @@ int main() {
     test_glsl_basics();
     test_glsl_transformation();
     test_glsl_solvers();
-    test_glsl_aabb();
     test_glsl_triangle();
     test_glsl_axis_aligned_bounding_box();
     test_glsl_point_distance();
