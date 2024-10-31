@@ -267,7 +267,6 @@ namespace Transformation {
         const T q0Sqr{ quat.x * quat.x };
         const T q1Sqr{ quat.y * quat.y };
         const T q2Sqr{ quat.z * quat.z };
-        const T q3Sqr{ quat.w * quat.w };
         const T one{ static_cast<T>(1) };
         const T two{ static_cast<T>(2) };
         return GLSL::Matrix3<T>( one - two * (q2Sqr + q1Sqr), two * (q0q1 - q3q2),         two * (q0q2 + q3q1),
