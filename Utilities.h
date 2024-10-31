@@ -105,10 +105,15 @@ namespace Utilities {
     *    });
     **/
     template<std::size_t Start, std::size_t Inc, std::size_t End, class F>
-        requires(std::is_invocable_v<F, decltype(Start)>)
+        requires(std::is_invocable_v<F, decltype(Start)> || std::is_invocable_v<F>)
     constexpr void static_for(F&& f) noexcept {
         if constexpr (Start < End) {
-            f(std::integral_constant<decltype(Start), Start>());
+            if constexpr (std::is_invocable_v<F, decltype(Start)>) {
+                f(std::integral_constant<decltype(Start), Start>());
+            }
+            else {
+                f();
+            }
             static_for<Start + Inc, Inc, End>(FWD(f));
         }
     }
