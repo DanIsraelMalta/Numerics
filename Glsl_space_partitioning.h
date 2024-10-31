@@ -510,7 +510,6 @@ namespace SpacePartitioning {
             * @param {size_t,  out} index of cell holding point in grid
             **/
             constexpr std::size_t to_index(const point_t pos) const {
-                constexpr std::size_t k{ point_t::length() };
                 return this->to_index(this->to_grid_position(pos));
             }
 
