@@ -55,8 +55,8 @@ namespace Extra {
         using T = typename MAT::value_type;
         constexpr std::size_t N{ MAT::columns() };
 
-        Utilities::static_for<0, 1, N>([&mat](std::size_t i) {
-            Utilities::static_for<0, 1, N>([&mat, i](std::size_t j) {
+        Utilities::static_for<0, 1, N>([&mat, &vec](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&&mat, &vec, i](std::size_t j) {
                 const T power{static_cast<T>(N - j - i)};
                 mat(i, j) = static_cast<T>(std::pow(vec[i], power));
             });
@@ -73,8 +73,8 @@ namespace Extra {
         using T = typename MAT::value_type;
         constexpr std::size_t N{ MAT::columns() };
 
-        Utilities::static_for<0, 1, N>([&mat](std::size_t i) {
-            Utilities::static_for<0, 1, N>([&mat, i](std::size_t j) {
+        Utilities::static_for<0, 1, N>([&mat, &vec](std::size_t i) {
+            Utilities::static_for<0, 1, N>([&mat, &vec, i](std::size_t j) {
                 mat(i, j) = (i >= j) ? vec[i - j] : vec[j - i];
             });
         });
@@ -246,14 +246,14 @@ namespace Extra {
         else {
             GLSL::MatrixN<T, N> out;
             Extra::make_identity(out);
-            GLSL::MatrixN<T, N> reflection_matrix{ Extra::outer_product(vec, vec) };
+            const GLSL::MatrixN<T, N> reflection_matrix{ Extra::outer_product(vec, vec) };
             return (out + reflection_matrix * two);
         }
     }
 
     /**
     * \brief perform generalized vector addition, i.e. - return alp?a * x + y
-    *        where alph is a scalar, x and y are vectors.
+    *        where alpha is a scalar, x and y are vectors.
     *        this is BLAS level 1 function.
     * @param{value_type,        in}  alpha
     * @param{IFixedVector,      in}  x
@@ -410,7 +410,7 @@ namespace Extra {
     constexpr GLSL::Matrix3<T> orthonomrmalBasis(const GLSL::Vector3<T>& u) noexcept {
         assert(Extra::is_normalized(u));
 
-        GLSL::Vector3<T> v{ [&u]() {
+        const GLSL::Vector3<T> v{ [&u]() {
             const GLSL::Vector3<T> t{ GLSL::abs(u) };
 
             // x <= y && x <= z
@@ -551,8 +551,12 @@ namespace Extra {
         std::size_t index{};
         std::size_t mul{ 1 };
         Utilities::static_for<0, 1, VEC::length()>([&position, &world, &index, &mul, cellSize](std::size_t i) {
-            index += static_cast<std::size_t>(position[i] / cellSize) * mul;
-            mul *= static_cast<std::size_t>(world[i]);
+            const T pos{ position[i] / cellSize };
+            [[assume(pos >= T{})]];
+            index += static_cast<std::size_t>(pos) * mul;
+            const T worldi{ world[i] };
+            [[assume(worldi >= T{})]]
+            mul *= static_cast<std::size_t>(worldi);
         });
         assert(index < GLSL::prod(world));
         return index;
@@ -569,14 +573,17 @@ namespace Extra {
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
     constexpr VEC index_to_vector(std::size_t index, const VEC& world) {
         assert(index < GLSL::prod(world));
-        VEC position;
         VEC res;
-        std::size_t mul{ static_cast<std::size_t>(GLSL::prod(world)) };
-        Utilities::static_for<1, 1, VEC::length() + 1>([&position, &world, &mul, &res, &index](std::size_t i) {
+        const T prod{ GLSL::prod(world) };
+        [[assume(prod > T{})]];
+        std::size_t mul{ static_cast<std::size_t>(prod) };
+        Utilities::static_for<1, 1, VEC::length() + 1>([&world, &mul, &res, &index](std::size_t i) {
             const std::size_t j{ VEC::length() - i };
-            mul /= static_cast<std::size_t>(world[j]);
+            const T world_j{ world[j] };
+            [[assume(world_j > T{})]];
+            mul /= static_cast<std::size_t>(world_j);
             res[j] = static_cast<T>(index / mul);
-            assert(res[j] < world[j]);
+            assert(res[j] < world_j);
             index -= static_cast<std::size_t>(res[j]) * mul;
         });
         return res;
