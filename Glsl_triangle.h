@@ -255,7 +255,7 @@ namespace Triangle {
     * @param {IFixedVector,                 in}  triangle #2 vertex #1
     * @param {IFixedVector,                 in}  triangle #2 vertex #2
     * @param {{IFixedVector, IFixedVector}, out} {point #1 of intersection segment, point #2 if intersection segment}
-    *                                            if no intersectio occures, both point #1 and point #2 will be infinity
+    *                                            if no intersection occurs, both point #1 and point #2 will be infinity
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 3)
@@ -263,7 +263,6 @@ namespace Triangle {
                                                 const VEC& t2a, const VEC& t2b, const VEC& t2c) noexcept {
         using T = typename VEC::value_type;
         using out_t = struct { VEC p0; VEC p1; };
-        constexpr T eps{ static_cast<T>(1e-10) };
 
         assert(Triangle::is_valid(t1a, t1b, t1c));
         assert(Triangle::is_valid(t2a, t2b, t2c));
