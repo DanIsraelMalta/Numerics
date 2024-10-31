@@ -663,7 +663,7 @@ namespace Solvers {
         VEC x(GLSL::transpose(qr.Q) * b);
 
         // lambda to calculate x at index i
-        const auto calculate_x = [&qr, &x, N](const std::size_t i) {
+        const auto calculate_x = [&qr, &x](const std::size_t i) {
             T sum{ x[i] };
             for (std::size_t j{ i + 1 }; j <= N - 1; ++j) {
                 sum -= qr.R(j, i) * x[j];
@@ -710,7 +710,7 @@ namespace Solvers {
 
         // Solve L'*X = Y;
         // lambda to calculate x at index k
-        const auto calculate_x = [&L, &x, N](const std::size_t k) {
+        const auto calculate_x = [&L, &x](const std::size_t k) {
             for (std::size_t i{ k + 1 }; i < N; ++i) {
                 x[k] -= x[i] * L(i, k);
             }
