@@ -78,7 +78,7 @@ namespace AxisLignedBoundingBox {
         [[assume(squared.x >= T{})]];
         [[assume(squared.y >= T{})]];
         [[assume(squared.z >= T{})]];
-        const GLSL::Vector3<T> e{ ra * GLSL::sqrt(one - a * a / dot) };
+        const GLSL::Vector3<T> e{ ra * GLSL::sqrt(squared) };
 
         return out_t{ GLSL::min(pa - e, pb - e), GLSL::max(pa + e, pb + e) };
     }
