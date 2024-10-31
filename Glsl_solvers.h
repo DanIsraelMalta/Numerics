@@ -158,7 +158,7 @@ namespace Decomposition {
             constexpr T tol{ Numerics::equality_precision<T>() };
 
             // "givens rotation" - return {cosine, sine, radius}
-            const auto givensRotation = [](const T a, const T b) -> GLSL::Vector3<T> {
+            const auto givensRotation = [](const T a, const T b) noexcept -> GLSL::Vector3<T> {
                 if (std::abs(a) <= tol) {
                     return GLSL::Vector3<T>(T{}, Numerics::sign(b), std::abs(b));
                 }
@@ -316,7 +316,6 @@ namespace Decomposition {
     constexpr VEC eig(const MAT& mat, const bool balance_input = false, const std::size_t iter = 10, const T tol = static_cast<T>(1e-5)) {
         using qr_t = decltype(Decomposition::QR(mat));
 
-        MAT A(balance_input ? Decomposition::balance_matrix(mat)  : mat);
         if constexpr (MAT::columns() == 2) {
             const T diff{ mat(0, 0) - mat(1, 1) };
             const T center{ mat(0, 0) + mat(1, 1) };
@@ -336,6 +335,7 @@ namespace Decomposition {
             return VEC(roots[0], roots[2], roots[4]);
         }
         else {
+            MAT A(balance_input ? Decomposition::balance_matrix(mat) : mat);
             qr_t QR;
             T err{ static_cast<T>(10) * tol };
             std::size_t i{};
@@ -661,15 +661,21 @@ namespace Solvers {
 
         // A * x = b -> {A = R * Q} -> R * x = b * Q'
         VEC x(GLSL::transpose(qr.Q) * b);
-        for (std::int64_t i{ N - 1 }; i >= 0; --i) {
-            const std::size_t is{ static_cast<std::size_t>(i) };
-            T sum{ x[is] };
-            for (std::int64_t j{ i + 1 }; j <= N - 1; ++j) {
-                const std::size_t js{ static_cast<std::size_t>(j) };
-                sum -= qr.R(js, is) * x[js];
+
+        // lambda to calculate x at index i
+        const auto calculate_x = [&qr, &x, N](const std::size_t i) {
+            T sum{ x[i] };
+            for (std::size_t j{ i + 1 }; j <= N - 1; ++j) {
+                sum -= qr.R(j, i) * x[j];
             }
-            x[is] = sum / qr.R(is, is);
+            x[i] = sum / qr.R(i, i);
+        };
+
+        // calculate X
+        for (std::size_t i{ N - 1 }; i > 0; --i) {
+            calculate_x(i);
         }
+        calculate_x(0);
 
         // output
         return x;
@@ -703,15 +709,19 @@ namespace Solvers {
         }
 
         // Solve L'*X = Y;
-        for (std::int64_t k{ N - 1 }; k >= 0; --k) {
-            const std::size_t _k{ static_cast<std::size_t>(k) };
-            for (std::size_t i{ _k + 1 }; i < N; ++i) {
-                x[_k] -= x[i] * L(i, _k);
+        // lambda to calculate x at index k
+        const auto calculate_x = [&L, &x, N](const std::size_t k) {
+            for (std::size_t i{ k + 1 }; i < N; ++i) {
+                x[k] -= x[i] * L(i, k);
             }
 
-            assert(!Numerics::areEquals(L(_k, _k), T{}));
-            x[_k] /= L(_k, _k);
+            assert(!Numerics::areEquals(L(k, k), T{}));
+            x[k] /= L(k, k);
+        };
+        for (std::size_t i{ N - 1 }; i > 0; --i) {
+            calculate_x(i);
         }
+        calculate_x(0);
 
         // output
         return x;
