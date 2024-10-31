@@ -126,9 +126,6 @@ vec3 axis1{2.0f, 0.0f, 0.0f};
 vec3 axis2{0.0f, 2.0f, 0.0f};
 auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
 
-// get point (3,5) closest point to ellipse bounding box
-auto closest = Aabb::closest_point(aabb.min, aabb.max vec2(3.0f, 5.0f));
-
 //
 // computational geometry
 //
