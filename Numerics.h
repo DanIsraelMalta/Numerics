@@ -207,9 +207,11 @@ namespace Numerics {
         const T bg{ b / distance };
         const T s{ bg - ag };
         const T err{ (std::abs(a) <= std::abs(b)) ? -ag - (s - bg) : bg - (s + ag) };
-        const out_t ceil_s{ static_cast<out_t>(std::ceil(s)) };
+        const T ceil_s{ std::ceil(s) };
+        [[assume(ceil_s >= T{})]];
+        const out_t ceil_s_i{ static_cast<out_t>(ceil_s) };
 
-        return (std::ceil(s) != s) ? ceil_s : ceil_s + static_cast<out_t>(err > T{});
+        return (ceil_s != s) ? ceil_s_i : ceil_s_i + static_cast<out_t>(err > T{});
     }
 
     /**
@@ -621,7 +623,9 @@ namespace Numerics {
         // discretize values into bins
         std::size_t i{};
         for (InputIt f{ first }; f != last; ++f) {
-            const std::size_t bin{ static_cast<std::size_t>(std::floor(*f /binWidth)) };
+            const T floor_bin{ std::floor(*f / binWidth) };
+            [[assume(floor_bin >= T{})]];
+            const std::size_t bin{ static_cast<std::size_t>(floor_bin) };
             ++N[bin];
             bins[i] = bin;
             ++i;
@@ -685,6 +689,7 @@ namespace Numerics {
                           const std::array<T, NB>& b, const std::array<T, NA>& a, const std::array<T, Numerics::max(NB, NA)>& z = {{T{}}}) {
         constexpr std::size_t coeff_size{ Numerics::max(NB, NA) };
         assert(!Numerics::areEquals(a[0], T{}));
+        [[assume(a[0] != T{})]];
 
         // local copy of delay vector
         std::array<T, coeff_size> Z(z);
@@ -698,8 +703,8 @@ namespace Numerics {
 
         // normalized Denominator coefficients and equalize its size to Numerator
         std::array<T, coeff_size> an{ {T{}} };
-        Utilities::static_for<0, 1, NA>([&an, &a](std::size_t i) {
-            an[i] = a[i] / a[0];
+        Utilities::static_for<0, 1, NA>([&an, &a, a0](std::size_t i) {
+            an[i] = a[i] / a0;
         });
         
         // perform filter operation
