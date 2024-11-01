@@ -91,6 +91,36 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::rotate
+    **/
+    template<class It>
+        requires(std::forward_iterator<It>)
+    constexpr It rotate(It first, It middle, It last) {
+        if (first == middle) {
+            return last;
+        }
+
+        if (middle == last) {
+            return first;
+        }
+
+        It write{ first };
+        It next_read{ first };
+        for (It read{ middle }; read != last; ++write, ++read) {
+            if (write == next_read) {
+                next_read = read;
+            }
+            Utilities::swap(write, read);
+        }
+
+        // rotate the remaining sequence into place
+        Algoithms::rotate(write, next_read, last);
+
+        // output
+        return write;
+    }
+
+    /**
     * \brief local implementation of std::fill
     **/
     template<class It, class T = typename std::decay_t<decltype(*std::declval<It>())>>
