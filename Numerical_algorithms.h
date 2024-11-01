@@ -234,85 +234,14 @@ namespace NumericalAlgorithms {
     * \brief circularly shift a collection
     * @param {forward_iterator,  in} iterator to first element of shifted collection
     * @param {forward_iterator,  in} iterator to last element of shifted collection
-    * @param {size_t,            in} Shift amount (positive value shifts to the right, negative values shift to the left
+    * @param {integral,          in} Shift amount (positive value shifts to the right, negative values shift to the left
     **/
-    template<class It>
-        requires(std::forward_iterator<It>)
-    constexpr void circshift(It first, It last, const std::size_t shift) {
-        const std::size_t dim{ static_cast<std::size_t>(first, last) };
-        const std::size_t middle{ shift > 0 ? dim - shift : shift };
-        Algoithms::rotate(first, first + middle, first + dim);
-    }
-
-    /**
-    * \brief perform fast Fourier transform (FFT) on a real valued signal.
-    *        notice that this implementation is recursive.
-    * @param {forward_iterator,  in}  iterator to signal first element
-    * @param {forward_iterator,  in}  iterator to signal last element
-    * @param {forward_iterator,  out} iterator to beginning of collection which will hold the FFT real values
-    * @param {forward_iterator,  out} iterator to beginning of collection which will hold the FFT imaginary values
-    * @param {size_t,            in}  number of points in Fourier transform (should be smaller or equal to signal length)
-    * 
-    **/
-    template<std::forward_iterator signal_t, std::forward_iterator real_it, std::forward_iterator imag_it,
-             class T = typename std::decay_t<decltype(*std::declval<signal_t>())>>
-        requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<real_it>())>> &&
-                 std::is_same_v<T, typename std::decay_t<decltype(*std::declval<imag_it>())>>)
-    constexpr void fft(const signal_t signal_first, const signal_t signal_last,
-                       real_it real_first, imag_it imag_first, const std::size_t N) {
-        
-        constexpr T coeff{ static_cast<T>(-2.0) * std::numbers::pi_v<T> };
-
-        // lambda implementing one iteration in fast Fourier transform algorithm
-        const auto fft_iteration = [](const signal_t _signal_first, real_it _real_first, imag_it _imag_first,
-                                      const std::size_t n, const std::size_t t, auto&& recursive_driver) {
-            if (n == 1) {
-                _real_first = *_signal_first;
-                _imag_first = T{};
-                return;
-            }
-
-            const std::size_t half{ n / 2 };
-            recursive_driver(_signal_first, _real_first, _imag_first, half, 2 * t);
-            recursive_driver(_signal_first + t, _real_first + half, _imag_first + half, half, 2 * t);
-
-            const T alpha_coeff{ coeff / static_cast<T>(N) };
-            for (std::size_t k{}; k < half; ++k) {
-                const T r1{ *(_real_first + k) };
-                const T i1{ *(_imag_first + k) };
-
-                const T r2{ *(_real_first + k + half) };
-                const T i2{ *(_imag_first + k + half) };
-
-                const T alpha{ alpha_coeff * static_cast<T>(k) };
-                const T r3{ std::cos(alpha) };
-                const T i3{ std::sin(alpha) };
-
-                const T r4{ r2 * r3 - i2 * i3 };
-                const T i4{ r3 * i2 + r2 * i3 };
-
-                *(_real_first + k) = r1 + r4;
-                *(_imag_first + k) = i1 + i4;
-
-                *(_real_first + k + half) = r1 - r4;
-                *(_imag_first + k + half) = i1 - i4;
-            }
-        };
-
-        const std::size_t len{ static_cast<std::size_t>(std::distance(signal_first, signal_last)) };
-        assert(N <= len);
-
-        // start FFT
-        fft_iteration(signal_first, real_first, imag_first, N, 1);
-
-        // normalize output
-        const T norm{ static_cast<T>(1.0) / std::sqrt(static_cast<T>(N)) };
-        for (std::size_t i{}; i < N; ++i) {
-            *(real_first + i) *= norm;
-        }
-        for (std::size_t i{}; i < N; ++i) {
-            *(imag_first + i) *= norm;
-        }
+    template<class It, class T>
+        requires(std::forward_iterator<It> && std::is_integral_v<T>)
+    constexpr void circshift(It first, It last, const T shift) {
+        const std::size_t dim{ static_cast<std::size_t>(std::distance(first, last)) };
+        const std::size_t middle{ shift > 0 ? dim - shift : -shift };
+        Algoithms::rotate(first, first + middle, last);
     }
 
     /**
