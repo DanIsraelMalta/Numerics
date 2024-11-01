@@ -257,6 +257,8 @@ namespace Transformation {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr GLSL::Matrix3<T> create_rotation_matrix_from_quaternion(const GLSL::Vector4<T>& quat) {
+        const T one{ static_cast<T>(1) };
+        const T two{ static_cast<T>(2) };
         assert(Extra::is_normalized(quat));
         const T q0q1{ quat.x * quat.y };
         const T q0q2{ quat.x * quat.z };
@@ -267,8 +269,6 @@ namespace Transformation {
         const T q0Sqr{ quat.x * quat.x };
         const T q1Sqr{ quat.y * quat.y };
         const T q2Sqr{ quat.z * quat.z };
-        const T one{ static_cast<T>(1) };
-        const T two{ static_cast<T>(2) };
         return GLSL::Matrix3<T>( one - two * (q2Sqr + q1Sqr), two * (q0q1 - q3q2),         two * (q0q2 + q3q1),
                                  two * (q0q1 + q3q2),         one - two * (q0Sqr + q2Sqr), two * (q1q2 - q3q0),
                                  two * (q0q2 - q3q1),         two * (q1q2 + q3q0),         one - two * (q0Sqr + q1Sqr) );
