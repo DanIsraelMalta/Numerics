@@ -159,4 +159,16 @@ namespace Utilities {
             return &arg;
         }
     }
+
+    /**
+    * \brief check if two iterators to same collection represent a continuous memory
+    * @param {forward_iterator, in}  iterator to first element
+    * @param {forward_iterator, in}  iterator to last element
+    * @param {bool,             out} true if collection between 'first' and 'last' is continuous, false otherwise
+    **/
+    template<class It>
+        requires(std::forward_iterator<It>)
+    constexpr bool is_buffer_continuous(const It first, const It last) {
+        return (&*last - &*first) == (last - first);
+    }
 };
