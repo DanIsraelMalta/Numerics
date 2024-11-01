@@ -9,6 +9,7 @@
 #include "Hash.h"
 #include "Variadic.h"
 #include "Numerics.h"
+#include "Numerical_algorithms.h"
 #include "Glsl.h"
 #include "Glsl_extra.h"
 #include "Glsl_solvers.h"
@@ -170,76 +171,6 @@ void test_numerics() {
     static_assert(Numerics::clamp<4, 5>(3) == 4);
     static_assert(Numerics::clamp<-8, -4>(-2) == -4);
 
-    // test accumulate
-    const std::array<double, 4> tempArray{ 1.0, std::pow(10.0, 100), 0.01, -std::pow(10.0, 100) };
-    assert(static_cast<std::int32_t>(Numerics::accumulate(tempArray) * 100) == 101);
-
-    // test histcounts
-    const std::array<double, 10> x{ {2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 29.0} };
-    const auto hists = Numerics::histcounts(x, 6);
-    const std::array<std::size_t, 6> Nexpected{ {2,2,2,2,1,1} };
-    const std::array<std::size_t, 10> binExpected{ {0,0,1,1,2,2,3,3,4,5} };
-    for (std::size_t i{}; i < 6; ++i) {
-        assert(hists.N[i] == Nexpected[i]);
-    }
-    for (std::size_t i{}; i < 10; ++i) {
-        assert(hists.bin[i] == binExpected[i]);
-    }
-
-    // test mean and std
-    const auto stats = Numerics::mean_and_std(x);
-    assert(static_cast<std::size_t>(stats.mean * 10) == 129);
-    assert(static_cast<std::size_t>(stats.std * 100) == 7329);
-
-    // test convolustion
-    {
-        const std::array<int, 3> u{ {1, 0, 1} };
-        const std::array<int, 2> v{ {2, 7} };
-        std::array<int, 4> w;
-        Numerics::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
-        assert(w[0] == 2);
-        assert(w[1] == 7);
-        assert(w[2] == 2);
-        assert(w[3] == 7);
-    }
-    {
-        const std::array<int, 3> u{ {1, 1, 1} };
-        const std::array<int, 7> v{ {1, 1, 0, 0, 0, 1, 1} };
-        std::array<int, 9> w;
-        Numerics::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
-        assert(w[0] == 1);
-        assert(w[1] == 2);
-        assert(w[2] == 2);
-        assert(w[3] == 1);
-        assert(w[4] == 0);
-        assert(w[5] == 1);
-        assert(w[6] == 2);
-        assert(w[7] == 2);
-        assert(w[8] == 1);
-    }
-
-    // test filter
-    {
-        // FIR filter (3 taps moving average)
-        const std::array<double, 3> b{ {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0} };
-        const std::array<double, 1> a{ {1.0} };
-        const std::array<double, 6> xx{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
-        std::array<double, 6> y;
-        Numerics::filter<3, 1>(xx.begin(), xx.end(), y.begin(), b, a);
-        assert(static_cast<std::int32_t>(y[0] * 3.0) == 2);
-        assert(static_cast<std::int32_t>(y[1] * 3.0) == 3);
-        assert(static_cast<std::int32_t>(y[2] * 3.0) == 9);
-        assert(static_cast<std::int32_t>(y[3] * 3.0) == 8); // 2.99999 ....
-        assert(static_cast<std::int32_t>(y[4] * 3.0) == 12);
-        assert(static_cast<std::int32_t>(y[5] * 3.0) == 9);;
-    }
-
-    // test partition
-    std::list<int> v = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
-    auto it = Algoithms::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
-    assert(v == vExpected);
-
     // test quadratic equation solver
     {
         auto sol = Numerics::SolveQuadratic(3.0f, -5.0f, 2.0f);
@@ -261,6 +192,78 @@ void test_numerics() {
         assert(static_cast<std::int32_t>(sol[4] * 10000) == -15000);
         assert(static_cast<std::int32_t>(sol[5] * 10000) == -23979);
     }
+}
+
+void test_numerical_algorithms() {
+    // test accumulate
+    const std::array<double, 4> tempArray{ 1.0, std::pow(10.0, 100), 0.01, -std::pow(10.0, 100) };
+    assert(static_cast<std::int32_t>(NumericalAlgorithms::accumulate(tempArray) * 100) == 101);
+
+    // test histcounts
+    const std::array<double, 10> x{ {2.0, 3.0, 5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 29.0} };
+    const auto hists = NumericalAlgorithms::histcounts(x, 6);
+    const std::array<std::size_t, 6> Nexpected{ {2,2,2,2,1,1} };
+    const std::array<std::size_t, 10> binExpected{ {0,0,1,1,2,2,3,3,4,5} };
+    for (std::size_t i{}; i < 6; ++i) {
+        assert(hists.N[i] == Nexpected[i]);
+    }
+    for (std::size_t i{}; i < 10; ++i) {
+        assert(hists.bin[i] == binExpected[i]);
+    }
+
+    // test mean and std
+    const auto stats = NumericalAlgorithms::mean_and_std(x);
+    assert(static_cast<std::size_t>(stats.mean * 10) == 129);
+    assert(static_cast<std::size_t>(stats.std * 100) == 7329);
+
+    // test convolution
+    {
+        const std::array<int, 3> u{ {1, 0, 1} };
+        const std::array<int, 2> v{ {2, 7} };
+        std::array<int, 4> w;
+        NumericalAlgorithms::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
+        assert(w[0] == 2);
+        assert(w[1] == 7);
+        assert(w[2] == 2);
+        assert(w[3] == 7);
+    }
+    {
+        const std::array<int, 3> u{ {1, 1, 1} };
+        const std::array<int, 7> v{ {1, 1, 0, 0, 0, 1, 1} };
+        std::array<int, 9> w;
+        NumericalAlgorithms::conv(u.begin(), u.end(), v.begin(), v.end(), w.begin());
+        assert(w[0] == 1);
+        assert(w[1] == 2);
+        assert(w[2] == 2);
+        assert(w[3] == 1);
+        assert(w[4] == 0);
+        assert(w[5] == 1);
+        assert(w[6] == 2);
+        assert(w[7] == 2);
+        assert(w[8] == 1);
+    }
+
+    // test filter
+    {
+        // FIR filter (3 taps moving average)
+        const std::array<double, 3> b{ {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0} };
+        const std::array<double, 1> a{ {1.0} };
+        const std::array<double, 6> xx{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
+        std::array<double, 6> y;
+        NumericalAlgorithms::filter<3, 1>(xx.begin(), xx.end(), y.begin(), b, a);
+        assert(static_cast<std::int32_t>(y[0] * 3.0) == 2);
+        assert(static_cast<std::int32_t>(y[1] * 3.0) == 3);
+        assert(static_cast<std::int32_t>(y[2] * 3.0) == 9);
+        assert(static_cast<std::int32_t>(y[3] * 3.0) == 8); // 2.99999 ....
+        assert(static_cast<std::int32_t>(y[4] * 3.0) == 12);
+        assert(static_cast<std::int32_t>(y[5] * 3.0) == 9);;
+    }
+
+    // test partition
+    std::list<int> v = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
+    auto it = Algoithms::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
+    assert(v == vExpected);
 }
 
 void test_glsl_basics() {
@@ -2390,6 +2393,7 @@ int main() {
     test_hash();
     test_variadic();
     test_numerics();
+    test_numerical_algorithms();
     test_glsl_basics();
     test_glsl_transformation();
     test_glsl_solvers();
