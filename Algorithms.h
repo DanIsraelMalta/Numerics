@@ -91,33 +91,61 @@ namespace Algoithms {
     }
 
     /**
-    * \brief local implementation of std::rotate
+    * \brief local implementation of std::reverse
+    **/
+    template<class It>
+        requires(std::bidirectional_iterator<It>)
+    constexpr void reverse(It first, It last) {
+        using iter_cat = typename std::iterator_traits<It>::iterator_category;
+
+        if constexpr (std::is_base_of_v<std::random_access_iterator_tag, iter_cat>) {
+            if (first == last) {
+                return;
+            }
+
+            for (--last; first < last; (void)++first, --last) {
+                Utilities::swap(*first, *last);
+            }
+        }
+        else {
+            while (first != last && first != --last) {
+                Utilities::swap(first++, last);
+            }
+        }
+    }
+
+    /**
+    * \brief local implementation of std::rotate (without returned value)
     **/
     template<class It>
         requires(std::forward_iterator<It>)
-    constexpr It rotate(It first, It middle, It last) {
-        if (first == middle) {
-            return last;
+    constexpr void rotate(It first, It middle, It last) {
+        if constexpr (std::bidirectional_iterator<It>) {
+            Algoithms::reverse(first, middle);
+            Algoithms::reverse(middle, last);
+            Algoithms::reverse(first, last);
         }
-
-        if (middle == last) {
-            return first;
-        }
-
-        It write{ first };
-        It next_read{ first };
-        for (It read{ middle }; read != last; ++write, ++read) {
-            if (write == next_read) {
-                next_read = read;
+        else {
+            if (first == middle) {
+                return last;
             }
-            Utilities::swap(*write, *read);
+
+            if (middle == last) {
+                return first;
+            }
+
+            It write{ first };
+            It next_read{ first };
+            for (It read{ middle }; read != last; ++write, ++read) {
+                if (write == next_read) {
+                    next_read = read;
+                }
+                Utilities::swap(*write, *read);
+            }
+
+            // rotate the remaining sequence into place
+            Algoithms::rotate(write, next_read, last);
         }
-
-        // rotate the remaining sequence into place
-        Algoithms::rotate(write, next_read, last);
-
-        // output
-        return write;
     }
 
     /**
@@ -176,30 +204,6 @@ namespace Algoithms {
         }
 
         return ++result;
-    }
-
-    /**
-    * \brief local implementation of std::reverse
-    **/
-    template<class It>
-        requires(std::bidirectional_iterator<It>)
-    constexpr void reverse(It first, It last) {
-        using iter_cat = typename std::iterator_traits<It>::iterator_category;
-
-        if constexpr (std::is_base_of_v<std::random_access_iterator_tag, iter_cat>) {
-            if (first == last) {
-                return;
-            }
-
-            for (--last; first < last; (void)++first, --last) {
-                Utilities::swap(first, last);
-            }
-        }
-        else {
-            while (first != last && first != --last) {
-                Utilities::swap(first++, last);
-            }
-        }
     }
 
     /**
