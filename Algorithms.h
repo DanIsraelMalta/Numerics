@@ -110,7 +110,7 @@ namespace Algoithms {
             if (write == next_read) {
                 next_read = read;
             }
-            Utilities::swap(write, read);
+            Utilities::swap(*write, *read);
         }
 
         // rotate the remaining sequence into place
