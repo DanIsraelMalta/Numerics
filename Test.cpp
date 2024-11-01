@@ -260,10 +260,26 @@ void test_numerical_algorithms() {
     }
 
     // test partition
-    std::list<int> v = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
-    auto it = Algoithms::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
-    assert(v == vExpected);
+    {
+        std::list<int> v = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        std::list<int> vExpected = { 0, 8, 2, 6, 4, 5, 3, 7, 1, 9 };
+        auto it = Algoithms::partition(v.begin(), v.end(), [](int i) {return i % 2 == 0; });
+        assert(v == vExpected);
+    }
+
+        // test circshift
+    {
+        std::array<std::size_t, 10> a{ {0, 1, 2, 3, 4, 5, 6, 7, 8, 9} };
+        std::array<std::size_t, 10> ai{ {7, 8, 9, 0, 1, 2, 3, 4, 5, 6} };
+        NumericalAlgorithms::circshift(a.begin(), a.end(), 3);
+        for (std::size_t i{}; i < 10; ++i) {
+            assert(a[i] == ai[i]);
+        }
+        NumericalAlgorithms::circshift(a.begin(), a.end(), -3);
+        for (std::size_t i{}; i < 10; ++i) {
+            assert(a[i] == i);
+        }
+    }
 }
 
 void test_glsl_basics() {
