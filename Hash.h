@@ -136,6 +136,24 @@ namespace Hash {
     }
 
     /**
+    * \brief generate a gaussian distributed random numbers with mean of 0 and variance of 1.
+    *        see: "Natur als fraktale Grafik" by Reinhard Scholl.
+    * @param {size_t} a variable that defines the precision of the distribution.
+    *                 default is 15 which gives the smallest distance between two numbers (C3= 1 / (2^15 / 3) = 1/10922 = 0.000091)
+    **/
+    template<std::size_t Q = 15, typename T = float>
+        requires(std::is_floating_point_v<T>)
+    constexpr T normal_distribution() noexcept {
+        constexpr T C1{ static_cast<T>((1 << Q) - 1) };
+        constexpr T C2{ static_cast<T>((C1 / 3) + 1) };
+        constexpr T C3{ static_cast<T>(1.0) / static_cast<T>(C1) };
+
+#define RAND01(x) (static_cast<T>(x)) * (static_cast<T>(rand())) /  (static_cast<T>(RAND_MAX))
+        return (static_cast<T>(2.0) * (RAND01(C2) + RAND01(C2) + RAND01(C2)) - static_cast<T>(3.0) * (C2 - static_cast<T>(1.0))) * C3;
+#undef RAND01
+    }
+
+    /**
     * \brief using Szudzik pairing function, transform two unsigned values into one
     *        note: max input pair of Szudzik is the square root of the maximum integer value,
     *              so for 32bit unsigned value maximum input value without an overflow being 65,535.
