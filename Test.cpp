@@ -52,6 +52,28 @@ void test_hash() {
     //assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
     //assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
     //assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
+
+    // test normal_distribution
+    {
+        std::vector<float> a(100000, 0.0f);
+        float _max{ -2.0f };
+        for (std::size_t i{}; i < 100000; ++i) {
+            a[i] = Hash::normal_distribution();
+            if (a[i] > _max) {
+                _max = a[i];
+            }
+        }
+        assert(1.0f - _max < 0.05f);
+
+        float mean{};
+        float count{};
+        for (const float _a : a) {
+            ++count;
+            const float delta{ _a - mean };
+            mean += delta / count;
+        }
+        assert(std::abs(mean) < 0.0005);
+    }
 }
 
 void test_variadic() {
