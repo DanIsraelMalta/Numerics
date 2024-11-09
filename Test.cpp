@@ -57,13 +57,18 @@ void test_hash() {
     {
         std::vector<float> a(100000, 0.0f);
         float _max{ -2.0f };
+        float _min{ 2.0f };
         for (std::size_t i{}; i < 100000; ++i) {
             a[i] = Hash::normal_distribution();
             if (a[i] > _max) {
                 _max = a[i];
             }
+            if (a[i] < _min) {
+                _min = a[i];
+            }
         }
         assert(1.0f - _max < 0.05f);
+        assert(1.0f + _min < 0.05f);
 
         float mean{};
         float count{};
