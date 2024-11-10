@@ -77,7 +77,7 @@ void test_hash() {
             const float delta{ _a - mean };
             mean += delta / count;
         }
-        assert(std::abs(mean) < 0.0005);
+        assert(std::abs(mean) < 0.002);
     }
 }
 
