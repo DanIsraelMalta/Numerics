@@ -591,24 +591,25 @@ namespace Extra {
 
     /**
     * \brief given quaternion, return its rotation angle
-    * @param {Vector4,    in}  quaternion
+    * @param {IFixedVector,    in}  quaternion
     * @param {value_type, out} quaternion angle
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr T get_quaternion_angle(const GLSL::Vector4<T>& quat) {
+    template<GLSL::IFixedVector VEC, class T = VEC::value_type>
+        requires(VEC::length() == 4)
+    constexpr T get_quaternion_angle(const VEC& quat) {
         assert(Extra::is_normalized(quat));
         return static_cast<T>(2) * std::acos(quat.w);
     }
 
     /**
     * \brief given quaternion (normalized), return its rotation angle
-    * @param {Vector4, in}  quaternion (normalized)
-    * @param {Vector3, out} quaternion axis
+    * @param {IFixedVector, in}  quaternion (normalized)
+    * @param {IFixedVector, out} quaternion axis
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector3<T> get_quaternion_axis(const GLSL::Vector4<T>& quat) {
+    template<GLSL::IFixedVector VEC, class out = prev_vector_type<VEC>::vector_type>
+        requires(VEC::length() == 4)
+    constexpr out get_quaternion_axis(const VEC& quat) {
+        using T = typename VEC::value_type;
         assert(Extra::is_normalized(quat));
         const T num{ static_cast<T>(1) - quat.w * quat.w };
         [[assume(num > T{})]];
@@ -621,28 +622,28 @@ namespace Extra {
 
     /**
     * \brief return the conjugate of a given quaternion (since quaternion is normalized, its also the inverse)
-    * @param {Vector4, in}  quaternion (normalized)
-    * @param {Vector4, out} quaternion conjugate/inverse
+    * @param {IFixedVector, in}  quaternion (normalized)
+    * @param {IFixedVector, out} quaternion conjugate/inverse
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector4<T> get_quaternion_conjugate(const GLSL::Vector4<T>& quat) {
-        return GLSL::Vector4<T>(-quat.x, -quat.y, -quat.z, quat.w);
+    template<GLSL::IFixedVector VEC>
+        requires(VEC::length() == 4)
+    constexpr VEC get_quaternion_conjugate(const VEC& quat) {
+        return VEC(-quat.x, -quat.y, -quat.z, quat.w);
     }
 
     /**
     * \brief return the cross product of two vectors or quaternions.
     *        2D operator is based on wedge operator from geometric algebra.
-    * @param {Vector4, in}  quaternion
-    * @param {Vector4, in}  quaternion
-    * @param {Vector4, out} product of two quaternions
+    * @param {IFixedVector, in}  quaternion
+    * @param {IFixedVector, in}  quaternion
+    * @param {IFixedVector, out} product of two quaternions
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector4<T> multiply_quaternions(const GLSL::Vector4<T>& x, const GLSL::Vector4<T>& y) noexcept {
-        return GLSL::Vector4<T>(x[0] * y[0] - x[1] * y[1] - x[2] * y[2] - x[3] * y[3],
-                                x[0] * y[1] + x[1] * y[0] - x[2] * y[3] + x[3] * y[2],
-                                x[0] * y[2] + x[1] * y[3] + x[2] * y[0] - x[3] * y[1],
-                                x[0] * y[3] - x[1] * y[2] + x[2] * y[1] + x[3] * y[0]);
+    template<GLSL::IFixedVector VEC>
+        requires(VEC::length() == 4)
+    constexpr VEC multiply_quaternions(const VEC& x, const VEC& y) noexcept {
+        return VEC(x[0] * y[0] - x[1] * y[1] - x[2] * y[2] - x[3] * y[3],
+                   x[0] * y[1] + x[1] * y[0] - x[2] * y[3] + x[3] * y[2],
+                   x[0] * y[2] + x[1] * y[3] + x[2] * y[0] - x[3] * y[1],
+                   x[0] * y[3] - x[1] * y[2] + x[2] * y[1] + x[3] * y[0]);
     }
 }
