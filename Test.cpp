@@ -307,6 +307,26 @@ void test_numerical_algorithms() {
             assert(a[i] == i);
         }
     }
+
+    // test generate_from_discrete_distribution
+    {
+        std::vector<float> p{ {0.2f, 0.4f, 0.4f} };
+        std::vector<int> d{ {1, 2, 4} };
+        std::size_t amount_of_ones{};
+        std::size_t amount_of_twos{};
+        std::size_t amount_of_fours{};
+        std::vector<int> O(10, 0);
+        for (std::size_t i{}; i < 1000; ++i) {
+            NumericalAlgorithms::generate_from_discrete_distribution(p.begin(), p.end(), d.begin(), d.end(), O.begin(), O.end());
+            amount_of_ones += Algoithms::count_if(O.begin(), O.end(), [](const int a) { return a == 1; });
+            amount_of_twos += Algoithms::count_if(O.begin(), O.end(), [](const int a) { return a == 2; });
+            amount_of_fours += Algoithms::count_if(O.begin(), O.end(), [](const int a) { return a == 4; });
+        }
+        assert(amount_of_ones + amount_of_twos + amount_of_fours == 10 * 1000);
+        assert(std::abs(static_cast<double>(amount_of_ones) / 10000.0 - 0.2) <= 0.01);
+        assert(std::abs(static_cast<double>(amount_of_twos) / 10000.0 - 0.4) <= 0.01);
+        assert(std::abs(static_cast<double>(amount_of_fours) / 10000.0 - 0.4) <= 0.01);
+    }
 }
 
 void test_glsl_basics() {
@@ -2436,7 +2456,6 @@ int main() {
     test_hash();
     test_variadic();
     test_numerics();
-    test_numerical_algorithms();
     test_glsl_basics();
     test_glsl_transformation();
     test_glsl_solvers();
@@ -2448,5 +2467,6 @@ int main() {
     test_glsl_space_partitioning();
     test_GLSL_clustering();
     test_glsl_extra();
+    test_numerical_algorithms();
 	return 1;
 }
