@@ -245,6 +245,82 @@ namespace NumericalAlgorithms {
     }
 
     /**
+    * \brief calculate the cumulative sum of a given collection
+    * @param {forward_iterator,  in}  iterator to first element in collection
+    * @param {forward_iterator,  in}  iterator to last element in collection
+    * @param {forward_iterator,  out} iterator to beginning of collection which will hold the cumulative sum
+    **/
+    template<std::forward_iterator It, std::forward_iterator Ot, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<Ot>())>>)
+    constexpr void cumsum(It x_first, It x_last, Ot y_first) {
+        T sum{};
+        for (; x_first != x_last; ++x_first) {
+            sum += *x_first;
+            *y_first++ = sum;
+        }
+    }
+
+    /**
+    * \brief generate a random sample from an arbitrary discrete/finite probability distribution
+    * 
+    * \example:
+    *        std::vector<float> p{{0.2, 0.4, 0.4}}; // probability distribution
+    *        std::vector<float> d{{1.0f, 2.0f, 4.0f}}; // probability domain
+    *        std::vector<float> O(10, 0.0f);
+    *        // on average, O should contain two 1's, four 2's and four 3's.
+    *        generate_from_discrete_distribution(p.begin(), p.end(), d.begin(), d.end(), O.begin(), O.end());
+    *
+    * @param {forward_iterator,  in} iterator to first element of positive numbers whose values form the probability distribution (collection sum should be zero)
+    * @param {forward_iterator,  in} iterator to last element of positive numbers whose values form the probability distribution (collection sum should be zero)
+    * @param {forward_iterator,  in} iterator to first element of values defining probability distribution domain 
+    * @param {forward_iterator,  in} iterator to last element of values defining probability distribution domain
+    * @param {forward_iterator, out} iterator to first element in collection which will hold the generated numbers
+    * @param {forward_iterator, out} iterator to last element in collection which will hold the generated numbers
+    **/
+    template<std::forward_iterator It1, std::forward_iterator It2, std::forward_iterator Ot,
+             class T = typename std::decay_t<decltype(*std::declval<It1>())>,
+             class U = typename std::decay_t<decltype(*std::declval<Ot>())>>
+        requires(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>)
+    constexpr void generate_from_discrete_distribution(const It1 p_first, const It1 p_last,
+                                                       const It2 d_first, const It2 d_last,
+                                                       Ot x_first, const Ot x_last) {
+        // check that probability distribution is normalized
+        assert(Numerics::areEquals(NumericalAlgorithms::accumulate(p_first, p_last), static_cast<T>(1.0)));
+
+        // transform probability distribution to cumulative distribution
+        const std::size_t p_length{ static_cast<std::size_t>(std::distance(p_first, p_last)) };
+#ifdef DEBUG
+        const std::size_t d_length{ static_cast<std::size_t>(std::distance(d_first, d_last)) };
+        assert(p_length == d_length);
+#endif
+        std::vector<T> csum(p_length, T{});
+        NumericalAlgorithms::cumsum(p_first, p_last, csum.begin());
+
+        // generate samples
+        const U d_first_value{ static_cast<U>(*d_first) };
+        const U d_last_value{ static_cast<U>(*(d_last - 1)) };
+        const T csum_front{ csum.front() };
+        const T csum_back{ csum.back() };
+        for (; x_first != x_last; ++x_first) {
+            const T u{ static_cast<T>(rand()) / static_cast<T>(RAND_MAX) };
+            if (u <= csum_front) {
+                *x_first = d_first_value;
+            }
+            else if (u >= csum_back) {
+                *x_first = d_last_value;
+            }
+            else {
+                for (std::size_t i{}; i < p_length; ++i) {
+                    if (u <= csum[i]) {
+                        *x_first = static_cast<U>(*(d_first + i));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
     * \brief Apply a kernal, in ordered manner, on variadic amount of random access arithmetic ranges and return the result in a different range.
     *        Although operation will be element wise, kernel should be given in scalar manner.
     * 
