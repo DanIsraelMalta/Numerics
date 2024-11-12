@@ -62,6 +62,21 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::count_if
+    **/
+    template<class It, class UnaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<UnaryPredicate, T>)
+    constexpr std::size_t count_if(It first, It last, UnaryPredicate&& p) {
+        typename std::size_t ret{};
+        for (; first != last; ++first) {
+            if (p(*first)) {
+                ++ret;
+            }
+        }
+        return ret;
+    }
+
+    /**
     * \brief local implementation of std::remove_if
     **/
     template<class It, class UnaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
