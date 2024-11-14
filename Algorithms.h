@@ -95,6 +95,26 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::is_sorted
+    **/
+    template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+        requires(std::forward_iterator<It> && std::is_invocable_v<Compare, T, T> &&
+                 std::is_same_v<bool, typename std::invoke_result_t<Compare, T, T>>)
+    constexpr bool is_sorted(const It first, const It last, Compare&& comp) {
+        if (first == last) {
+            return true;
+        }
+
+        for (It next{ first }; next != last; ++next) {
+            if (comp(*next, *first)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
     * \brief local implementation of std::iota
     **/
     template<class It, class T = typename std::decay_t<decltype(*std::declval<It>())>>
