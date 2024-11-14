@@ -270,8 +270,8 @@ namespace NumericalAlgorithms {
     *        // on average, O should contain two 1's, four 2's and four 3's.
     *        generate_from_discrete_distribution(p.begin(), p.end(), d.begin(), d.end(), O.begin(), O.end());
     *
-    * @param {forward_iterator,  in} iterator to first element of positive numbers whose values form the probability distribution (collection sum should be zero)
-    * @param {forward_iterator,  in} iterator to last element of positive numbers whose values form the probability distribution (collection sum should be zero)
+    * @param {forward_iterator,  in} iterator to first element of positive numbers whose values form the probability distribution (collection sum should be zero and sorted in ascending order)
+    * @param {forward_iterator,  in} iterator to last element of positive numbers whose values form the probability distribution (collection sum should be zero and sorted in ascending order)
     * @param {forward_iterator,  in} iterator to first element of values defining probability distribution domain 
     * @param {forward_iterator,  in} iterator to last element of values defining probability distribution domain
     * @param {forward_iterator, out} iterator to first element in collection which will hold the generated numbers
@@ -284,8 +284,9 @@ namespace NumericalAlgorithms {
     constexpr void generate_from_discrete_distribution(const It1 p_first, const It1 p_last,
                                                        const It2 d_first, const It2 d_last,
                                                        Ot x_first, const Ot x_last) {
-        // check that probability distribution is normalized
+        // check that probability distribution is normalized and sorted
         assert(Numerics::areEquals(NumericalAlgorithms::accumulate(p_first, p_last), static_cast<T>(1.0)));
+        assert(Algoithms::is_sorted(p_first, p_last, [](const T lhs, const T rhs) { return lhs < rhs; }));
 
         // transform probability distribution to cumulative distribution
         const std::size_t p_length{ static_cast<std::size_t>(std::distance(p_first, p_last)) };
