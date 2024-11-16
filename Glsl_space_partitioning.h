@@ -27,7 +27,6 @@
 #include "Algorithms.h"
 #include <vector>
 #include <queue>
-#include <stack>
 #include <memory> // unique_ptr
 
 //
@@ -136,11 +135,11 @@ namespace SpacePartitioning {
             vector_queries_t out{};
 
             // search kd-tree
-            std::stack<Node*> stack;
-            stack.push(this->root.get());
+            std::vector<Node*> stack;
+            stack.push_back(this->root.get());
             while (!stack.empty()) {
-                const Node* node{ stack.top() };
-                stack.pop();
+                const Node* node{ stack.back() };
+                stack.pop_back();
 
                 const point_t nodePoint(*(this->first + node->index));
                 const point_t diff{ point - nodePoint };
@@ -154,10 +153,10 @@ namespace SpacePartitioning {
 
                 std::array<Node*, 2> nodes{ {node->right.get(), node->left.get()} };
                 if (nodes[inside]) {
-                    stack.push(nodes[inside]);
+                    stack.push_back(nodes[inside]);
                 }
                 if (nodes[!inside] && std::abs(dist_per_split) < distance) {
-                    stack.push(nodes[!inside]);
+                    stack.push_back(nodes[!inside]);
                 }
             }
 
