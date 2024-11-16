@@ -360,20 +360,21 @@ namespace Extra {
 
     /**
     * \brief create a plane going through 3 points
-    * @param {Vector3, in}  point #0
-    * @param {Vector3, in}  point #1
-    * @param {Vector3, in}  point #2
-    * @param {Vector4, out} plane {normal x, normal y, normal z, distance}
+    * @param {IFixedVector, in}  point #0
+    * @param {IFixedVector, in}  point #1
+    * @param {IFixedVector, in}  point #2
+    * @param {IFixedVector, out} plane {normal x, normal y, normal z, distance}
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector4<T> create_plane(const GLSL::Vector3<T>& a, const GLSL::Vector3<T>& b, const GLSL::Vector3<T>& c) {
-        const GLSL::Vector3<T> ba{ b - a };
-        const GLSL::Vector3<T> ca{ c - a };
+    template<GLSL::IFixedVector VEC, class out_t = next_vector_type<VEC>::vector_type>
+        requires(VEC::length() == 3)
+    constexpr out_t create_plane(const VEC& a, const VEC& b, const VEC& c) {
+        using T = typename VEC::value_type;
+        const VEC ba{ b - a };
+        const VEC ca{ c - a };
         assert(GLSL::dot(ba) > T{});
         assert(GLSL::dot(ca) > T{});
-        const GLSL::Vector3<T> n(GLSL::normalize(GLSL::cross(ba, ca)));
-        return GLSL::Vector4<T>(n, -GLSL::dot(a, n));
+        const VEC n(GLSL::normalize(GLSL::cross(ba, ca)));
+        return out_t(n, -GLSL::dot(a, n));
     }
 
     /**
@@ -402,32 +403,33 @@ namespace Extra {
 
     /**
     * \brief return an orthonormal basis for given input vector
-    * @param {Vector3, in}  vector (normalized)
-    * @param {Matrix3, out} orthonormal basis
+    * @param {IFixedVector,      in}  vector (normalized)
+    * @param {IFixedCubicMatrix, out} orthonormal basis
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Matrix3<T> orthonomrmalBasis(const GLSL::Vector3<T>& u) noexcept {
+    template<GLSL::IFixedVector VEC, class MAT = appropriate_matrix_type<VEC>::matrix_type>
+        requires(VEC::length() == 3)
+    constexpr MAT orthonomrmalBasis(const VEC& u) noexcept {
+        using T = typename MAT::value_type;
         assert(Extra::is_normalized(u));
 
-        const GLSL::Vector3<T> v{ [&u]() {
-            const GLSL::Vector3<T> t{ GLSL::abs(u) };
+        const VEC v{ [&u]() {
+            const VEC t{ GLSL::abs(u) };
 
             // x <= y && x <= z
             if ((t.x <= t.y) && (t.x <= t.z)) {
-                return GLSL::normalize(GLSL::Vector3<T>({ T{}, -u.z, u.y }));
+                return GLSL::normalize(VEC({ T{}, -u.z, u.y }));
             } // y <= x && y <= z
             else if ((t.y <= t.x) && (t.y <= t.z)) {
-                return GLSL::normalize(GLSL::Vector3<T>({ -u.z, T{}, u.x }));
+                return GLSL::normalize(VEC({ -u.z, T{}, u.x }));
             } // z <= x && z <= y
             else {
-                return GLSL::normalize(GLSL::Vector3<T>({ -u.y, u.x, T{} }));
+                return GLSL::normalize(VEC({ -u.y, u.x, T{} }));
             }
         }() };
 
-        const GLSL::Vector3<T> w{ GLSL::cross(u, v) };
+        const VEC w{ GLSL::cross(u, v) };
 
-        return GLSL::Matrix3<T>(u, v, w);
+        return MAT(u, v, w);
     }
 
     /**
