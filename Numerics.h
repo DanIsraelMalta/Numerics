@@ -74,6 +74,92 @@ namespace Numerics {
         return num_bits ? (1 + ((num_bits - 1) / num_field_bits)) : 0;
     }
 
+
+    /**
+    * \brief return true if all values are positive
+    * @param {arithmetic..., in}  values
+    * @param {boolean,       out} true if all values are positive
+    **/
+    template<typename T>
+        requires(std::is_arithmetic_v<T>)
+    constexpr bool allPositive(const T a) noexcept {
+        return a > T{};
+    }
+    template<typename T, typename...Ts>
+        requires(std::is_arithmetic_v<T> && (std::is_same_v<T, Ts> && ...))
+    constexpr bool allPositive(const T a, const Ts... ts) noexcept {
+        return allPositive(a) && allPositive(ts...);
+    }
+
+    /**
+    * \brief return the minimal value among variadic amount of real numbers
+    * @param {OrderedDescending..., in}  values
+    * @param {OrderedDescending,    out} minimal value
+    **/
+    template<typename T>
+    constexpr T min(const T a) noexcept {
+        return a;
+    }
+    template<typename T, typename...Ts>
+        requires(Concepts::OrderedDescending<T, T> && (std::is_same_v<T, Ts> && ...))
+    constexpr T min(const T a, const Ts... ts) noexcept {
+        return a < min(ts...) ? a : min(ts...);
+    }
+
+    /**
+    * \brief return the maximal value among variadic amount of ordered ascending elements
+    * @param {OrderedAscending..., in}  values
+    * @param {OrderedAscending,    out} maximal value
+    **/
+    template<typename T>
+    constexpr T max(const T a) noexcept {
+        return a;
+    }
+    template<typename T, typename...Ts>
+        requires(Concepts::OrderedAscending<T, T> && (std::is_same_v<T, Ts> && ...))
+    constexpr T max(const T a, const Ts... ts) noexcept {
+        return a > max(ts...) ? a : max(ts...);
+    }
+
+    /**
+    * \brief return the dot product (sum of squares) of variadic amount of real numbers
+    * @param {arithmetic..., in}  values
+    * @param {arithmetic,    out} sum of squares of values
+    **/
+    template<typename T>
+        requires(std::is_arithmetic_v<T>)
+    constexpr T dot(const T a) noexcept {
+        return a * a;
+    }
+    template<typename T>
+        requires(std::is_arithmetic_v<T>)
+    constexpr T dot(const T a, const T b) noexcept {
+        return a * a + b * b;
+    }
+    template<typename T, typename... Ts>
+        requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
+    constexpr T dot(const T a, const T b, const Ts... args) noexcept {
+        return (dot(a, b) + dot(args...));
+    }
+
+    /**
+    * \brief return the square root of sum of squares of variadic amount of real numbers, i.e. - their Euclidean norm (L2)
+    * @param {arithmetic..., in}  values
+    * @param {arithmetic,    out} square root of sum of squares of values (Euclidean norm; L2)
+    **/
+    template<typename T, typename... Ts>
+        requires(std::is_arithmetic_v<T>)
+    constexpr T norm(const T a) noexcept {
+        const T _dot{ dot(a) };
+        [[assume(_dot >= T{})]]
+        return std::sqrt(_dot);
+    }
+    template<typename T, typename... Ts>
+        requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
+    constexpr T norm(const T a, const T b, const Ts... ts) noexcept {
+        return std::sqrt(dot(a, b, ts...));
+    }
+
     /**
     * \brief Calculates the ULP ("unit in last place") distance between two floating point numbers (adhering to IEEE-754 format).
     *        The ULP distance of two floating point numbers is the count of valid floating point numbers representable between them.
@@ -131,8 +217,8 @@ namespace Numerics {
     /**
     * \brief test two floating point numbers for comparison using absolute and relative errors.
     *        default parameter values are comparing within 0.1% relative error and 5 decimal places.
-    * @param {floating point, in}  a
-    * @param {floating point, in}  b
+    * @param {floating point, in}  a (not INFINITY or NAN)
+    * @param {floating point, in}  b (not INFINITY or NAN)
     * @param {floating point, in}  tolerance for absolute difference (default is 0.1%)
     * @param {floating point, in}  tolerance for relative difference (default is 5 decimal places)
     * @param {boolean,        out} true if (a == b), false otherwise
@@ -148,23 +234,21 @@ namespace Numerics {
         if (lhs == rhs) return true;
     
         // absolute error test
-        // (equivalent check of std::fabs(lhs - rhs) <= tol, but without the subtraction to allow for INFINITY in comparison)
-        if ((lhs + tol_for_absolute_diff >= rhs) &&
-            (rhs + tol_for_absolute_diff >= lhs)) {
+        // (equivalent check of std::fabs(lhs - rhs) >= tol, but without absolute value calculation)
+        const T diff{ lhs - rhs };
+        if ((diff <= -tol_for_absolute_diff) && (diff >= tol_for_absolute_diff)) {
             return false;
         }
     
+        // if one side is zero, relative error transforms to be absolute error
+        if (lhs == T{} || rhs == T{}) {
+            return (diff <= tol_for_relative_diff) && (diff >= -tol_for_relative_diff);
+        }
+
         // relative error
-        /*
-        old code which doesn't handle INFINITY. kept for documentation purposes.
-        const T absLhs{ std::abs(lhs) };
-        const T absRhs{ std::abs(rhs) };
-        const T diff{ std::abs(lhs - rhs) };
-        return (diff / (absLhs + absRhs) < tol_for_relative_diff);
-        */
-        const T theoreticalMargin{ tol_for_relative_diff * std::max(std::abs(lhs), std::abs(rhs)) };
-        const T usedMargin{ std::isinf(theoreticalMargin) ? T{} : theoreticalMargin };
-        return (lhs + usedMargin >= rhs) && (rhs + usedMargin >= lhs);
+        // (equivalent check to (diff / (std::abs(lhs) + std::abs(rhs)) < tol_for_relative_diff), but without absolute value calculation and division)
+        const T theoreticalMargin{ tol_for_relative_diff * (Numerics::max(lhs, -lhs) + Numerics::max(rhs, -rhs)) };
+        return (diff <= theoreticalMargin) && (diff >= -theoreticalMargin);
     }
 
     /**
@@ -425,91 +509,6 @@ namespace Numerics {
         constexpr T tau{ static_cast<T>(6.283185307179586476925286766559) };
         const T difference{ std::fmod(to - from, tau) };
         return std::fmod(static_cast<T>(2) * difference, tau) - difference;
-    }
-
-    /**
-    * \brief return true if all values are positive
-    * @param {arithmetic..., in}  values
-    * @param {boolean,       out} true if all values are positive
-    **/
-    template<typename T>
-        requires(std::is_arithmetic_v<T>)
-    constexpr bool allPositive(const T a) noexcept {
-        return a > T{};
-    }
-    template<typename T, typename...Ts>
-        requires(std::is_arithmetic_v<T> && (std::is_same_v<T, Ts> && ...))
-    constexpr bool allPositive(const T a, const Ts... ts) noexcept {
-        return allPositive(a) && allPositive(ts...);
-    }
-
-    /**
-    * \brief return the minimal value among variadic amount of real numbers
-    * @param {OrderedDescending..., in}  values
-    * @param {OrderedDescending,    out} minimal value
-    **/
-    template<typename T>
-    constexpr T min(const T a) noexcept {
-        return a;
-    }
-    template<typename T, typename...Ts>
-        requires(Concepts::OrderedDescending<T, T> && (std::is_same_v<T, Ts> && ...))
-    constexpr T min(const T a, const Ts... ts) noexcept {
-        return a < min(ts...) ? a : min(ts...);
-    }
-
-    /**
-    * \brief return the maximal value among variadic amount of ordered ascending elements
-    * @param {OrderedAscending..., in}  values
-    * @param {OrderedAscending,    out} maximal value
-    **/
-    template<typename T>
-    constexpr T max(const T a) noexcept {
-        return a;
-    }
-    template<typename T, typename...Ts>
-        requires(Concepts::OrderedAscending<T, T> && (std::is_same_v<T, Ts> && ...))
-    constexpr T max(const T a, const Ts... ts) noexcept {
-        return a > max(ts...) ? a : max(ts...);
-    }
-
-    /**
-    * \brief return the dot product (sum of squares) of variadic amount of real numbers
-    * @param {arithmetic..., in}  values
-    * @param {arithmetic,    out} sum of squares of values
-    **/
-    template<typename T>
-        requires(std::is_arithmetic_v<T>)
-    constexpr T dot(const T a) noexcept {
-        return a * a;
-    }
-    template<typename T>
-        requires(std::is_arithmetic_v<T>)
-    constexpr T dot(const T a, const T b) noexcept {
-        return a * a + b * b;
-    }
-    template<typename T, typename... Ts>
-        requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
-    constexpr T dot(const T a, const T b, const Ts... args) noexcept {
-        return (dot(a, b) + dot(args...));
-    }
-
-    /**
-    * \brief return the square root of sum of squares of variadic amount of real numbers, i.e. - their Euclidean norm (L2)
-    * @param {arithmetic..., in}  values
-    * @param {arithmetic,    out} square root of sum of squares of values (Euclidean norm; L2)
-    **/
-    template<typename T, typename... Ts>
-        requires(std::is_arithmetic_v<T>)
-    constexpr T norm(const T a) noexcept {
-        const T _dot{ dot(a) };
-        [[assume(_dot >= T{})]]
-        return std::sqrt(_dot);
-    }
-    template<typename T, typename... Ts>
-        requires(std::is_arithmetic_v<T> && (std::same_as<T, Ts> && ...))
-    constexpr T norm(const T a, const T b, const Ts... ts) noexcept {
-        return std::sqrt(dot(a, b, ts...));
     }
 
     /**
