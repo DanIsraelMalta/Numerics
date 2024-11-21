@@ -166,13 +166,14 @@ namespace Extra {
     **/
     template<GLSL::IFixedCubicMatrix MAT, class T = typename MAT::value_type>
     constexpr bool is_orthonormal_matrix(const MAT& mat) noexcept {
-        Utilities::static_for<0, 1, MAT::columns() - 1>([&mat](std::size_t i) {
+        for (std::size_t i{}; i < MAT::columns() - 1; ++i) {
             if (!Extra::is_normalized(mat[i]) ||
                 !Extra::is_normalized(mat[i + 1]) ||
-                !Numerics::areEquals(T{}, GLSL::dot(GLSL::normalize(mat[i]), GLSL::normalize(mat[i + 1])))) {
+                !Numerics::areEquals(T{}, std::abs(GLSL::dot(GLSL::normalize(mat[i]), GLSL::normalize(mat[i + 1]))))) {
                 return false;
             }
-        });
+        }
+
         return true;
     }
 
