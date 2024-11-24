@@ -644,7 +644,7 @@ namespace GLSL {
         using T = typename VEC::value_type;
         const T l{ GLSL::length(x) };
         if (Numerics::areEquals(l, T{})) [[unlikely]] {
-            return x);
+            return x;
         }
 
         [[assume(l > T{})]];
