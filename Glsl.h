@@ -635,14 +635,20 @@ namespace GLSL {
     }
 
     /**
-    * \brief calculate Euclidean/L2 distance between two vectors
-    * @param {VEC,        in}  a
-    * @param {VEC,        in}  b
-    * @param {value_type, out} euclidean distance between a & b
+    * \brief return a normalized vector (if 'x' is nullified, return it)
+    * @param {VEC, in}  vector
+    * @param {VEC, out} normalized vector
     **/
-    template<IFixedVector VEC, class T = typename VEC::value_type>
-    constexpr T distance(const VEC& p0, const VEC& p1) {
-        return length(p0 - p1);
+    template<IFixedVector VEC>
+    constexpr VEC normalize(const VEC& x) {
+        using T = typename VEC::value_type;
+        const T l{ GLSL::length(x) };
+        if (Numerics::areEquals(l, T{})) [[unlikely]] {
+            return x);
+        }
+
+        [[assume(l > T{})]];
+        return (x / l);
     }
 
     /**
