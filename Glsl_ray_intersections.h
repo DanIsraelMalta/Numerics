@@ -178,63 +178,104 @@ namespace RayIntersections {
     *        if y coordinate is negative - ray does not intersect sphere
     *        else if x coordinate is negative - origin is inside sphere and y coordinate is intersection distance
     *        else origin is outside sphere and x coordinate is intersection distance.
-    * @param {Vector3, in}  ray origin
-    * @param {Vector3, in}  ray direction (should be normalized; not tested for normalization)
-    * @param {Vector4, in}  sphere {center x, center y, cernter z, radius}
-    * @param {Vector2, out} {distance to closest intersection point, along ray, from ray origin,
-    *                        distance to furthest intersection point, along ray, from ray origin}
+    * @param {IFixedVector, in}  ray origin
+    * @param {IFixedVector, in}  ray direction (should be normalized; not tested for normalization)
+    * @param {IFixedVector, in}  sphere {center x, center y, center z, radius}
+    * @param {IFixedVector, out} {distance to closest intersection point, along ray, from ray origin,
+    *                             distance to furthest intersection point, along ray, from ray origin}
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector2<T> sphere_intersect(const GLSL::Vector3<T>& ro, const GLSL::Vector3<T>& rd, const GLSL::Vector4<T>& sph) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type,
+             class out_t = prev_vector_type<VEC>::vector_type,
+             class VECN = next_vector_type<VEC>::vector_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr out_t sphere_intersect(const VEC& ro, const VEC& rd, const VECN& sph) {
         assert(Extra::is_normalized(rd));
 
-        const GLSL::Vector3<T> c(sph.xyz);
-        const GLSL::Vector3<T> oc{ ro - c };
+        const VEC c(sph.xyz);
+        const VEC oc{ ro - c };
         const T b{ GLSL::dot(oc, rd) };
-        const GLSL::Vector3<T> qc{ oc - b * rd };
+        const VEC qc{ oc - b * rd };
         T h{ sph.w * sph.w - GLSL::dot(qc) };
         if (h < T{}) {
-            return GLSL::Vector2<T>(static_cast<T>(-1));
+            return out_t(static_cast<T>(-1));
         }
 
         [[assume(h >= T{})]];
         h = std::sqrt(h);
-        return GLSL::Vector2<T>(-b - h, -b + h);
+        return out_t(-b - h, -b + h);
     }
 
     /**
     * \brief return the intersection between ray and ellipsoid centered at center
-    * @param {Vector3, in}  ray origin
-    * @param {Vector3, in}  ray direction (should be normalized; not tested for normalization)
-    * @param {Vector3, in}  ellipsoid radii
-    * @param {Vector2, out} {distance to closest intersection point, along ray, from ray origin,
-    *                        distance to furthest intersection point, along ray, from ray origin}
+    * @param {IFixedVector, in}  ray origin
+    * @param {IFixedVector, in}  ray direction (should be normalized; not tested for normalization)
+    * @param {IFixedVector, in}  ellipsoid radii
+    * @param {IFixedVector, out} {distance to closest intersection point, along ray, from ray origin,
+    *                             distance to furthest intersection point, along ray, from ray origin}
     **/
-    template<typename T>
-        requires(std::is_floating_point_v<T>)
-    constexpr GLSL::Vector2<T> ellipsoid_intersection(const GLSL::Vector3<T>& ro, const GLSL::Vector3<T>& rd, const GLSL::Vector3<T>& ra) {
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type,
+        class out_t = prev_vector_type<VEC>::vector_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr out_t ellipsoid_intersection(const VEC& ro, const VEC& rd, const VEC& ra) {
         assert(Extra::is_normalized(rd));
         if (Numerics::areEquals(ra.x, T{}) ||
             Numerics::areEquals(ra.y, T{}) ||
             Numerics::areEquals(ra.z, T{})) {
-            return GLSL::Vector2<T>(static_cast<T>(-1));
+            return out_t(static_cast<T>(-1));
         }
 
-        const GLSL::Vector3<T> ocn{ ro / ra };
-        const GLSL::Vector3<T> rdn{ rd / ra };
+        const VEC ocn{ ro / ra };
+        const VEC rdn{ rd / ra };
         const T a{ GLSL::dot(rdn) };
         const T b{ GLSL::dot(ocn, rdn) };
         const T c{ GLSL::dot(ocn) };
 
         T h{ b * b - a * (c - static_cast<T>(1)) };
         if (h < T{} || Numerics::areEquals(a, T{})) {
-            return GLSL::Vector2<T>(static_cast<T>(-1));
+            return out_t(static_cast<T>(-1));
         }
 
         [[assume(h >= T{})]];
         [[assume(a != T{})]];
         h = std::sqrt(h);
-        return GLSL::Vector2<T>((-b - h) / a, (-b + h) / a);
+        return out_t((-b - h) / a, (-b + h) / a);
+    }
+
+    /**
+    * \brief return the intersection between ray and axis aligned bounding box
+    * @param {IFixedVector, in}  ray origin
+    * @param {IFixedVector, in}  ray direction (should be normalized; not tested for normalization)
+    * @param {IFixedVector, in}  axis aligned bounding box minimum point
+    * @param {IFixedVector, in}  axis aligned bounding box maximum point
+    * @param {IFixedVector, out} {distance to closest intersection point, along ray, from ray origin,
+    *                             distance to furthest intersection point, along ray, from ray origin}
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type,
+             class out_t = prev_vector_type<VEC>::vector_type>
+        requires(std::is_floating_point_v<T> && (VEC::length() == 3))
+    constexpr out_t aabb_intersection(const VEC& ro, const VEC& rd, const VEC& min, const VEC& max) {
+        assert(Extra::is_normalized(rd));
+
+        // housekeeping
+        out_t intersection(std::numeric_limits<T>::max(), static_cast<T>(-1.0));
+
+        // find intersection
+        Utilities::static_for<0, 1, VEC::length()>([&ro, &rd, &min, &max, &intersection](std::size_t i) {
+            if (!Numerics::areEquals(rd[i], T{})) {
+                const T l0{ (min[i] - ro[i]) / rd[i] };
+                const T l1{ (max[i] - ro[i]) / rd[i] };
+                intersection[0] = Numerics::min(intersection[0], l0, l1);
+                intersection[1] = Numerics::max(intersection[1], l0, l1);
+            }
+        });
+
+        // intersection found?
+        if (intersection[0] > intersection[1]) {
+            intersection[0] = static_cast<T>(-1);
+            intersection[1] = static_cast<T>(-1);
+        }
+
+        // output
+        return intersection;
     }
 }
