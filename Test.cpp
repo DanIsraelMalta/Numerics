@@ -1830,6 +1830,15 @@ void test_glsl_ray_intersection() {
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
         assert(GLSL::max(GLSL::abs(intersections - vec2(7.0f, 13.0f))) < 1e-6);
     }
+	
+    {
+        const vec3 min(-2.0f);
+        const vec3 max(3.5f);
+
+        vec2 intersections = RayIntersections::aabb_intersection(vec3(-1.0f, -1.0f, -4.0f), vec3(0.0f, 0.0f, 1.0f), min, max);
+        assert(static_cast<std::uint8_t>(intersections[0])      == 2);
+        assert(static_cast<std::uint8_t>(intersections[1] * 10.0f) == 75);
+    }
 }
 
 void test_GLSL_algorithms_2D() {
