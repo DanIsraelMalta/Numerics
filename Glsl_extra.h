@@ -644,9 +644,9 @@ namespace Extra {
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 4)
     constexpr VEC multiply_quaternions(const VEC& x, const VEC& y) noexcept {
-        return VEC(x[0] * y[0] - x[1] * y[1] - x[2] * y[2] - x[3] * y[3],
-                   x[0] * y[1] + x[1] * y[0] - x[2] * y[3] + x[3] * y[2],
-                   x[0] * y[2] + x[1] * y[3] + x[2] * y[0] - x[3] * y[1],
-                   x[0] * y[3] - x[1] * y[2] + x[2] * y[1] + x[3] * y[0]);
+        return VEC(Numerics::diff_of_products(x[0], y[0], x[1], y[1]) - x[2] * y[2] - x[3] * y[3],
+                   Numerics::diff_of_products(x[3], y[2], x[2], y[3]) + x[0] * y[1] + x[1] * y[0],
+                   Numerics::diff_of_products(x[1], y[3], x[3], y[1]) + x[0] * y[2] + x[2] * y[0],
+                   Numerics::diff_of_products(x[2], y[1], x[1], y[2]) + x[0] * y[3] + x[3] * y[0]);
     }
 }
