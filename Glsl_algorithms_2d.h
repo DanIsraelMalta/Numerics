@@ -49,14 +49,14 @@ namespace Algorithms2D {
         * @param {IFixedVector, in}  point a
         * @param {IFixedVector, in}  point b
         * @param {IFixedVector, in}  point c
-        * @param {value_type,   out} negative value means 'c' is counter clockwise to segmen a-b,
-        *                            positive value means 'c' is clockwise to segmen a-b,
-        *                            zero means 'c' is colinear with segmen a-b,
+        * @param {value_type,   out} negative value means 'c' is counter clockwise to segment a-b,
+        *                            positive value means 'c' is clockwise to segment a-b,
+        *                            zero means 'c' is colinear with segment a-b,
         **/
         template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
             requires(VEC::length() == 2)
         constexpr T are_points_ordered_counter_clock_wise(const VEC& a, const VEC& b, const VEC& c) noexcept {
-            return (b.y - a.y) * (c.x - b.x) - (b.x - a.x) * (c.y - b.y);
+            return Numerics::diff_of_products(b.y - a.y, c.x - b.x, b.x - a.x, c.y - b.y);
         }
 
         /**
@@ -83,7 +83,7 @@ namespace Algorithms2D {
         constexpr T triangle_twice_signed_area(const VEC& a, const VEC& b, const VEC& c) noexcept {
             const VEC v1{ a - c };
             const VEC v2{ b - c };
-            return v1.x * v2.y - v1.y * v2.x;
+            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
         }
 
         /**
@@ -151,8 +151,8 @@ namespace Algorithms2D {
             }
 
             const VEC ab{ a0 - b0 };
-            const T s{ ( s1.x * ab.y - s1.y * ab.x) / denom };
-            const T t{ ( s2.x * ab.y - s2.y * ab.x) / denom };
+            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
+            const T t{ Numerics::diff_of_products(s2.x, ab.y, s2.y, ab.x) / denom };
             return (s >= T{} && s <= static_cast<T>(1.0) &&
                     t >= T{} && t <= static_cast<T>(1.0));
         }
@@ -210,7 +210,8 @@ namespace Algorithms2D {
             if (Numerics::areEquals(D, T{})) {
                 return out_t{ VEC(), static_cast<T>(-1) };
             }
-            const VEC center{ a + VEC(ca.y * B - ba.y * C, ba.x * C - ca.x * B) / (static_cast<T>(2) * D) };
+            const VEC center{ a + VEC(Numerics::diff_of_products(ca.y, B, ba.y, C),
+                                      Numerics::diff_of_products(ba.x, C, ca.x, B)) / (static_cast<T>(2) * D) };
             return out_t{ center, GLSL::dot(center - a) };
         }
         template<GLSL::IFixedVector VEC>
@@ -418,7 +419,7 @@ namespace Algorithms2D {
         // lexicographically sort all points using the smallest point as pivot
         const VEC v0( points[0] );
         Algoithms::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
-            return (b.y - v0.y) * (c.x - b.x) - (b.x - v0.x) * (c.y - b.y) < T{};
+            return Numerics::diff_of_products(b.y - v0.y, c.x - b.x, b.x - v0.x, c.y - b.y) < T{};
         });
 
         // build hull
@@ -780,7 +781,7 @@ namespace Algorithms2D {
         while(i < cloud.size()) {
             // find hull segment which cloud point is closest to
             const VEC p{ cloud[i] };
-            auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
+            const auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
 
             // should point be part of concave hull?
             const std::size_t segment_index_start{ closest.index };
@@ -845,7 +846,7 @@ namespace Algorithms2D {
             return d;
         };
 
-        // seperate cloud point into XY coordinates
+        // separate cloud point into XY coordinates
         const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
         std::vector<T> x(len);
         std::vector<T> y(len);
@@ -1021,7 +1022,7 @@ namespace Algorithms2D {
             return true;
         }
 
-        bool sign{ Internals::triangle_twice_signed_area(*(first + 2), *first , *(first + 1)) > T{} };
+        const bool sign{ Internals::triangle_twice_signed_area(*(first + 2), *first , *(first + 1)) > T{} };
         for (std::size_t i{ 1 }; i < len - 1; ++i) {
             const T area{ Internals::triangle_twice_signed_area(*(first + (i + 2) % len), *(first + i) , *(first + (i + 1) % len)) };
             if (sign != (area > T{})) {
@@ -1034,7 +1035,7 @@ namespace Algorithms2D {
 
     /**
     * \brief given a closed non intersecting polygon and two of its vertices, check if line connecting these vertices is inside or outside the polygon.
-    *        notice that segments connecting neighbouring vertices will be declared as "inside polygon".
+    *        notice that segments connecting neighboring vertices will be declared as "inside polygon".
     * @param {forward_iterator, in}  iterator to first point in polygon
     * @param {forward_iterator, in}  iterator to last point in polygon
     * @param {value_type,       in}  polygon area
@@ -1045,7 +1046,7 @@ namespace Algorithms2D {
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr bool is_line_connecting_polygon_vertices_inside_polygon(const InputIt first, const InputIt last, const T area, const InputIt i0, const InputIt i1) {
-        // if segment connects neighbouring vertices - it is "inside polygon"
+        // if segment connects neighboring vertices - it is "inside polygon"
         if ((Extra::are_vectors_identical(*first, *i0) && Extra::are_vectors_identical(*(last - 1), *i1)) ||
             Extra::are_vectors_identical(*(i0 + 1), *i1)) {
             return true;
@@ -1094,7 +1095,7 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given a closed polygon (as a collection of points) return iterators to its reflex vertices (vertice whose angle is bigger than PI)
+    * \brief given a closed polygon (as a collection of points) return iterators to its reflex vertices (vertex whose angle is bigger than PI)
     * @param {forward_iterator,         in}  iterator to first point in polygon
     * @param {forward_iterator,         in}  iterator to last point in polygon
     * @param {vector<forward_iterator>, out} vector of iterators to reflex vertices
@@ -1131,7 +1132,7 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given a closed polygon (as a collection of points) return iterators to its cusp vertices (vertice whose adjacent vertices x or y coordinates are either both above or below it)
+    * \brief given a closed polygon (as a collection of points) return iterators to its cusp vertices (vertices whose adjacent vertices x or y coordinates are either both above or below it)
     * @param {forward_iterator,         in}  iterator to first point in polygon
     * @param {forward_iterator,         in}  iterator to last point in polygon
     * @param {integral,                 in}  0 - look for cusps in X coordinate, 1 - look for cusps in Y coordinate (0/x by default)
