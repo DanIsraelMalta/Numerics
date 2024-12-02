@@ -201,13 +201,13 @@ namespace Decomposition {
                         T temp1{ R(x, i - 1) };
                         T temp2{ R(x, i) };
                         R(x, i - 1) = temp1 * CSR[0] + temp2 * CSR[1];
-                        R(x, i)     = temp2 * CSR[0] - temp1 * CSR[1];
+                        R(x, i)     = Numerics::diff_of_products(temp2, CSR[0], temp1, CSR[1]);
 
                         // Q' = Q * G^
                         temp1 = Q(i - 1, x);
                         temp2 = Q(i,     x);
                         Q(i - 1, x) = temp1 * CSR[0] + temp2 * CSR[1];
-                        Q(i, x)     = temp2 * CSR[0] - temp1 * CSR[1];
+                        Q(i, x)     = Numerics::diff_of_products(temp2, CSR[0], temp1, CSR[1]);
                     }
                     R(j, i - 1) = CSR[2];
                     R(j, i) = T{};
