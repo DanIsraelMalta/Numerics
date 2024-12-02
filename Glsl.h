@@ -1041,42 +1041,77 @@ namespace GLSL {
         using VEC = typename MAT::vector_type;
         constexpr std::size_t N{ MAT::columns() };
 
-        if constexpr (N == 2) {
-            return (mat(0,0) * mat(1,1) - mat(0,1) * mat(1,0));
-        }
-        else if constexpr (N == 3) {
-            const VEC& x(mat[0]);
-            const VEC& y(mat[1]);
-            const VEC& z(mat[2]);
-            return (x.x * (z.z * y.y - y.z * z.y) +
-                    x.y * (y.z * z.x - z.z * y.x) +
-                    x.z * (z.y * y.x - y.y * z.x));
-        }
-        else if constexpr (N == 4) {
-            const VEC& x(mat[0]);
-            const VEC& y(mat[1]);
-            const VEC& z(mat[2]);
-            const VEC& w(mat[3]);
+        if constexpr (std::is_floating_point_v<T>) {
+            if constexpr (N == 2) {
+                return Numerics::diff_of_products(mat(0, 0), mat(1, 1), mat(0, 1), mat(1, 0));
+            }
+            else if constexpr (N == 3) {
+                const VEC& x(mat[0]);
+                const VEC& y(mat[1]);
+                const VEC& z(mat[2]);
+                return (x.x * Numerics::diff_of_products(z.z, y.y, y.z, z.y) +
+                        x.y * Numerics::diff_of_products(y.z, z.x, z.z, y.x) +
+                        x.z * Numerics::diff_of_products(z.y, y.x, y.y, z.x));
+            }
+            else if constexpr (N == 4) {
+                const VEC& x(mat[0]);
+                const VEC& y(mat[1]);
+                const VEC& z(mat[2]);
+                const VEC& w(mat[3]);
 
-            const T b00{ x.x * y.y - x.y * y.x };
-            const T b01{ x.x * y.z - x.z * y.x };
-            const T b02{ x.x * y.w - x.w * y.x };
-            const T b03{ x.y * y.z - x.z * y.y };
-            const T b04{ x.y * y.w - x.w * y.y };
-            const T b05{ x.z * y.w - x.w * y.z };
-            const T b06{ z.x * w.y - z.y * w.x };
-            const T b07{ z.x * w.z - z.z * w.x };
-            const T b08{ z.x * w.w - z.w * w.x };
-            const T b09{ z.y * w.z - z.z * w.y };
-            const T b10{ z.y * w.w - z.w * w.y };
-            const T b11{ z.z * w.w - z.w * w.z };
+                const T b00{ Numerics::diff_of_products(x.x, y.y, x.y, y.x) };
+                const T b01{ Numerics::diff_of_products(x.x, y.z, x.z, y.x) };
+                const T b02{ Numerics::diff_of_products(x.x, y.w, x.w, y.x) };
+                const T b03{ Numerics::diff_of_products(x.y, y.z, x.z, y.y) };
+                const T b04{ Numerics::diff_of_products(x.y, y.w, x.w, y.y) };
+                const T b05{ Numerics::diff_of_products(x.z, y.w, x.w, y.z) };
+                const T b06{ Numerics::diff_of_products(z.x, w.y, z.y, w.x) };
+                const T b07{ Numerics::diff_of_products(z.x, w.z, z.z, w.x) };
+                const T b08{ Numerics::diff_of_products(z.x, w.w, z.w, w.x) };
+                const T b09{ Numerics::diff_of_products(z.y, w.z, z.z, w.y) };
+                const T b10{ Numerics::diff_of_products(z.y, w.w, z.w, w.y) };
+                const T b11{ Numerics::diff_of_products(z.z, w.w, z.w, w.z) };
 
-            return (b00 * b11 -
-                    b01 * b10 +
-                    b02 * b09 +
-                    b03 * b08 -
-                    b04 * b07 +
-                    b05 * b06);
+                return (Numerics::diff_of_products(b00, b11, b01, b10) +
+                        Numerics::diff_of_products(b03, b08, b04, b07) +
+                        b02 * b09 + b05 * b06);
+            }
+        } else {
+            if constexpr (N == 2) {
+                return (mat(0, 0) * mat(1, 1) - mat(0, 1) * mat(1, 0));
+            }
+            else if constexpr (N == 3) {
+                const VEC& x(mat[0]);
+                const VEC& y(mat[1]);
+                const VEC& z(mat[2]);
+                return (x.x * (z.z * y.y - y.z * z.y) +
+                        x.y * (y.z * z.x - z.z * y.x) +
+                        x.z * (z.y * y.x - y.y * z.x));
+            }
+            else if constexpr (N == 4) {
+                const VEC& x(mat[0]);
+                const VEC& y(mat[1]);
+                const VEC& z(mat[2]);
+                const VEC& w(mat[3]);
+
+                
+                const T b00{ x.x * y.y - x.y * y.x };
+                const T b01{ x.x * y.z - x.z * y.x };
+                const T b02{ x.x * y.w - x.w * y.x };
+                const T b03{ x.y * y.z - x.z * y.y };
+                const T b04{ x.y * y.w - x.w * y.y };
+                const T b05{ x.z * y.w - x.w * y.z };
+                const T b06{ z.x * w.y - z.y * w.x };
+                const T b07{ z.x * w.z - z.z * w.x };
+                const T b08{ z.x * w.w - z.w * w.x };
+                const T b09{ z.y * w.z - z.z * w.y };
+                const T b10{ z.y * w.w - z.w * w.y };
+                const T b11{ z.z * w.w - z.w * w.z };
+
+                return (b00 * b11 - b01 * b10 +
+                        b03 * b08 - b04 * b07 +
+                        b02 * b09 + b05 * b06);
+            }
         }
     }
 
