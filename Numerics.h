@@ -313,6 +313,27 @@ namespace Numerics {
     }
 
     /**
+    * \brief calculate a*b-c*d with maximal floating point error of 1.5*ULP
+    *        see: Claude-Pierre Jeannerod, Nicolas Louvet, and Jean-Michel Muller,
+    *             "Further Analysis of Kahan's Algorithm for the Accurate Computation
+    *             of 2x2 Determinants". Mathematics of Computation, Vol. 82, No. 284,
+    *             Oct. 2013, pp. 2245-2264
+    * @param {floating point, in} a
+    * @param {floating point, in} b
+    * @param {floating point, in} c
+    * @param {floating point, in} d
+    * @param {floating point, in} a*b - c*d
+    **/
+    template<class T>
+        requires(std::is_floating_point_v<T>)
+    constexpr T diff_of_products(const T a, const T b, const T c, const T d) {
+        const T w{ d * c };
+        const T e{ std::fma(-d, c, w)};
+        const T f{ std::fma(a, b, -w)};
+        return (f + e);
+    }
+
+    /**
     * \brief implements std::copysign(1, value)
     * @param {arithmetic, in}  value
     * @param {arithmetic, out} std::copysign(1, value)
