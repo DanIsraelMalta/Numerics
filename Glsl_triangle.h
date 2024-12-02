@@ -73,7 +73,7 @@ namespace Triangle {
         const T d00{ GLSL::dot(v0) };
         const T d01{ GLSL::dot(v0, v1) };
         const T d11{ GLSL::dot(v1) };
-        const T denom{ d00 * d11 - d01 * d01 };
+        const T denom{ Numerics::diff_of_products(d00, d11, d01, d01) };
         if (denom <= T{}) [[unlikely]] {
             return VEC(static_cast<T>(-1));
         }
@@ -82,8 +82,8 @@ namespace Triangle {
         const T d21{ GLSL::dot(v2, v1) };
 
         [[assume(denom > T{})]]
-        const T v{ (d11 * d20 - d01 * d21) / denom };
-        const T w{ (d00 * d21 - d01 * d20) / denom };
+        const T v{ Numerics::diff_of_products(d11, d20, d01, d21) / denom };
+        const T w{ Numerics::diff_of_products(d00, d21, d01, d20) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - v - w, v, w);
     }
 
@@ -104,14 +104,14 @@ namespace Triangle {
         const T dbb{ GLSL::dot(b, b) };
         const T dca{ GLSL::dot(c, a) };
         const T dcb{ GLSL::dot(c, b) };
-        const T denom{ daa * dbb - dab * dab };
+        const T denom{ Numerics::diff_of_products(daa, dbb, dab, dab) };
         if (denom <= T{}) [[unlikely]] {
             return VEC(static_cast<T>(-1));
         }
 
         [[assume(denom != T{})]]
-        const T y{ (dbb * dca - dab * dcb) / denom };
-        const T z{ (daa * dcb - dab * dca) / denom };
+        const T y{ Numerics::diff_of_products(dbb, dca, dab, dcb) / denom };
+        const T z{ Numerics::diff_of_products(daa, dcb, dab, dca) / denom };
         return GLSL::Vector3<T>(static_cast<T>(1) - y - z, y, z);
     }
 
@@ -329,7 +329,7 @@ namespace Triangle {
             intersection = a + (-dot2 / dot1) * u;
         };
 
-        // check rekative position of triangle #1 vertices against triangle #2
+        // check relative position of triangle #1 vertices against triangle #2
         const std::int32_t o1a{ Triangle::point_triangle_orientation(t1a, t2a, t2b, t2c) };
         const std::int32_t o1b{ Triangle::point_triangle_orientation(t1b, t2a, t2b, t2c) };
         const std::int32_t o1c{ Triangle::point_triangle_orientation(t1c, t2a, t2b, t2c) };
@@ -339,7 +339,7 @@ namespace Triangle {
             return out;
         }
 
-        // check rekative position of triangle #2 vertices against triangle #1
+        // check relative position of triangle #2 vertices against triangle #1
         const std::int32_t o2a{ Triangle::point_triangle_orientation(t2a, t1a, t1b, t1c) };
         const std::int32_t o2b{ Triangle::point_triangle_orientation(t2b, t1a, t1b, t1c) };
         const std::int32_t o2c{ Triangle::point_triangle_orientation(t2c, t1a, t1b, t1c) };
