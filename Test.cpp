@@ -1038,10 +1038,12 @@ void test_glsl_transformation() {
         dmat3 transformation_using_world_up = Transformation::create_look_at_matrix(eye, target, world_up); // look-at matrix using world up
         auto axis_angle_using_world_up = Transformation::get_axis_angle_from_rotation_matrix(transformation_using_world_up); // look-at matrix (using world up) axis and angle
         dmat3 dcm_using_world_up_axis_angle = Transformation::rotation_matrix_from_axis_angle(axis_angle_using_world_up.axis, std::acos(axis_angle_using_world_up.cosine)); // rotation matrix from axis and angle
+        dmat3 dcm_using_forward = Transformation::create_look_at_matrix(GLSL::normalize(eye - target));
 
-        Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle](std::size_t i) {
-            Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, i](std::size_t j) {
+        Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, &dcm_using_forward](std::size_t i) {
+            Utilities::static_for<0, 1, 3>([&transformation_using_world_up, &dcm_using_world_up_axis_angle, &dcm_using_forward, i](std::size_t j) {
                 assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_world_up_axis_angle(j, i))) < 1e-6);
+                assert(std::abs(std::abs(transformation_using_world_up(i, j)) - std::abs(dcm_using_forward(i, j))) < 1e-6);
             });
         });
 
