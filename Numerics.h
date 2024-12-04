@@ -313,7 +313,8 @@ namespace Numerics {
     }
 
     /**
-    * \brief calculate a*b-c*d with maximal floating point error of 1.5*ULP
+    * \brief calculate a*b-c*d with maximal floating point error of 1.5*ULP.
+    *        (if sign(ab) == sign(cd) - error will be +/-1.5*ULP ,) otherwise it will be +/-ULP
     *        see: Claude-Pierre Jeannerod, Nicolas Louvet, and Jean-Michel Muller,
     *             "Further Analysis of Kahan's Algorithm for the Accurate Computation
     *             of 2x2 Determinants". Mathematics of Computation, Vol. 82, No. 284,
@@ -552,38 +553,28 @@ namespace Numerics {
     }
 
     /**
-    * \brief stable numeric solution of a quadratic equation (a*x^2 + b*x + c = 0)
+    * \brief stable numeric solution of a quadratic equation (a*x^2 + b*x + c = 0).
+    *        solution will avoid numerical cancelation in the following cases:
+    *        > b^2 >> || 4*a*c||
+    *        > b^2 ~= 4*a*c
     * 
-    * @param {floating_point,                         in}  a
-    * @param {floating_point,                         in}  b
-    * @param {floating_point,                         in}  c
-    * @param {{bool, floating_point, floating_point}, out} {true if a solution exists - false otherwise, smaller root, larger root}
+    * @param {floating_point,                   in}  a
+    * @param {floating_point,                   in}  b
+    * @param {floating_point,                   in}  c
+    * @param {{floating_point, floating_point}, out} {smaller root, larger root}
     **/
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr auto SolveQuadratic(const T a, const T b, const T c) noexcept {
-        using out_t = struct { bool found; T x1; T x2; };
+        using out_t = struct { T x1; T x2; };
 
-        // trivial solution
-        if (Numerics::areEquals(a, T{}) && Numerics::areEquals(b, T{})) [[unlikely]]  {
-            return out_t{ true, T{}, T{} };
-        }
+        const T delta{ Numerics::diff_of_products(b, b, static_cast<T>(4.0) * a, c) };
+        assert(delta >= T{});
+        const T t0{ std::sqrt(delta) };
+        const T t1{ b + std::copysign(t0, b) };
 
-        const T discriminant{ b * b - static_cast<T>(4) * a * c };
-        if (discriminant < T{}) {
-            return out_t{ false, T{}, T{} };
-        }
-
-        // solution
-        [[assume(discriminant >= T{})]]
-        const T t{ static_cast<T>(-0.5) * (b + Numerics::sign(b) * std::sqrt(discriminant)) };
-        T x1{ t / a };
-        T x2{ c / t };
-        if (x1 > x2) {
-            Utilities::swap(x1, x2);
-        }
-
-        return out_t{ true, x1, x2 };
+        return out_t{ (static_cast<T>(-2.0) * c) / t1,
+                      t1 / (static_cast<T>(-2.0) * a) };
     }
 
     /**
