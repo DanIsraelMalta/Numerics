@@ -57,7 +57,42 @@ namespace Transformation {
         const VEC right{ GLSL::normalize(GLSL::cross(arbitrary, forward)) };
         const VEC upper{ GLSL::cross(forward, right) };
 
-        return MAT(right, upper, forward);
+        const MAT lookAt(right, upper, forward);
+        assert(Extra::is_orthonormal_matrix(lookAt));
+        return lookAt;
+    }
+
+    /**
+    * \brief given a "forward"(Y) vector, return appropriate look-at matrix
+    * @param {IFixedVector,      in}  "forward" (normalized)
+    * @param {IFixedCubicMatrix, out} look at matrix
+    **/
+    template<GLSL::IFixedVector VEC, class MAT = appropriate_matrix_type<VEC>::matrix_type>
+        requires(VEC::length() <= 3)
+    constexpr MAT create_look_at_matrix(const VEC& forward) {
+        using T = typename VEC::value_type;
+
+        assert(Extra::is_normalized(forward));
+
+        const T n{ std::fma(forward.x, forward.x, forward.y * forward.y) };
+        const T b{ n > T{} ? T{} : static_cast<T>(1.0) };
+
+        const T y{ forward.y + b };
+        const T nb{ n + b };
+        [[assume(nb > T{})]];
+        const T s{ std::sqrt(static_cast<T>(1.0) / nb) };
+        const T sx{ -forward.x * s };
+        const T sy{ y * s };
+
+        const VEC right(sy, sx, T{});
+        const VEC up(sx * forward.z, -sy * forward.z, s * n);
+        assert(Extra::is_normalized(right));
+        assert(Extra::is_normalized(up));
+
+        // output
+        const MAT lookAt(right, up, forward);
+        assert(Extra::is_orthonormal_matrix(lookAt));
+        return lookAt;
     }
 
     /**
@@ -78,8 +113,8 @@ namespace Transformation {
 
         const VEC axis(mat(1, 2) - mat(2, 1), mat(2, 0) - mat(0, 2), mat(0, 1) - mat(1, 0));
         const T cosine{ (mat(0,0) + mat(1,1) + mat(2,2) - static_cast<T>(1)) / static_cast<T>(2) };
+        assert(std::abs(cosine) <= static_cast<T>(1.0));
         return out_t{ GLSL::normalize(axis), cosine };
-
     }
 
     /**
@@ -123,9 +158,12 @@ namespace Transformation {
         const T say{ sint * axis.y };
         const T saz{ sint * axis.z };
 
-        return MAT(axis.x * axis.x * icost + cost, axy - saz,                      axz + say,
-                   axy + saz,                      axis.y * axis.y * icost + cost, ayz - sax,
-                   axz - say,                      ayz + sax,                      axis.z * axis.z * icost + cost);
+        // output
+        const MAT rot(std::fma(axis.x * axis.x, icost, cost), axy - saz,                              axz + say,
+                      axy + saz,                              std::fma(axis.y * axis.y, icost, cost), ayz - sax,
+                      axz - say,                              ayz + sax,                              std::fma(axis.z * axis.z, icost, cost));
+        assert(Extra::is_orthonormal_matrix(rot));
+        return rot;
     }
     template<auto angle, GLSL::IFixedVector VEC, class T = typename VEC::value_type,
              class MAT = appropriate_matrix_type<VEC>::matrix_type>
@@ -142,9 +180,11 @@ namespace Transformation {
         const T say{ sint * axis.y };
         const T saz{ sint * axis.z };
 
-        return MAT(axis.x * axis.x * icost + cost, axy - saz,                      axz + say,
-                   axy + saz,                      axis.y * axis.y * icost + cost, ayz - sax,
-                   axz - say,                      ayz + sax,                      axis.z * axis.z * icost + cost);
+        const MAT rot(std::fma(axis.x * axis.x, icost, cost), axy - saz,                              axz + say,
+                      axy + saz,                              std::fma(axis.y * axis.y, icost, cost), ayz - sax,
+                      axz - say,                              ayz + sax,                              std::fma(axis.z * axis.z, icost, cost));
+        assert(Extra::is_orthonormal_matrix(rot));
+        return rot;
     }
 
     /**
@@ -278,11 +318,14 @@ namespace Transformation {
         const T q0Sqr{ quat.x * quat.x };
         const T q1Sqr{ quat.y * quat.y };
         const T q2Sqr{ quat.z * quat.z };
-        return MAT(one - two * (q2Sqr + q1Sqr), two * (q0q1 - q3q2),         two * (q0q2 + q3q1),
-                   two * (q0q1 + q3q2),         one - two * (q0Sqr + q2Sqr), two * (q1q2 - q3q0),
-                   two * (q0q2 - q3q1),         two * (q1q2 + q3q0),         one - two * (q0Sqr + q1Sqr) );
-    }
 
+        const MAT rot(std::fma(q2Sqr + q1Sqr, -two, one), two * (q0q1 - q3q2),                two * (q0q2 + q3q1),
+                      two * (q0q1 + q3q2),                std::fma(q0Sqr + q2Sqr, -two, one), two * (q1q2 - q3q0),
+                      two * (q0q2 - q3q1),                two * (q1q2 + q3q0),                std::fma(q0Sqr + q1Sqr, -two, one) );
+        assert(Extra::is_orthonormal_matrix(rot));
+        return rot;
+    }
+        
     /**
     * \brief rotate a point using normalized quaternion
     * @param {IFixedVector, in}  quaternion (normalized)
