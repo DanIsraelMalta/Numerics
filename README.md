@@ -265,7 +265,7 @@ and here is the outcome (left image shows the signal as black circles, signal to
 + DiamondAngle.h - operations on L1 angles.
 + Hash.h - useful hashing and pairing functions.
 + Glsl.h - A generic, modern and extensible numerical toolkit following the syntax and functionality of the GLSL shading language. compact implementation of [GLSL-CPP](https://github.com/DanIsraelMalta/GLSL-CPP).
-+ Glsl_extra.h - assorted utilities using GLSL vectors and matrices.
++ Glsl_extra.h - assorted utilities using GLSL vectors and matrices and quaternions.
 + Glsl_triangle.h - triangle related functions using GLSL vectors and matrices.
 + Glsl_aabb.h - axis aligned bounding box related functions using GLSL vectors and matrices.
 + Glsls_transformation.h - spatial related operations using using GLSL vectors, matrices quaternions.
