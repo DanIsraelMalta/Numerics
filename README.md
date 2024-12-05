@@ -33,13 +33,13 @@ mat2i b(ivec2(4, 5), ivec2(7, 8));
 // multiply vector by matrix
 //  (4 5) * /4 7\ = 4*4 + 5*5 = (41 68)
 //          \5 8/   4*7 + 5*8
-ivec2 xb = b.x() * b;
+ivec2 xb = b.x * b;
 assert(GLSL::equal(xb, ivec2(41, 68)));
 
 // multiply matrix by vector
 // /4 7\ * /4\ = 4*4 + 7*5 = (51, 60)
 // \5 8/   \5/   5*4 + 8*5
-ivec2 bx = b * b.x();
+ivec2 bx = b * b.x;
 assert(GLSL::equal(bx, ivec2(51, 60)));
 
 // basic operations
