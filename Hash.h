@@ -124,6 +124,27 @@ namespace Hash {
     }
 
     /**
+    * \brief hash 2D coordinate into 1D integral value, well - better terminology will
+    *        be "sample white noise over 2D domain, i.e. - integer lattice".
+    *        this "hash" uses concepts from "Equidistributed sequence", see:
+             https://en.wikipedia.org/wiki/Equidistributed_sequence
+    * @param {integral, in}  x coordinate (positive, at least 32bit)
+    * @param {integral, in}  y coordinate (positive, at least 32bit)
+    * @param {integral, out} hash value ("sampled white noise")
+    **/
+    template<typename T>
+        requires(std::is_integral_v<T> && sizeof(T) >= sizeof(std::int32_t))
+    constexpr T sample_white_noise_over_2D_domain(T x, T y) {
+        constexpr T W0{ 0x3504f333 };   // = 3*2309*128413 
+        constexpr T W1{ 0xf1bbcdcb };   // = 7*349*1660097 
+        constexpr T M{ 741103597 };     // = 13*83*686843
+        assert(x > 0);
+        assert(y > 0);
+
+        return M * (W0 * x) ^ (W1 * y);
+    }
+
+    /**
     * \brief 1D to 1D pseudo random number generator over unsigned integral numbers from PCG family
     *        see: https://www.pcg-random.org/
     * @param {uint32, in}  x coordinate
