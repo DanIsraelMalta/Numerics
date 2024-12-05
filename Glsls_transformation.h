@@ -325,7 +325,62 @@ namespace Transformation {
         assert(Extra::is_orthonormal_matrix(rot));
         return rot;
     }
-        
+
+    /**
+    * \brief Euler angles (X, Y, Z) to quaternion
+    * @param {IFixedVector, in}  {X, Y, Z} angles [rad]
+    * @param {IFixedVector, out} quaternion
+    **/
+    template<GLSL::IFixedVector VEC, class out_t = next_vector_type<VEC>::vector_type>
+        requires(VEC::length() == 3)
+    constexpr out_t create_quaternion_from_euler_angles(const VEC& angles) {
+        using T = typename VEC::value_type;
+
+        const T hy{ static_cast<T>(0.5) * angles.z };
+        const T hp{ static_cast<T>(0.5) * angles.y };
+        const T hr{ static_cast<T>(0.5) * angles.x };
+        const T ys{ std::sin(hy) }; 
+        const T yc{ std::cos(hy) };
+        const T ps{ std::sin(hp) }; 
+        const T pc{ std::cos(hp) };
+        const T rs{ std::sin(hr) }; 
+        const T rc{ std::cos(hr) };
+
+        return out_t(rs * pc * yc - rc * ps * ys,
+                     rc * ps * yc + rs * pc * ys,
+                     rc * pc * ys - rs * ps * yc,
+                     rc * pc * yc + rs * ps * ys);
+    }
+
+    /**
+    * \brief Euler angles (X, Y, Z) from quaternion
+    * @param {IFixedVector, in}  quaternion
+    * @param {IFixedVector, out} {X, Y, Z} angles [rad]
+    **/
+    template<GLSL::IFixedVector VEC, class out_t = prev_vector_type<VEC>::vector_type>
+        requires(VEC::length() == 4)
+    constexpr out_t create_euler_angles_from_quaternion(const VEC& q) {
+        using T = typename VEC::value_type;
+        assert(Extra::is_normalized(q));
+
+        const T t0{ (q.x + q.z) * (q.x - q.z) };
+        const T t1{ (q.w + q.y) * (q.w - q.y) };
+        const T xx{ static_cast<T>(0.5) * (t0 + t1) };
+        const T xy{ q.x * q.y + q.w * q.z };
+        const T xz{ Numerics::diff_of_products(q.w, q.y, q.x, q.z) };
+        const T yz{ static_cast<T>(2.0) * (q.y * q.z + q.w * q.x) };
+        const T t{ xx * xx + xy * xy };
+
+        [[assume(t > T{})]];
+        out_t angles(T{}, std::atan(xz / std::sqrt(t)), std::atan2(xy, xx));
+        if (!Numerics::areEquals(t, T{})) {
+            angles.x = std::atan2(yz, t1 - t0);
+        } else {
+            angles.x = std::fma(static_cast<T>(2.0), std::atan2(q.x, q.w), -Numerics::sign(xz) * q.z);
+        }
+        return angles;
+    }
+
     /**
     * \brief rotate a point using normalized quaternion
     * @param {IFixedVector, in}  quaternion (normalized)
