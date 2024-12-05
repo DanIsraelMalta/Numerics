@@ -1118,6 +1118,30 @@ void test_glsl_transformation() {
         vec4 quat_from_mat = Transformation::create_quaternion_from_rotation_matrix(mat);
         assert(GLSL::max(GLSL::abs(GLSL::abs(quat_from_mat) - GLSL::abs(quat))) < 1e-6);
     }
+
+    {
+        constexpr float pi{ std::numbers::pi_v<float> };
+        constexpr float step{ pi / 10.0f };
+        float x{};
+        float y{};
+        float z{};
+        while (x < pi) {
+            while (y < pi) {
+                while (z < pi) {
+                    const vec4 quat{ Transformation::create_quaternion_from_euler_angles(vec3(x, y, z)) };
+                    const vec3 euler{ Transformation::create_euler_angles_from_quaternion(quat) };
+
+                    assert(std::abs(euler.x - x) <= 1e-6f);
+                    assert(std::abs(euler.y - y) <= 1e-6f);
+                    assert(std::abs(euler.z - z) <= 1e-6f);
+
+                    z += step;
+                }
+                y += step;
+            }
+            x += step;
+        }
+    }
 }
 
 void test_glsl_solvers() {
