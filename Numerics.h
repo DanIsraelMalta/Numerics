@@ -331,7 +331,7 @@ namespace Numerics {
         const T w{ d * c };
         const T e{ std::fma(-d, c, w)};
         const T f{ std::fma(a, b, -w)};
-        return (f + e);
+        return (f - e);
     }
 
     /**
