@@ -1020,6 +1020,10 @@ void test_glsl_extra() {
         Utilities::static_for<0, 1, 4>([&quat, &qa](std::size_t i) {
             assert(std::abs(std::abs(quat[i]) - std::abs(qa[i])) <= 1e-6);
         });
+
+	const vec4 half_angle_quat{ Extra::quaternion_sqrt(quat) };
+	const float half_angle{ Extra::get_quaternion_angle(half_angle_quat) };
+	assert(std::abs(std::fma(-2.0f, half_angle, angle)) <= 1e-6);
     }
 }
 
