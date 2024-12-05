@@ -329,8 +329,8 @@ namespace Numerics {
         requires(std::is_floating_point_v<T>)
     constexpr T diff_of_products(const T a, const T b, const T c, const T d) {
         const T w{ d * c };
-        const T e{ std::fma(-d, c, w)};
-        const T f{ std::fma(a, b, -w)};
+        const T e{ std::fma(c, d, -w) };
+        const T f{ std::fma(a, b, -w) };
         return (f - e);
     }
 
