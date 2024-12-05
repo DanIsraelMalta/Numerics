@@ -1008,6 +1008,19 @@ void test_glsl_extra() {
         assert(w[7] == 2);
         assert(w[8] == 1);
     }
+	
+    {
+        const vec3 axis = GLSL::normalize(vec3(1.0f, 2.0f, 3.0f));
+        const float angle{ std::numbers::pi_v<float> / 3.0f };
+        const vec4 quat{ Transformation::create_quaternion_from_axis_angle(axis, angle) };
+        assert(Extra::is_normalized(quat));
+
+        const auto decomp = Extra::decompose_quaternion_twist_swing(quat);
+        const vec4 qa = Extra::multiply_quaternions(decomp.Qz, decomp.Qr);
+        Utilities::static_for<0, 1, 4>([&quat, &qa](std::size_t i) {
+            assert(std::abs(std::abs(quat[i]) - std::abs(qa[i])) <= 1e-6);
+        });
+    }
 }
 
 void test_glsl_transformation() {
