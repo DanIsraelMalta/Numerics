@@ -679,4 +679,21 @@ namespace Extra {
 
         return decomposition;
     }
+
+    /**
+    * \brief given unit quaternion, return its square root - i.e. - a quaternion with half the rotation angle.
+    *        in short: given Q = cos(t) + sin(t) * U when |Q| = 1 return sqrt(Q) = cos(t/2) + sin(t/2)*U
+    * @param {IFixedVector, in}  Q
+    * @param {IFixedVector, out} sqrt(Q)
+    **/
+    template<GLSL::IFixedVector VEC>
+        requires(VEC::length() == 4)
+    constexpr VEC quaternion_sqrt(const VEC& q) noexcept {
+        using T = typename VEC::value_type;
+        assert(Extra::is_normalized(q));
+
+        const T d{ static_cast<T>(1.0) + q.w };
+        const T s{ static_cast<T>(1.0) / std::sqrt(d + d) };
+        return VEC(q.x * s, q.y * s, q.z * s, d * s);
+    }
 }
