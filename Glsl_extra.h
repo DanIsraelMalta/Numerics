@@ -56,7 +56,7 @@ namespace Extra {
         constexpr std::size_t N{ MAT::columns() };
 
         Utilities::static_for<0, 1, N>([&mat, &vec](std::size_t i) {
-            Utilities::static_for<0, 1, N>([&&mat, &vec, i](std::size_t j) {
+            Utilities::static_for<0, 1, N>([&mat, &vec, i](std::size_t j) {
                 const T power{static_cast<T>(N - j - i)};
                 mat(i, j) = static_cast<T>(std::pow(vec[i], power));
             });
@@ -253,7 +253,7 @@ namespace Extra {
     }
 
     /**
-    * \brief perform generalized vector addition, i.e. - return alp?a * x + y
+    * \brief perform generalized vector addition, i.e. - return alpha * x + y
     *        where alpha is a scalar, x and y are vectors.
     *        this is BLAS level 1 function.
     * @param{value_type,        in}  alpha
@@ -274,8 +274,8 @@ namespace Extra {
     }
 
     /**
-    * \brief perform generalized matrix-vector multiplication, i.e. - return alp?a * M * x + beta * y
-    *        where alph and beta are scalars, x and y are vectors and M is a matrix.
+    * \brief perform generalized matrix-vector multiplication, i.e. - return alpha * M * x + beta * y
+    *        where alpha and beta are scalars, x and y are vectors and M is a matrix.
     *        this is BLAS level 2 function.
     * @param{value_type,        in}  alpha
     * @param{IFixedCubicMatrix, in}  M
@@ -300,8 +300,8 @@ namespace Extra {
     }
 
     /**
-    * \brief perform generalized matrix-matrix multiplication, i.e. - return alp?a * A * B + beta * C
-    *        where alph and beta are scalars, A and B and C are matrices.
+    * \brief perform generalized matrix-matrix multiplication, i.e. - return alpha * A * B + beta * C
+    *        where alpha and beta are scalars, A and B and C are matrices.
     *        this is BLAS level 3 function.
     * @param{value_type,        in}  alpha
     * @param{IFixedCubicMatrix, in}  A
@@ -520,7 +520,7 @@ namespace Extra {
     * \brief return the mean and standard deviation of a collection of vectors.
     * @param {forward_iterator,         in}  iterator to first value
     * @param {forward_iterator,         in}  iterator to last value
-    * @param {{arithmetic, arithmetic}, out} {mean, standard devialtion}
+    * @param {{arithmetic, arithmetic}, out} {mean, standard deviation}
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>)
@@ -644,9 +644,39 @@ namespace Extra {
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 4)
     constexpr VEC multiply_quaternions(const VEC& x, const VEC& y) noexcept {
-        return VEC(Numerics::diff_of_products(x[0], y[0], x[1], y[1]) - x[2] * y[2] - x[3] * y[3],
-                   Numerics::diff_of_products(x[3], y[2], x[2], y[3]) + x[0] * y[1] + x[1] * y[0],
-                   Numerics::diff_of_products(x[1], y[3], x[3], y[1]) + x[0] * y[2] + x[2] * y[0],
-                   Numerics::diff_of_products(x[2], y[1], x[1], y[2]) + x[0] * y[3] + x[3] * y[0]);
+        return VEC(Numerics::diff_of_products(x[2], y[1], x[1], y[2]) + std::fma(x[0], y[3], x[3] * y[0]),
+                   Numerics::diff_of_products(x[1], y[3], x[3], y[1]) + std::fma(x[0], y[2], x[2] * y[0]),
+                   Numerics::diff_of_products(x[3], y[2], x[2], y[3]) + std::fma(x[0], y[1], x[1] * y[0]),
+                   Numerics::diff_of_products(x[0], y[0], x[1], y[1]) - std::fma(x[2], y[2], x[3] * y[3]));
+    }
+
+    /**
+    * \brief given quaternion Q, decompose it into the multiplication of two quaternion - Q = Qr * Qz where:
+    *        Qz is rotation around Z axis ("twisting") and Qr is rotation about an axis on the XY plane ("swinging").
+    * @param {IFixedVector,                 in}  Q
+    * @param {{IFixedVector, IFixedVector}, out} {Qz, Qr}
+    **/
+    template<GLSL::IFixedVector VEC>
+        requires(VEC::length() == 4)
+    constexpr auto decompose_quaternion_twist_swing(const VEC& q) noexcept {
+        using T = typename VEC::value_type;
+        using out_t = struct { VEC Qz; VEC Qr; };
+
+        out_t decomposition{
+            .Qz = VEC(T{}, T{}, T{}, static_cast<T>(1.0)),
+            .Qr = q
+        };
+
+        if (const T t{ std::fma(q.w, q.w, q.z * q.z) }; t > T{}) {
+            [[assume(t > T{})]];
+            const T s{ static_cast<T>(1.0) / std::sqrt(t) };
+            const T fx{ s * std::fma(q.w, q.x, -q.y * q.z) };
+            const T fy{ s * std::fma(q.w, q.y,  q.x * q.z) };
+
+            decomposition.Qz = VEC(T{}, T{}, s * q.z, s * q.w);
+            decomposition.Qr = VEC(fx, fy, T{}, s * t);
+        }
+
+        return decomposition;
     }
 }
