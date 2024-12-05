@@ -36,7 +36,7 @@ namespace Decomposition {
     enum class QR_DEOMPOSITION_TYPE : std::uint8_t {
         GramSchmidt        = 0, // use gram-schmidt process. very fast. numerically unstable.
         SchwarzRutishauser = 1, // use Schwarz-Rutishauser algorithm. better numerical accuracy than gram-schmidt and faster yet slower.
-        GivensRotation     = 3  // use "givens rotation" algortihm. numerically precise. slower than other options.
+        GivensRotation     = 3  // use "givens rotation" algorithm. numerically precise. slower than other options.
     };
 
     /**
@@ -78,12 +78,12 @@ namespace Decomposition {
                 c -= std::abs(out(i, i));
                 r -= std::abs(out(i, i));
 
-                // if any norm is zero, skip clanacing
+                // if any norm is zero, skip balancing
                 if (Numerics::areEquals(c, T{}) || Numerics::areEquals(r, T{})) {
                     continue;
                 }
 
-                // find integer power of machine radix that is closest to bakancing the matrix
+                // find integer power of machine radix that is closest to balancing the matrix
                 T g{ r / radix };
                 T f{ static_cast<T>(1) };
                 const T s{ c + r };
@@ -305,7 +305,7 @@ namespace Decomposition {
     }
 
     /**
-    * \brief return eigenvalues of given matrix.
+    * \brief return eigenvalues of given matrix (uses QR decomposition for matrices with more than 3 columns).
     * @param {IFixedCubicMatrix, in}  matrix to decompose
     * @param {bool,              in}  should input matrix be balanced? (default is false)
     * @param {size_t,            in}  maximal number of iterations (default is 10)
@@ -319,7 +319,7 @@ namespace Decomposition {
         if constexpr (MAT::columns() == 2) {
             const T diff{ mat(0, 0) - mat(1, 1) };
             const T center{ mat(0, 0) + mat(1, 1) };
-            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
+            const T deltaSquared{ std::fma(static_cast<T>(4.0), mat(1, 0) * mat(0, 1), diff * diff) };
             assert(deltaSquared >= T{});
             const T delta{ std::sqrt(deltaSquared) };
 
@@ -328,9 +328,9 @@ namespace Decomposition {
         else if constexpr (MAT::columns() == 3) {
             const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
             const T det{ GLSL::determinant(mat) };
-            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
-                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
-                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
+            const T cofSum{ Numerics::diff_of_products(mat(1, 1), mat(2, 2), mat(2, 1), mat(1, 2)) +
+                            Numerics::diff_of_products(mat(0, 0), mat(2, 2), mat(2, 0), mat(0, 2)) +
+                            Numerics::diff_of_products(mat(0, 0), mat(1, 1), mat(1, 0), mat(0, 1)) };
             const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
             return VEC(roots[0], roots[2], roots[4]);
         }
@@ -361,7 +361,7 @@ namespace Decomposition {
         if constexpr (MAT::columns() == 2) {
             const T diff{ mat(0, 0) - mat(1, 1) };
             const T center{ mat(0, 0) + mat(1, 1) };
-            const T deltaSquared{ diff * diff + static_cast<T>(4) * mat(1, 0) * mat(0, 1) };
+            const T deltaSquared{ std::fma(static_cast<T>(4.0), mat(1, 0) * mat(0, 1), diff * diff) };
             assert(deltaSquared >= T{});
             const T delta{ std::sqrt(deltaSquared) };
 
@@ -370,9 +370,9 @@ namespace Decomposition {
         else if constexpr (MAT::columns() == 3) {
             const T tr{ mat(0, 0) + mat(1, 1) + mat(2, 2) };
             const T det{ GLSL::determinant(mat) };
-            const T cofSum{ mat(1, 1) * mat(2, 2) - mat(2, 1) * mat(1, 2) +
-                            mat(0, 0) * mat(2, 2) - mat(2, 0) * mat(0, 2) +
-                            mat(0, 0) * mat(1, 1) - mat(1, 0) * mat(0, 1) };
+            const T cofSum{ Numerics::diff_of_products(mat(1, 1), mat(2, 2), mat(2, 1), mat(1, 2)) +
+                            Numerics::diff_of_products(mat(0, 0), mat(2, 2), mat(2, 0), mat(0, 2)) +
+                            Numerics::diff_of_products(mat(0, 0), mat(1, 1), mat(1, 0), mat(0, 1)) };
             const std::array<T, 6> roots{ Numerics::SolveCubic(-tr, cofSum, -det) };
             return VEC(roots[0], roots[2], roots[4]);
         }
@@ -569,7 +569,7 @@ namespace Decomposition {
         // QR decomposition
         const qr_t qr{ Decomposition::QR(mat) };
 
-        // invert R matrix (using back susbtition)
+        // invert R matrix (using back substation)
         MAT rInv;
         Extra::make_identity(rInv);
         for (std::size_t k{}; k < N; ++k) {
