@@ -262,6 +262,7 @@ and here is the outcome (left image shows the signal as black circles, signal to
 + Variadic.h - Utilities to operate and handle variadic arguments.
 + Concepts.h - useful concepts and traits.
 + Numerics.h - generic numerical utilities.
++ Numerical_algorithms.h - generic numerical algorithms on numerical collections.
 + DiamondAngle.h - operations on L1 angles.
 + Hash.h - useful hashing and pairing functions.
 + Glsl.h - A generic, modern and extensible numerical toolkit following the syntax and functionality of the GLSL shading language. compact implementation of [GLSL-CPP](https://github.com/DanIsraelMalta/GLSL-CPP).
