@@ -452,7 +452,7 @@ namespace Extra {
         n = GLSL::normalize(n);
 
         // plane
-        return out_t(n, GLSL::dot(c, n));
+        return out_t(n, -GLSL::dot(c, n));
     }
 
     /**
