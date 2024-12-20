@@ -379,6 +379,83 @@ namespace Extra {
     }
 
     /**
+    * \brief create a plane going through many points
+    * @param {forward_iterator, in}  iterator to first point
+    * @param {forward_iterator, in}  iterator to last point
+    * @param {IFixedVector,     out} plane {normal x, normal y, normal z, distance}
+    **/
+    template<std::forward_iterator It, class VEC = typename std::decay_t<decltype(*std::declval<It>())>,
+             class out_t = next_vector_type<VEC>::vector_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 3)
+    constexpr out_t create_plane(It first, const It last) {
+        using T = typename VEC::value_type;
+        
+        // housekeeping
+        const T len{ static_cast<T>(std::distance(first, last)) };
+        assert(len >= 2);
+        if (len == 2) {
+            return create_plane(*first, *(first + 1), *(first + 2));
+        }
+
+        // centroid
+        VEC c;
+        for (It i{ first }; i != last; ++i) {
+            c += *i;
+        }
+        c /= len;
+
+        // 3x3 covariance matrix
+        T xx{};
+        T yy{};
+        T xy{};
+        T yz{};
+        T xz{};
+        T zz{};
+        for (It i{ first }; i != last; ++i) {
+            const VEC pc{ *i - c };
+            xx += pc.x * pc.x;
+            xy += pc.x * pc.y;
+            xz += pc.x * pc.z;
+            yy += pc.y * pc.y;
+            yz += pc.y * pc.z;
+            zz += pc.z * pc.z;
+        }
+
+        // determinant
+        const T det_x{ Numerics::diff_of_products(yy, zz, yz, yz) };
+        const T det_y{ Numerics::diff_of_products(xx, zz, xz, xz) };
+        const T det_z{ Numerics::diff_of_products(xx, yy, xy, xy) };
+        const T det_max{ Numerics::max(det_x, det_y, det_z) };
+        assert(det_max >= T{});
+        [[assume(det_max != T{})]]
+
+        // normal
+        VEC n;
+        if (Numerics::areEquals(det_max, det_x)) {
+            n = VEC(static_cast<T>(1.0),
+                    Numerics::diff_of_products(xz, yz, xy, zz) / det_max,
+                    Numerics::diff_of_products(xy, yz, xz, yy) / det_max);
+        }
+        else if (Numerics::areEquals(det_max, det_y)) {
+            n = VEC(Numerics::diff_of_products(yz, xz, xy, zz) / det_max,
+                    static_cast<T>(1.0),
+                    Numerics::diff_of_products(xy, xz, yz, xx) / det_max);
+        }
+        else if (Numerics::areEquals(det_max, det_z)) {
+            n = VEC(Numerics::diff_of_products(yz, xy, xz, yy) / det_max,
+                    Numerics::diff_of_products(xz, xy, yz, xx) / det_max,
+                    static_cast<T>(1.0));
+        }
+        else {
+            assert(false);
+        }
+        n = GLSL::normalize(n);
+
+        // plane
+        return out_t(n, GLSL::dot(c, n));
+    }
+
+    /**
     * \brief return a orthonormalized matrix (using Gram-Schmidt process)
     * @param  {IFixedCubicMatrix, in}  matrix
     * @return {IFixedCubicMatrix, out} orthonormalized matrix
