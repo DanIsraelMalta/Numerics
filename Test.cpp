@@ -1669,9 +1669,23 @@ void test_glsl_point_distance() {
     }
 
     {
-        auto plane = Extra::create_plane(vec3(0.0f, 0.0f, 2.0f), vec3(1.0f, 0.0f, 2.0f), vec3(0.0f, 1.0f, 2.0f));
+        std::vector<vec3> points{ {vec3(0.0f, 0.0f, 2.0f), vec3(1.0f, 0.0f, 2.0f), vec3(0.0f, 1.0f, 2.0f),
+                                   vec3(3.0f, 0.0f, 2.0f), vec3(0.0f, 6.0f, 2.0f)} };
+        auto plane = Extra::create_plane(points.begin(), points.begin() + 2);
 
         float distance = PointDistance::sdf_to_plane(vec3(0.0f), plane);
+        assert(std::abs(distance - -2.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_plane(vec3(0.0f, 0.0f, 1.0f), plane);
+        assert(std::abs(distance - -1.0f) < 1e-6);
+
+        distance = PointDistance::sdf_to_plane(vec3(0.0f, 0.0f, 3.0f), plane);
+        assert(std::abs(distance - 1.0f) < 1e-6);
+
+        //
+        plane = Extra::create_plane(points.begin(), points.end());
+
+        distance = PointDistance::sdf_to_plane(vec3(0.0f), plane);
         assert(std::abs(distance - -2.0f) < 1e-6);
 
         distance = PointDistance::sdf_to_plane(vec3(0.0f, 0.0f, 1.0f), plane);
