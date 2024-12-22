@@ -455,6 +455,64 @@ namespace Extra {
         return out_t(n, -GLSL::dot(c, n));
     }
 
+    /** 
+    * \brief given a quad as four points (q0,q1,q2,q3) and a point `p` inside it,
+    *        return `p` in barycentric coordinates, i.e. - p = w[0]*q0 + w[1]*q1 + w[2]*q2 + w[3]*q3.
+    * 
+    *        see "Generalized barycentric coordinates and applications" by Michael S. Floater
+    *        (https://www.mn.uio.no/math/english/people/aca/michaelf/papers/gbc.pdf)
+    * @param {IFixedVector, in}  point q0
+    * @param {IFixedVector, in}  point q1
+    * @param {IFixedVector, in}  point q2
+    * @param {IFixedVector, in}  point q3
+    * @param {IFixedVector, in}  point `p`
+    * @param {IFixedVector, out} barycentric coordinates `w` (or vector filled with '1' if point 'p' is outside quad)
+    **/
+    template<GLSL::IFixedVector VEC, class out_t = next_vector_type<VEC>::vector_type>
+        requires(VEC::length() == 3)
+    constexpr out_t quad_barycentric_coordinate(const VEC& q0, const VEC& q1, const VEC& q2,
+                                                const VEC& q3, const VEC& p) {
+        using T = typename VEC::value_type;
+        using mat_t = appropriate_matrix_type<VEC>::matrix_type;
+
+        // housekeeping
+        out_t out(static_cast<T>(-1.0f));
+
+        // lambda to calculate the area of a triangle
+        const auto area = [](const VEC& v0,const VEC& v1, const VEC& v2) -> T {
+            const mat_t m(v0 - v2, v1 - v2, VEC(static_cast<T>(1.0)));
+            return GLSL::determinant(m) / static_cast<T>(2.0);
+        };
+
+        // area of cartesian product of triangles created by `p` and two quad vertices
+        const T A0{ area(p, q0, q1) };
+        const T A1{ area(p, q1, q2) };
+        const T A2{ area(p, q2, q3) };
+        const T A3{ area(p, q3, q0) };
+        const T B0{ area(p, q3, q1) };
+        const T B1{ area(p, q0, q2) };
+
+        // calculate "triangle like" barycentric coordinates
+        const T D{ B0 * B0 + B1 * B1 + static_cast<T>(2.0) * A0 * A2 + static_cast<T>(2.0) * A1 * A3 };
+        const T S{ D >= T{} ? std::sqrt(D) : T{} };
+        const T den_u{ (static_cast<T>(2.0) * A3 + B1 - B0 + S) };
+        const T den_v{ (static_cast<T>(2.0) * A0 - B0 - B1 + S) };
+        assert(!Numerics::areEquals(den_u, T{}));
+        assert(!Numerics::areEquals(den_v, T{}));
+        const T u{ static_cast<T>(2.0) * A3 / den_u };
+        const T v{ static_cast<T>(2.0) * A0 / den_v };
+        if (u < T{} || u > static_cast<T>(1.0) ||
+            v < T{} || v > static_cast<T>(1.0)) {
+            return out;
+        }
+        
+        // output
+        const T one_mins_v{ static_cast<T>(1.0) - v };
+        const T one_mins_u{ static_cast<T>(1.0) - u };
+        out = out_t(one_mins_u * one_mins_v, u * one_mins_v, u * v, one_mins_u * v);
+        return out;
+    }
+
     /**
     * \brief return a orthonormalized matrix (using Gram-Schmidt process)
     * @param  {IFixedCubicMatrix, in}  matrix
