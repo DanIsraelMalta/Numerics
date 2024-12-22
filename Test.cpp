@@ -1021,9 +1021,40 @@ void test_glsl_extra() {
             assert(std::abs(std::abs(quat[i]) - std::abs(qa[i])) <= 1e-6);
         });
 
-	const vec4 half_angle_quat{ Extra::quaternion_sqrt(quat) };
-	const float half_angle{ Extra::get_quaternion_angle(half_angle_quat) };
-	assert(std::abs(std::fma(-2.0f, half_angle, angle)) <= 1e-6);
+	    const vec4 half_angle_quat{ Extra::quaternion_sqrt(quat) };
+	    const float half_angle{ Extra::get_quaternion_angle(half_angle_quat) };
+	    assert(std::abs(std::fma(-2.0f, half_angle, angle)) <= 1e-6);
+    }
+    
+    {
+        const vec3 v0(0.0f, -2.0f, -3.0f);
+        const vec3 v1(0.0f, 14.0f, 4.0f);
+        const vec3 v2(0.0f, 7.0f, 7.0f);
+        const vec3 v3(0.0f, -4.0f, 3.0f);
+
+        const auto c0 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, vec3(0.0f, 1.0f, 1.0f));
+        vec3 p_from_c{ c0[0] * v0 + c0[1] * v1 + c0[2] * v2 + c0[3] * v3 };
+        assert(Extra::are_vectors_identical(vec3(0.0f, 1.0f, 1.0f), p_from_c));
+
+        const auto c1 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, vec3(0.0f, 14.0f, 14.0f));
+        std::cout << "c1 = " << c1 << '\n';
+        assert(Numerics::areEquals(GLSL::sum(c1), -4.0f));
+
+        const auto c2 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, v0);
+        p_from_c = c2[0] * v0 + c2[1] * v1 + c2[2] * v2 + c2[3] * v3;
+        assert(Extra::are_vectors_identical(v0, p_from_c));
+
+        const auto c3 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, v1);
+        p_from_c = c3[0] * v0 + c3[1] * v1 + c3[2] * v2 + c3[3] * v3;
+        assert(Extra::are_vectors_identical(v1, p_from_c));
+
+        const auto c4 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, v2);
+        p_from_c = c4[0] * v0 + c4[1] * v1 + c4[2] * v2 + c4[3] * v3;
+        assert(Extra::are_vectors_identical(v2, p_from_c));
+
+        const auto c5 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, v3);
+        p_from_c = c5[0] * v0 + c5[1] * v1 + c5[2] * v2 + c5[3] * v3;
+        assert(Extra::are_vectors_identical(v3, p_from_c));
     }
 }
 
