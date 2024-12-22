@@ -238,8 +238,8 @@ As an example, here is a graphic representation of different bounding shapes for
 ```
 and here is the outcome - polygon in thick black, its triangulation is in thin black convex hull in green, convex hull points in green circles, minimal bounding circle in blue and minimal area bounding rectangle in red):
 
-![envelope_test_svg](https://github.com/user-attachments/assets/928004c9-6d36-4c52-b177-f0629d140632)
-![image]([https://github.com/user-attachments/assets/d3bed116-1f70-4dda-af5f-541473c032f3])
+![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
+
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
