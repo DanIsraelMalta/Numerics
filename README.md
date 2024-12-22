@@ -183,32 +183,9 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
 
 It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
-As an example, here is a graphic representation of the calculated top/bottom envelope of a sine signal and a different bounding shapes for a polygon:
+As an example, here is a graphic representation of different bounding shapes for a polygon and its triangulation:
 ```cpp
-   // find a 2D signal envelope
-   {
-       // define 2D signal
-       std::vector<vec2> points;
-       for (std::size_t i{}; i < 200; ++i) {
-           float fi{ static_cast<float>(i) };
-           points.emplace_back(vec2(fi, 10.0f + 180.0f * std::abs(std::sin(fi))));
-       }
 
-       // calculate signal envelope
-       const auto envelope = Algorithms2D::get_points_envelope(points.begin(), points.end());
-
-       // export signal and envelope to SVG
-       svg<vec2> envelope_test_svg(200, 200);
-       for (const vec2 p : points) {
-           envelope_test_svg.add_circle(p, 2.0f, "none", "black", 0.5f);
-       }
-       envelope_test_svg.add_polyline(envelope.top.begin(), envelope.top.end(), "none", "red", 1.0f);
-       envelope_test_svg.add_polyline(envelope.bottom.begin(), envelope.bottom.end(), "none", "green", 1.0f);
-       envelope_test_svg.to_file("envelope_test_svg.svg");
-   }
-
-   // find convex hull and bounding shapes
-   {
        // define polygon
        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
@@ -216,6 +193,9 @@ As an example, here is a graphic representation of the calculated top/bottom env
 
        // calculate convex hull
        auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
+
+       // triangulate ("earcut" style) polygon
+       std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
 
        // calculate minimal area bounding rectangle
        const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
@@ -246,15 +226,20 @@ As an example, here is a graphic representation of the calculated top/bottom env
        for (const vec2 p : convex) {
            polygon_test_svg.add_circle(p, 10.0f, "green", "green", 1.0f);
        }
+       for (std::size_t i{}; i < earcut.size(); i += 3) {
+           std::array<vec2, 3> tri{ { *(earcut[i]),
+                                      *(earcut[i + 1]),
+                                      *(earcut[i + 2]) } };
+           polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
+       }
        polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
        polygon_test_svg.to_file("polygon_test_svg.svg");
-   }
 ```
-and here is the outcome (left image shows the signal as black circles, signal top envelope in green, signal bottom envelope in red; right image shows the polygon in black, convex hull in green, convex hull points in green circles, minimal bounding circle in blue and minimal area bounding rectangle in red):
+and here is the outcome - polygon in thick black, its triangulation is in thin black convex hull in green, convex hull points in green circles, minimal bounding circle in blue and minimal area bounding rectangle in red):
 
 ![envelope_test_svg](https://github.com/user-attachments/assets/928004c9-6d36-4c52-b177-f0629d140632)
-![image](https://github.com/user-attachments/assets/d3bed116-1f70-4dda-af5f-541473c032f3)
+![image]([https://github.com/user-attachments/assets/d3bed116-1f70-4dda-af5f-541473c032f3])
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
