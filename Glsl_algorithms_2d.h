@@ -29,10 +29,12 @@
 #include "Glsl_point_distance.h"
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "DiamondAngle.h"
+#include "Glsl_triangle.h"
 #include <limits>
 #include <vector>
 #include <iterator>
 #include <random>
+#include <queue> // earcut
 
 //
 // collection of algorithms for 2D cloud points and shapes
@@ -1162,5 +1164,156 @@ namespace Algorithms2D {
 
         // output
         return cusps;
+    }
+
+    /**
+    * \brief given a closed simple polygon (as a collection of points) triangulate it using "ear cut" method.
+    * @param {forward_iterator,         in}  iterator to first point in polygon
+    * @param {forward_iterator,         in}  iterator to last point in polygon
+    * @param {vector<forward_iterator>, out} vector of iterators to vertices of polygon triangles, 
+                                             every three consecutive iterators define a triangle.
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<InputIt> triangulate_polygon_earcut(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+
+        // housekeeping
+        srand(1234567);
+        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+        assert(len >= 3);
+        std::vector<VEC> poly(first, last);
+        std::vector<InputIt> tris;
+        std::priority_queue<std::pair<T, std::size_t>> queue_of_ears; // priority queue of ears to be cut
+
+        // initialize doubly linked list
+        std::vector<std::size_t> prev(len);
+        std::vector<std::size_t> next(len);
+        Algoithms::iota(prev.begin(), prev.end(), -1);
+        Algoithms::iota(next.begin(), next.end(),  1);
+        prev.front() = len - 1;
+        next.back() = 0;    
+
+        // helpers to keep track of ears and concave vertices.
+        // notice that:
+        // > corners that were not ears at the beginning may become so later on...
+        // > corners that were concave at the beginning may become convex/ears so later on....
+        std::vector<bool> is_ear(len, false);
+        std::vector<bool> is_concave(len, false);
+
+        // lambda that performs local concavity test around vertex (given by its id)
+        const auto concave_test = [&poly, &prev, &next](const std::size_t cur) -> bool {
+            const std::size_t prev_vertex_index{ prev[cur] };
+            const std::size_t next_vertex_index{ next[cur] };
+
+            const VEC t0{ poly[prev_vertex_index] };
+            const VEC t1{ poly[cur] };
+            const VEC t2{ poly[next_vertex_index] };
+
+            return (Internals::triangle_twice_signed_area(t0, t1, t2) <= T{});
+        };
+
+        // lambda that performs local ear test around vertex (given by its id)
+        const auto ear_test = [&poly, &prev, &next, &is_concave](const std::size_t cur) -> bool {
+            if (is_concave[cur]) {
+                return false;
+            }
+
+            const std::size_t prev_vertex_index{ prev[cur] };
+            const std::size_t next_vertex_index{ next[cur] };
+
+            const VEC t0{ poly[prev_vertex_index] };
+            const VEC t1{ poly[cur] };
+            const VEC t2{ poly[next_vertex_index] };
+
+            // does the ear contain any other front vertex?
+            const std::size_t beg{ next[cur] };
+            const std::size_t end{ prev[cur] };
+            std::size_t test{ next[beg] };
+            while (test != end) {
+                // check only concave vertices
+                if (is_concave[test] && Triangle::is_point_within_triangle(poly[test], t0, t1, t2)) {
+                    return false;
+                }
+                test = next[test];
+            }
+            return true;
+        };
+
+        // lambda that inserts an ear into the the queue
+        const auto push_ear = [&poly, &queue_of_ears , &is_ear, &prev, &next](const std::size_t cur) {
+            is_ear[cur] = true;
+
+            const std::size_t prev_vertex_index{ prev[cur] };
+            const std::size_t next_vertex_index{ next[cur] };
+            const VEC c{ poly[cur] };
+            const VEC u{ GLSL::normalize(poly[prev_vertex_index] - c) };
+            const VEC v{ GLSL::normalize(poly[next_vertex_index] - c) };
+            const T ang{ GLSL::dot(u, v) };
+            queue_of_ears.push(std::make_pair(-ang, cur));
+        };
+
+        // find concave vertices and valid ears
+        for (std::size_t i{}; i < len; ++i) {
+            is_concave[i] = concave_test(i);
+        }
+        for (std::size_t i{}; i < len; ++i) {
+            if (ear_test(i)) {
+                push_ear(i);
+            }
+        }
+
+        // iteratively triangulate the polygon while updating queue of ears
+        // (a simple polygon with n vertices can be meshed with n-2 triangles)
+        for (std::size_t i{}; i < len - 2; ++i) {
+            // is polygon degenerate?
+            if (queue_of_ears.empty()) {
+                break;
+            }
+
+            // get ear
+            const std::size_t curr{ queue_of_ears.top().second };
+            queue_of_ears.pop();
+
+            // the ear has already been processed
+            if (!is_ear[curr]) {
+                --i;
+                continue;
+            }
+
+            is_ear[curr] = false;
+
+            // make new tri
+            tris.push_back(first + prev[curr]);
+            tris.push_back(first + curr);
+            tris.push_back(first + next[curr]);
+
+            // exclude curr from the front, connecting prev and next
+            next[prev[curr]] = next[curr];
+            prev[next[curr]] = prev[curr];
+
+            // update concavity info
+            is_concave[prev[curr]] = concave_test(prev[curr]);
+            is_concave[next[curr]] = concave_test(next[curr]);
+
+            // update prev ear info
+            if (ear_test(prev[curr])) {
+                push_ear(prev[curr]);
+            }
+            else if (is_ear[prev[curr]]) {
+                is_ear[prev[curr]] = false;
+            }
+
+            // update next ear
+            if (ear_test(next[curr])) {
+                push_ear(next[curr]);
+            }
+            else if (is_ear[next[curr]]) {
+                is_ear[next[curr]] = false;
+            }
+        }
+
+        // output
+        return tris;
     }
 }
