@@ -2230,6 +2230,10 @@ void test_GLSL_algorithms_2D() {
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
                                     vec2(1.0f, 2.0f)} };
 
+       // triangulate ("earcut" style) polygon
+       std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
+       assert(earcut.size() % 3 == 0);
+
        // calculate convex hull
        auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
 
@@ -2261,6 +2265,12 @@ void test_GLSL_algorithms_2D() {
        polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
        for (const vec2 p : convex) {
            polygon_test_svg.add_circle(p, 10.0f, "green", "green", 1.0f);
+       }
+       for (std::size_t i{}; i < earcut.size(); i += 3) {
+           std::array<vec2, 3> tri{ { *(earcut[i]),
+                                      *(earcut[i + 1]),
+                                      *(earcut[i + 2]) } };
+           polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
        }
        polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
