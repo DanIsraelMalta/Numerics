@@ -183,7 +183,7 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
 
 It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
-As an example, here is a graphic representation of different bounding shapes for a polygon and its triangulation:
+As an example, here is the calculation of polygon bounded shapes, its triangulation and parition to convexcomponents:
 ```cpp
 
        // define polygon
@@ -235,10 +235,32 @@ As an example, here is a graphic representation of different bounding shapes for
        polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
        polygon_test_svg.to_file("polygon_test_svg.svg");
+
+       // make polygon counter clockwise
+       std::vector<vec2> polygon_ccw(polygon);
+       if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
+           Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
+           Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
+           assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
+       }
+
+       // partition polygon
+       const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
+
+       // export partitioned polygon to SVG
+       svg<vec2> polygon_partition(650, 650);
+       polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
+       std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
+       for (std::size_t i{}; i < partition.size(); ++i) {
+           std::vector<vec2> part{ partition[i] };
+           polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
+       }
+       polygon_partition.to_file("polygon_partition_svg.svg");
 ```
-and here is the outcome - polygon in thick black, its triangulation is in thin black convex hull in green, convex hull points in green circles, minimal bounding circle in blue and minimal area bounding rectangle in red):
+and here is the outcome (one picture shows the polygon in thick black, its triangulation is in thin black, convex hull in green, convex hull points marked as green circles, minimal bounding circle in blue and minimal area bounding rectangle in red; and the other picture shoes the polygon partitioned to convex components):
 
 ![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
+![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
 
 
 ## Files in repository:
