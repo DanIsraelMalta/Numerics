@@ -152,11 +152,40 @@ namespace Algorithms2D {
                 return false;
             }
 
+            [[assume(denom != T{})]];
             const VEC ab{ a0 - b0 };
             const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
             const T t{ Numerics::diff_of_products(s2.x, ab.y, s2.y, ab.x) / denom };
             return (s >= T{} && s <= static_cast<T>(1.0) &&
                     t >= T{} && t <= static_cast<T>(1.0));
+        }
+
+        /**
+        * \brief return intersection point of two segments
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {IFixedVector, out} intersection point
+        **/
+        template<GLSL::IFixedVector VEC>
+            requires(VEC::length() == 2)
+        constexpr VEC get_segments_intersection_point(const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) noexcept {
+            using T = typename VEC::value_type;
+
+            VEC p;
+            const VEC s1{ a1 - a0 };
+            const VEC s2{ b1 - b0 };
+            const T denom{ s1.x * s2.y - s2.x * s1.y };
+            if (Numerics::areEquals(denom, T{})) {
+                return p;
+            }
+
+            [[assume(denom != T{})]];
+            const VEC ab{ a0 - b0 };
+            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
+            p = a0 + s * GLSL::normalize(s1);
+            return p;
         }
 
         /**
@@ -748,6 +777,25 @@ namespace Algorithms2D {
     }
 
     /**
+    * \brief given collection of points, sort them in counter clock wise manner
+    * @param {forward_iterator,     in}  iterator to point collection first point
+    * @param {forward_iterator,     in}  iterator to point collection last point
+    * @param {IFixedVector,         in}  points geometric center
+    * @param {vector<IFixedVector>, out} points sorted in clock wise manner
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr void sort_points_counter_clock_wise(InputIt first, InputIt last, const VEC centroid) {
+        using T = typename VEC::value_type;
+
+        Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+            const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
+            const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
+            return angla_a < angla_b;
+        });
+    }
+
+    /**
     * \brief calculate the concave hull of collection of 2D points (using Graham scan algorithm).
     *
     * @param {forward_iterator,     in}  iterator to point cloud collection first point
@@ -1011,23 +1059,37 @@ namespace Algorithms2D {
     * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
     * @param {forward_iterator, in}  iterator to first point in polygon
     * @param {forward_iterator, in}  iterator to last point in polygon
-    * @param {int32_t,          out} true if polygon is convex, false otherwise
+    * @param {bool,             in}  true if points are ordered counter clock wise, false otherwise (default is true)
+    * @param {bool,             out} true if polygon is convex, false otherwise
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
+    constexpr bool is_polygon_convex(const InputIt first, const InputIt last, const bool is_sorted_cw = true) {
         using T = typename VEC::value_type;
 
-        // housekeeping
-        const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
-        if (len < 4) {
+        if (std::distance(first, last) < 4) {
             return true;
         }
 
-        const bool sign{ Internals::triangle_twice_signed_area(*(first + 2), *first , *(first + 1)) > T{} };
-        for (std::size_t i{ 1 }; i < len - 1; ++i) {
-            const T area{ Internals::triangle_twice_signed_area(*(first + (i + 2) % len), *(first + i) , *(first + (i + 1) % len)) };
-            if (sign != (area > T{})) {
+        // lambda to calculate triangle signed area
+        const auto calculate_area = [&is_sorted_cw](const VEC a, const VEC b, const VEC c) -> bool {
+            const VEC v1{ b - a };
+            const VEC v2{ c - a };
+            const T det{ Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x) };
+            return is_sorted_cw ? det > T{} : det < T{};
+        };
+
+        // check polygon last two triangles
+        const bool area0{ calculate_area(*(last - 1), *first, *(first + 1)) };
+        bool area1{ calculate_area(*(last - 2), *(last - 1), *first) };
+        if (area0 != area1) {
+            return false;
+        }
+
+        // check rest ot triangles
+        for (InputIt i0{ first }, i1{ first + 1 }, i2{ first + 2 }; i2 != last; ++i0, ++i1, ++i2) {
+            area1 = calculate_area(*i0, *i1, *i2);
+            if (area0 != area1) {
                 return false;
             }
         }
@@ -1315,5 +1377,202 @@ namespace Algorithms2D {
 
         // output
         return tris;
+    }
+
+    /**
+    * \brief given a closed simple polygon (as a collection of points) ordered in counter clock wise manner decompose it to convex parts.
+    *        notice that this algorithm does not partition polygon to the minimal amount of convex components and it is recursive.
+    * @param {forward_iterator,                 in}  iterator to first point in polygon (ordered in counter clock wise manner)
+    * @param {forward_iterator,                 in}  iterator to last point in polygon (ordered in counter clock wise manner)
+    * @param {vector<vector<forward_iterator>>, out} vector of vector of vertices of polygon convex parts. every vector is a convex part.
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<std::vector<VEC>> partition_polygon_to_convex_parts(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+
+#ifdef _DEBUG
+        // check that input polygon is sorted in counter clock wise manner
+        const VEC centroid{ Algorithms2D::Internals::get_centroid(first, last) };
+        const bool is_sorted_ccw{ Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid) };
+        assert(!is_sorted_ccw);
+#endif
+
+        // housekeeping
+        std::vector<std::vector<VEC>> polygons;
+        std::vector<VEC> poly;
+        poly.reserve(static_cast<std::size_t>(std::distance(first, last)));
+        for (InputIt i{ first }; i != last; ++i) {
+            poly.emplace_back(*i);
+        }
+
+        // lambda to wrap index to region [0, size]
+        const auto wrap = [](const std::size_t i, const std::size_t size) -> std::size_t {
+            return i < 0 ? i % size + size : i % size;
+        };
+
+        // lambda to calculate triangle signed area
+        const auto area = [](const VEC& a, const VEC& b, const VEC& c) -> T {
+            const VEC v1{ b - a };
+            const VEC v2{ c - a };
+            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
+        };
+
+        // lambda to check if a vertex, given by index, in 'poly' is reflex
+        const auto is_reflex = [&wrap, &area](const std::vector<VEC>& poly, const std::size_t i) -> bool {
+            const std::size_t len{ poly.size() };
+            const VEC prev{ poly[wrap(i - 1, len)] };
+            const VEC curr{ poly[wrap(i,     len)] };
+            const VEC next{ poly[wrap(i + 1, len)] };
+
+            return (area(prev, curr, next) < T{});
+        };
+        
+        // lambda to perform one iteration of recursive decomposition
+        const auto decompose = [&polygons, &is_reflex, &wrap, &area](const std::vector<VEC>& poly, auto&& recursive_driver) -> void {
+            const std::size_t len{ poly.size() };
+            for (std::size_t i{}; i < len; ++i) {
+                if (!is_reflex(poly, i)) {
+                    continue;
+                }
+
+                std::vector<VEC> lowerPoly;
+                std::vector<VEC> upperPoly;
+
+                const VEC prev_i{ poly[wrap(i - 1, len)] };
+                const VEC curr_i{ poly[wrap(i,     len)] };
+                const VEC next_i{ poly[wrap(i + 1, len)] };
+
+                T upperDist{ std::numeric_limits<T>::max() };
+                T lowerDist{ std::numeric_limits<T>::max() };
+
+                VEC upperInt;
+                VEC lowerInt;
+                std::size_t upperIndex{};
+                std::size_t lowerIndex{};
+                std::size_t closestIndex{};
+
+                for (std::size_t j{}; j < len; ++j) {
+                    const VEC prev_j{ poly[wrap(j - 1, len)] };
+                    const VEC curr_j{ poly[wrap(j,     len)] };
+                    const VEC next_j{ poly[wrap(j + 1, len)] };
+
+                    //
+                    // if line intersects with an edge
+                    //
+
+                    if ((area(prev_i, curr_i, curr_j) > T{}) && (area(prev_i, curr_i, prev_j) <= T{})) {
+                        // if 'p' is inside the polygon, check if its the closest intersection
+                        if (const VEC p{ Internals::get_segments_intersection_point(prev_i, curr_i, curr_j, prev_j) };
+                            area(next_i, curr_i, p) < T{}) {
+                            if (const T d{ GLSL::dot(curr_i, p) }; d < lowerDist) {
+                                lowerDist = d;
+                                lowerInt = p;
+                                lowerIndex = j;
+                            }
+                        }
+                    }
+
+                    if ((area(next_i, curr_i, next_j) > T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
+                        if (const VEC p{ Internals::get_segments_intersection_point(next_i, curr_i, curr_j, next_j) };
+                            area(prev_i, curr_i, p) > T{}) {
+                            if (const T d{ GLSL::dot(curr_i, p) }; d < upperDist) {
+                                upperDist = d;
+                                upperInt = p;
+                                upperIndex = j;
+                            }
+                        }
+                    }
+                }
+
+                //
+                // if there are no vertices to connect to, choose a point in the middle
+                //
+
+                if (lowerIndex == (upperIndex + 1) % len) {
+                    const VEC p{ (lowerInt + upperInt) / static_cast<T>(2.0) };
+
+                    if (i < upperIndex) {
+                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + upperIndex + 1);
+                        lowerPoly.push_back(p);
+                        upperPoly.push_back(p);
+                        if (lowerIndex != 0) {
+                            upperPoly.insert(upperPoly.end(), poly.begin() + lowerIndex, poly.end());
+                        }
+                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
+                    }
+                    else {
+                        if (i != 0) {
+                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
+                        }
+                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + upperIndex + 1);
+                        lowerPoly.push_back(p);
+                        upperPoly.push_back(p);
+                        upperPoly.insert(upperPoly.end(), poly.begin() + lowerIndex, poly.begin() + i + 1);
+                    }
+                } // connect to the closest point within the triangle
+                else {
+                    if (lowerIndex > upperIndex) {
+                        upperIndex += len;
+                    }
+
+                    T closestDist{ std::numeric_limits<T>::max() };
+                    for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
+                        const VEC curr_j{ poly[wrap(j, len)] };
+
+                        if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
+                            if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
+                                closestDist = d;
+                                closestIndex = j % len;
+                            }
+                        }
+                    }
+
+                    if (i < closestIndex) {
+                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
+                        if (closestIndex != 0) {
+                            upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
+                        }
+                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
+                    }
+                    else {
+                        if (i != 0) {
+                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
+                        }
+                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
+                        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
+                    }
+                }
+
+                // partition smallest polygon first and then the largest one
+                if (lowerPoly.size() < upperPoly.size()) {
+                    recursive_driver(lowerPoly, recursive_driver);
+                    recursive_driver(upperPoly, recursive_driver);
+                }
+                else {
+                    recursive_driver(upperPoly, recursive_driver);
+                    recursive_driver(lowerPoly, recursive_driver);
+                }
+
+                return;
+            }
+
+            if (len > 2) {
+                polygons.push_back(poly);
+            }
+        };
+
+        // recursively partition polygon to convex parts
+        decompose(poly, decompose);
+
+#ifdef _DEBUG
+        // check that input polygon is sorted in counter clock wise manner
+        for (const std::vector<VEC>& part : polygons) {
+            assert(Algorithms2D::is_polygon_convex(part.begin(), part.end(), false));
+        }
+#endif
+
+        // output
+        return polygons;
     }
 }
