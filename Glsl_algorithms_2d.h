@@ -1381,7 +1381,9 @@ namespace Algorithms2D {
 
     /**
     * \brief given a closed simple polygon (as a collection of points) ordered in counter clock wise manner decompose it to convex parts.
-    *        notice that this algorithm does not partition polygon to the minimal amount of convex components and it is recursive.
+    *        remarks:
+    *        > function does not partition polygon to the minimal amount of convex components.
+    *        > function is recursive (recursion depth is the amount of reflex vertices in polygon).
     * @param {forward_iterator,                 in}  iterator to first point in polygon (ordered in counter clock wise manner)
     * @param {forward_iterator,                 in}  iterator to last point in polygon (ordered in counter clock wise manner)
     * @param {vector<vector<forward_iterator>>, out} vector of vector of vertices of polygon convex parts. every vector is a convex part.
