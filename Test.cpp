@@ -2275,6 +2275,27 @@ void test_GLSL_algorithms_2D() {
        polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
        polygon_test_svg.to_file("polygon_test_svg.svg");
+
+        // make polygon counter clockwise
+        std::vector<vec2> polygon_ccw(polygon);
+        if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
+            Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
+            Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
+            assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
+        }
+
+        // partition polygon
+        const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
+
+        // export partitioned polygon to SVG
+        svg<vec2> polygon_partition(650, 650);
+        polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
+        std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
+        for (std::size_t i{}; i < partition.size(); ++i) {
+            std::vector<vec2> part{ partition[i] };
+            polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
+        }
+        polygon_partition.to_file("polygon_partition_svg.svg");
    }
 }
 
