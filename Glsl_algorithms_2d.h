@@ -189,6 +189,44 @@ namespace Algorithms2D {
         }
 
         /**
+        * \brief given a closed polygon, test if it is simple
+        * @param {forward_iterator, in}  iterator to polygon first vertex
+        * @param {forward_iterator, in}  iterator to polygon last vertex
+        * @param {bool,             out} true if polygon si simple, false otherwise
+        **/
+        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+            requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+        constexpr bool is_simple(const InputIt first, const InputIt last) {
+            using T = typename VEC::value_type;
+
+            // lambda to check if segment intersect any other segments in ordered polygon
+            const auto check_intersection = [first](const std::size_t i0, const std::size_t i1, const std::size_t max) -> bool {
+                const VEC a0{ *(first + i0) };
+                const VEC a1{ *(first + i1) };
+
+                for (std::size_t j0{ i1 + 1 }, j1{ i1 + 2 }; j1 < max; ++j0, ++j1) {
+                    if (Algorithms2D::Internals::do_segments_intersect(a0, a1, *(first + j0), *(first + j1))) {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
+            const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+
+            // check segments intersection
+            for (std::size_t i0{}, i1{1}; i1 < len - 2; ++i0, ++i1) {
+                if (check_intersection(i0, i1, len)) {
+                    return false;
+                }
+            }
+
+            // check closing segment
+            return !check_intersection(len - 1, 0, len - 2);
+        }
+
+        /**
         * \brief project point on segment
         * @param {IFixedVector,               in}  segment point #1
         * @param {IFixedVector,               in}  segment point #2
@@ -438,6 +476,11 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
     constexpr std::vector<VEC> get_convex_hull(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
+        // houskeeping
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
@@ -463,13 +506,15 @@ namespace Algorithms2D {
             hull.push_back(*it++);
         }
 
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(hull.begin(), hull.end()));
         return hull;
     }
 
     /**
     * \brief given convex hull, return its minimal area bounding rectangle
     * @param {vector<IFixedVector>,                                     in}  convex hull
-    * @param {{IFixedVector, IFixedVector, IFixedVector, IFixedVector}, out} vertices of minimal area bounding rectangle (ordererd counter clock wise)
+    * @param {{IFixedVector, IFixedVector, IFixedVector, IFixedVector}, out} vertices of minimal area bounding rectangle (ordered counter clock wise)
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
@@ -718,6 +763,9 @@ namespace Algorithms2D {
     constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
         using T = typename VEC::value_type;
         using iter_size_t = std::iterator_traits<InputIt>::difference_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
 
         bool inside{ false };
         for (iter_size_t len{ std::distance(first, last) }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
@@ -1032,7 +1080,7 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given a closed polygon (as a collection of points), check if its edges a orthogonal with respect to XY axes
+    * \brief given a closed polygon (as a collection of points), check if its edges are orthogonal with respect to XY axes
     * @param {forward_iterator, in}  iterator to first point in polygon
     * @param {forward_iterator, in}  iterator to last point in polygon
     * @param {value_type,       in}  minimal slope between two consecutive points for their segment would be declared not orthogonal (default is Numerics::equality_precision)
@@ -1066,6 +1114,9 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr bool is_polygon_convex(const InputIt first, const InputIt last, const bool is_sorted_cw = true) {
         using T = typename VEC::value_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
 
         if (std::distance(first, last) < 4) {
             return true;
@@ -1110,6 +1161,10 @@ namespace Algorithms2D {
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr bool is_line_connecting_polygon_vertices_inside_polygon(const InputIt first, const InputIt last, const T area, const InputIt i0, const InputIt i1) {
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
         // if segment connects neighboring vertices - it is "inside polygon"
         if ((Extra::are_vectors_identical(*first, *i0) && Extra::are_vectors_identical(*(last - 1), *i1)) ||
             Extra::are_vectors_identical(*(i0 + 1), *i1)) {
@@ -1168,6 +1223,10 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr std::vector<InputIt> get_reflex_vertices(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
         // housekeeping
         const VEC centroid{ Algorithms2D::Internals::get_centroid(first, last) };
         const bool is_clockwise{ Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid) };
@@ -1208,6 +1267,9 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
         assert(coordinate == 0 || coordinate == 1);
 
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
         // lambda to check if vertex 'b' in a list of three consecutive vertices (a->b->c) is cusp vertex
         const auto is_cusp_vertex = [coordinate](const InputIt a, const InputIt b, const InputIt c) -> bool {
             return ((*a)[coordinate] > (*b)[coordinate]) && ((*c)[coordinate] > (*b)[coordinate]);
@@ -1239,6 +1301,9 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
     constexpr std::vector<InputIt> triangulate_polygon_earcut(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
 
         // housekeeping
         srand(1234567);
@@ -1393,12 +1458,9 @@ namespace Algorithms2D {
     constexpr std::vector<std::vector<VEC>> partition_polygon_to_convex_parts(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
 
-#ifdef _DEBUG
-        // check that input polygon is sorted in counter clock wise manner
-        const VEC centroid{ Algorithms2D::Internals::get_centroid(first, last) };
-        const bool is_sorted_ccw{ Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid) };
-        assert(!is_sorted_ccw);
-#endif
+        // check that polygon is simple and ordered counter clock wise
+        assert(Algorithms2D::Internals::is_simple(first, last));
+        assert(!Algorithms2D::are_points_ordererd_clock_wise(first, last, Algorithms2D::Internals::get_centroid(first, last)));
 
         // housekeeping
         std::vector<std::vector<VEC>> polygons;
