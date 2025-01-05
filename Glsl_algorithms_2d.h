@@ -324,14 +324,15 @@ namespace Algorithms2D {
             requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
         constexpr VEC get_centroid(const InputIt first, const InputIt last) {
             using T = typename VEC::value_type;
-            assert(std::distance(first, last) > 0);
+            const T dist{ static_cast<T>(std::distance(first, last)) };
+            assert(dist > T{});
 
             VEC centroid;
             for (auto it{ first }; it != last; ++it) {
                 centroid += *it;
             }
 
-            return (centroid / static_cast<T>(std::distance(first, last)));
+            return (centroid / dist);
         }
 
         /**
@@ -818,9 +819,9 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
 
         Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
-            const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
-            const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
-            return angla_a > angla_b;
+            const T angel_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
+            const T angel_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
+            return angel_a > angel_b;
         });
     }
 
@@ -837,9 +838,9 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
 
         Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
-            const T angla_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
-            const T angla_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
-            return angla_a < angla_b;
+            const T angel_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
+            const T angel_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
+            return angel_a <= angel_b;
         });
     }
 
@@ -1482,39 +1483,28 @@ namespace Algorithms2D {
             return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
         };
 
-        // lambda to check if a vertex, given by index, in 'poly' is reflex
-        const auto is_reflex = [&wrap, &area](const std::vector<VEC>& poly, const std::size_t i) -> bool {
-            const std::size_t len{ poly.size() };
-            const VEC prev{ poly[wrap(i - 1, len)] };
-            const VEC curr{ poly[wrap(i,     len)] };
-            const VEC next{ poly[wrap(i + 1, len)] };
-
-            return (area(prev, curr, next) < T{});
-        };
-        
         // lambda to perform one iteration of recursive decomposition
-        const auto decompose = [&polygons, &is_reflex, &wrap, &area](const std::vector<VEC>& poly, auto&& recursive_driver) -> void {
+        const auto decompose = [&polygons, &wrap, &area](const std::vector<VEC>& poly, auto&& recursive_driver) -> void {
             const std::size_t len{ poly.size() };
             for (std::size_t i{}; i < len; ++i) {
-                if (!is_reflex(poly, i)) {
-                    continue;
-                }
-
-                std::vector<VEC> lowerPoly;
-                std::vector<VEC> upperPoly;
-
                 const VEC prev_i{ poly[wrap(i - 1, len)] };
                 const VEC curr_i{ poly[wrap(i,     len)] };
                 const VEC next_i{ poly[wrap(i + 1, len)] };
 
-                T upperDist{ std::numeric_limits<T>::max() };
-                T lowerDist{ std::numeric_limits<T>::max() };
+                // if not reflex, continue
+                if (area(prev_i, curr_i, next_i) >= T{}) {
+                    continue;
+                }
 
                 VEC upperInt;
                 VEC lowerInt;
+                T upperDist{ std::numeric_limits<T>::max() };
+                T lowerDist{ std::numeric_limits<T>::max() };
                 std::size_t upperIndex{};
                 std::size_t lowerIndex{};
                 std::size_t closestIndex{};
+                std::vector<VEC> lowerPoly;
+                std::vector<VEC> upperPoly;
 
                 for (std::size_t j{}; j < len; ++j) {
                     const VEC prev_j{ poly[wrap(j - 1, len)] };
@@ -1621,9 +1611,7 @@ namespace Algorithms2D {
                 return;
             }
 
-            if (len > 2) {
-                polygons.push_back(poly);
-            }
+            polygons.push_back(poly);
         };
 
         // recursively partition polygon to convex parts
