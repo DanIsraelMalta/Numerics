@@ -183,84 +183,147 @@ clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
 
 It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
-As an example, here is the calculation of polygon bounded shapes, its triangulation and parition to convexcomponents:
+As an example, here are several calculations showing how toto calculate polygon bounded shapes, triangulation and parition to convex components as well as clustering point cloud and triangulating it:
 ```cpp
 
-       // define polygon
-       std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
-                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
-                                    vec2(1.0f, 2.0f)} };
+// define polygon
+std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                            vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                            vec2(1.0f, 2.0f)} };
 
-       // calculate convex hull
-       auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
+// calculate convex hull
+auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
 
-       // triangulate ("earcut" style) polygon
-       std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
+// triangulate ("earcut" style) polygon
+std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
 
-       // calculate minimal area bounding rectangle
-       const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
-       std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3} };
+// calculate minimal area bounding rectangle
+const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
+std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3} };
 
-       // close convex and obb for for drawing purposes
-       convex.emplace_back(convex.front());
-       obbs.emplace_back(obbs.front());
+// close convex and obb for for drawing purposes
+convex.emplace_back(convex.front());
+obbs.emplace_back(obbs.front());
 
-       // scale polygons for drawing purposes
-       for (auto& p : polygon) {
-           p = 50.0f * p + 50.0f;
-       }
-       for (auto& p : convex) {
-           p = 50.0f * p + 50.0f;
-       }
-       for (auto& p : obbs) {
-           p = 50.0f * p + 50.0f;
-       }
+// scale polygons for drawing purposes
+for (auto& p : polygon) {
+   p = 50.0f * p + 50.0f;
+}
+for (auto& p : convex) {
+   p = 50.0f * p + 50.0f;
+}
+for (auto& p : obbs) {
+   p = 50.0f * p + 50.0f;
+}
 
-       // calculate minimal bounding circle
-       const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
+// calculate minimal bounding circle
+const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
 
-       // export polygon and its bounding objects to SVG
-       svg<vec2> polygon_test_svg(650, 650);
-       polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
-       polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
-       for (const vec2 p : convex) {
+// export polygon and its bounding objects to SVG
+svg<vec2> polygon_test_svg(650, 650);
+polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
+polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
+for (const vec2 p : convex) {
            polygon_test_svg.add_circle(p, 10.0f, "green", "green", 1.0f);
-       }
-       for (std::size_t i{}; i < earcut.size(); i += 3) {
-           std::array<vec2, 3> tri{ { *(earcut[i]),
-                                      *(earcut[i + 1]),
-                                      *(earcut[i + 2]) } };
-           polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
-       }
-       polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
-       polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
-       polygon_test_svg.to_file("polygon_test_svg.svg");
+}
+for (std::size_t i{}; i < earcut.size(); i += 3) {
+    std::array<vec2, 3> tri{ { *(earcut[i]),
+                               *(earcut[i + 1]),
+                               *(earcut[i + 2]) } };
+    polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
+}
+polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
+polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
+polygon_test_svg.to_file("polygon_test_svg.svg");
 
-       // make polygon counter clockwise
-       std::vector<vec2> polygon_ccw(polygon);
-       if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
-           Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
-           Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
-           assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
-       }
+// make polygon counter clockwise
+std::vector<vec2> polygon_ccw(polygon);
+if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
+    Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
+    Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
+    assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
+}
 
-       // partition polygon
-       const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
+// partition polygon
+const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
 
-       // export partitioned polygon to SVG
-       svg<vec2> polygon_partition(650, 650);
-       polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
-       std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
-       for (std::size_t i{}; i < partition.size(); ++i) {
-           std::vector<vec2> part{ partition[i] };
-           polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
-       }
-       polygon_partition.to_file("polygon_partition_svg.svg");
+// export partitioned polygon to SVG
+svg<vec2> polygon_partition(650, 650);
+polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
+std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
+for (std::size_t i{}; i < partition.size(); ++i) {
+    std::vector<vec2> part{ partition[i] };
+    polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
+}
+polygon_partition.to_file("polygon_partition_svg.svg");
+
+std::vector<vec2> points;
+float sign{ 0.5f };
+
+// cluster #1
+const vec2 center(50.0f, 50.0f);
+const float radius1{ 5.0f };
+for (std::size_t i{}; i < 20; ++i) {
+    float fi{ static_cast<float>(i) };
+    points.emplace_back(vec2(center.x + radius1 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                             center.y + radius1 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+    sign *= -1.0f;
+}
+
+// cluster #2
+const float radius2{ 12.0f };
+for (std::size_t i{}; i < 60; ++i) {
+    float fi{ static_cast<float>(i) };
+    points.emplace_back(vec2(center.x + radius2 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                             center.y + radius2 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+    sign *= -1.0f;
+}
+
+// cluster #3
+const float radius3{ 20.0f };
+for (std::size_t i{}; i < 80; ++i) {
+    float fi{ static_cast<float>(i) };
+    points.emplace_back(vec2(center.x + radius3 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                             center.y + radius3 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+    sign *= -1.0f;
+}
+
+// partition using kd-tree
+SpacePartitioning::KDTree<vec2> kdtree;
+const auto clusterIds = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius1, 3);
+kdtree.clear();
+
+// triangulate points
+std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(points.begin(), points.end()) };
+
+// draw
+svg<vec2> dbscan_delaunay_test(800, 800);
+
+for (const std::size_t i : clusterIds.clusters[0]) {
+    dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "red", "black", 1.0f);
+}
+for (const std::size_t i : clusterIds.clusters[1]) {
+    dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "blue", "black", 1.0f);
+}
+for (const std::size_t i : clusterIds.clusters[2]) {
+    dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "green", "black", 1.0f);
+}
+for (const std::size_t i : clusterIds.noise) {
+    dbscan_delaunay_test.add_circle(points[i] * 10.0f, 10.0f, "yellow", "black", 1.0f);
+}
+for (std::size_t i{}; i < delaunay.size(); i += 3) {
+    std::array<vec2, 3> tri{ { (delaunay[i] * 10),
+                               (delaunay[i + 1] * 10),
+                               (delaunay[i + 2] * 10) } };
+    dbscan_delaunay_test.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
+}
+dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
-and here is the outcome (one picture shows the polygon in thick black, its triangulation is in thin black, convex hull in green, convex hull points marked as green circles, minimal bounding circle in blue and minimal area bounding rectangle in red; and the other picture shoes the polygon partitioned to convex components):
+and here is the outcome (one picture shows the polygon in thick black, its triangulation is in thin black, convex hull in green, convex hull points marked as green circles, minimal bounding circle in blue and minimal area bounding rectangle in red; second picture shows a polygon partitioned to convex components; third picture shows a point cloud clutered using density method and then triangulated):
 
 ![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
 ![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
+![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
 
 ## Files in repository:
