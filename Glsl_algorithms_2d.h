@@ -35,6 +35,7 @@
 #include <iterator>
 #include <random>
 #include <queue> // earcut
+#include <set>  // delaunay
 
 //
 // collection of algorithms for 2D cloud points and shapes
@@ -1442,6 +1443,115 @@ namespace Algorithms2D {
         }
 
         // output
+        assert(tris.size() % 3 == 0);
+        return tris;
+    }
+
+    /**
+    * \brief given a collection of points, triangulate it using "Delaunay" method.
+    *        notice that this function uses Bowyer-Watson algorithm, which means its O(n*long(n)) and might fail
+    *        in cases of polygons with degenerate segments.
+    * 
+    * @param {forward_iterator,     in}  iterator to first point in collection
+    * @param {forward_iterator,     in}  iterator to last point in collection
+    * @param {vector<IFixedVector>, out} vector of vertices of triangles, every three consecutive iterators define a triangle.
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<VEC> triangulate_points_delaunay(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+        using edge_t = struct { VEC first; VEC second; };
+        using aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(first, last));
+        using circle_t = decltype(Algorithms2D::Internals::get_circumcircle(*first, *first, *first));
+        constexpr T super_triangle_margin{ static_cast<T>(20.0) };
+
+        // housekeeping
+        std::vector<VEC> tris;
+
+        // super triangle (covers all polygon vertices)
+        const aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
+        const T delta_max{ GLSL::max(aabb.max - aabb.min) };
+        const VEC mid{ (aabb.max + aabb.min) / static_cast<T>(2.0) };
+        const VEC p0(mid.x - super_triangle_margin * delta_max, mid.y - delta_max);
+        const VEC p1(mid.x, mid.y + super_triangle_margin * delta_max);
+        const VEC p2(mid.x + super_triangle_margin * delta_max, mid.y - delta_max);
+        tris.emplace_back(p0);
+        tris.emplace_back(p1);
+        tris.emplace_back(p2);
+
+        // Bowyer-Watson algorithm
+        for (InputIt p{ first }; p != last; ++p) {
+            const VEC point{ *p };
+
+            // check if point is within any triangle circumcircle
+            std::vector<edge_t> edges;
+            std::vector<VEC> temporary_triangles;
+            for (std::size_t i{}, len{ tris.size() }; i < len - 2; i += 3) {
+                const VEC t0{ tris[i] };
+                const VEC t1{ tris[i + 1] };
+                const VEC t2{ tris[i + 2] };
+
+                if (const circle_t circumcircle{ Algorithms2D::Internals::get_circumcircle(t0, t1, t2) };
+                    GLSL::dot(point - circumcircle.center) <= circumcircle.radius_squared) {
+                    edges.emplace_back(edge_t{ t0, t1 });
+                    edges.emplace_back(edge_t{ t1, t2 });
+                    edges.emplace_back(edge_t{ t2, t0 });
+                }
+                else {
+                    temporary_triangles.emplace_back(t0);
+                    temporary_triangles.emplace_back(t1);
+                    temporary_triangles.emplace_back(t2);
+                }
+            }
+
+            // remove duplicate edges
+            std::set<std::size_t> duplicate_edges;
+            for (std::size_t i{}, len{ edges.size() }; i < len; ++i) {
+                const edge_t edge_i{ edges[i] };
+
+                for (std::size_t j{ i + 1 }; j < len; ++j) {
+                    const edge_t edge_j{ edges[j] };
+
+                    bool identical{ Extra::are_vectors_identical(edge_i.first, edge_j.first) &&
+                                    Extra::are_vectors_identical(edge_i.second, edge_j.second) };
+                    identical |= Extra::are_vectors_identical(edge_i.first, edge_j.second) &&
+                                 Extra::are_vectors_identical(edge_i.second, edge_j.first);
+                    if (identical) {
+                        duplicate_edges.insert(i);
+                        duplicate_edges.insert(j);
+                    }
+                }
+            }
+            Algoithms::remove(edges, std::vector<std::size_t>(duplicate_edges.begin(), duplicate_edges.end()));
+
+            // add triangles
+            for (const edge_t& e : edges) {
+                temporary_triangles.emplace_back(e.first);
+                temporary_triangles.emplace_back(e.second);
+                temporary_triangles.emplace_back(point);
+            }
+
+            // update triangulation
+            tris = temporary_triangles;
+        }
+        
+        // remove triangles which include super-triangle vertex
+        std::set<std::size_t> super_triangles_vertices;
+        for (std::size_t i{}, len{ tris.size() }; i < len - 2; i += 3) {
+            Utilities::static_for<0, 1, 3>([&tris, &super_triangles_vertices, &p0, &p1, &p2, i](std::size_t j) {
+                if (Extra::are_vectors_identical(tris[i + j], p0) ||
+                    Extra::are_vectors_identical(tris[i + j], p1) ||
+                    Extra::are_vectors_identical(tris[i + j], p2)) {
+                    super_triangles_vertices.insert(i);
+                    super_triangles_vertices.insert(i + 1);
+                    super_triangles_vertices.insert(i + 2);
+                }
+            });
+        }
+        Algoithms::remove(tris, std::vector<std::size_t>(super_triangles_vertices.begin(), super_triangles_vertices.end()));
+
+        // output
+        assert(tris.size() % 3 == 0);
         return tris;
     }
 
