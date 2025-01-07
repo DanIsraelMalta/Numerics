@@ -95,6 +95,56 @@ namespace Algoithms {
     }
 
     /**
+    * \brief remove elements specified by their indices from a vector.
+    * 
+    *        This function is needed because there isn't a good solution for this in the STL.
+    *        std::vector::erase method is O(n^2), while std::remove and std::remove_if
+    *        work with predicate logic and not with indices/iterator.
+    * 
+    * @param {vector, in|out} vector to from which elements shall be removed
+    * @param {vector, in}     indices of vector elements to remove
+    **/
+    template<class T, class I>
+        requires(std::is_integral_v<I>)
+    constexpr void remove(std::vector<T>& vec, const std::vector<I> indices) {
+        using index_iter = typename std::vector<I>::const_iterator;
+        using vector_iter = typename std::vector<T>::iterator;
+
+        if (indices.empty()) {
+            return;
+        }
+
+        const I originalSize{ vec.size() };
+        const I newSize{ originalSize - indices.size() };
+        assert(newSize <= originalSize);
+        index_iter delItr{ indices.begin() };
+        index_iter endItr{ indices.end() };
+        I i{ *delItr };
+        I j{ i + 1 };
+        ++delItr;
+        while (j != originalSize && delItr != endItr) {
+            if (j == *delItr) {
+                ++delItr;
+                ++j;
+            }
+            else {
+                vec[i] = vec[j];
+                ++i;
+                ++j;
+            }
+        }
+
+        if (j != originalSize) {
+            for (vector_iter first{ vec.begin() + j }, d_first{ vec.begin() + i }; first != vec.end(); ++first, ++d_first) {
+                *d_first = *first;
+            }
+        }
+
+        // resize vec
+        vec.erase(vec.begin() + newSize, vec.end());
+    }
+
+    /**
     * \brief local implementation of std::is_sorted
     **/
     template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
@@ -314,7 +364,7 @@ namespace Algoithms {
         };
 
         // lambda to perform quick select algorithm in recursive manner
-        const auto quickselect = [&partition_with_pivot, len](const std::size_t k, const std::size_t left, const std::size_t right, auto&& recursive_driver) {
+        const auto quickselect = [&partition_with_pivot,len](const std::size_t k, const std::size_t left, const std::size_t right, auto&& recursive_driver) {
             if (left == right) {
                 return;
             }
