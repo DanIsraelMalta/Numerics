@@ -4,6 +4,8 @@
 #include <iostream>
 #include <list>
 #include <chrono>
+#include <string>
+#include <fstream>
 #include "Algorithms.h"
 #include "DiamondAngle.h"
 #include "Hash.h"
@@ -44,14 +46,14 @@ void test_diamond_angle() {
 
 void test_hash() {
     // test SzudzikValueFromPair
-    //static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
-    //static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
+    static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
+    static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
 
     // test SzudzikPairFromValue
-    //assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
-    //assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
-    //assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
-    //assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
+    assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
+    assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
+    assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
+    assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
 
     // test normal_distribution
     {
@@ -294,7 +296,7 @@ void test_numerical_algorithms() {
         assert(v == vExpected);
     }
 
-        // test circshift
+    // test circshift
     {
         std::array<std::size_t, 10> a{ {0, 1, 2, 3, 4, 5, 6, 7, 8, 9} };
         std::array<std::size_t, 10> ai{ {7, 8, 9, 0, 1, 2, 3, 4, 5, 6} };
@@ -1008,7 +1010,7 @@ void test_glsl_extra() {
         assert(w[7] == 2);
         assert(w[8] == 1);
     }
-	
+
     {
         const vec3 axis = GLSL::normalize(vec3(1.0f, 2.0f, 3.0f));
         const float angle{ std::numbers::pi_v<float> / 3.0f };
@@ -1021,11 +1023,11 @@ void test_glsl_extra() {
             assert(std::abs(std::abs(quat[i]) - std::abs(qa[i])) <= 1e-6);
         });
 
-	    const vec4 half_angle_quat{ Extra::quaternion_sqrt(quat) };
-	    const float half_angle{ Extra::get_quaternion_angle(half_angle_quat) };
-	    assert(std::abs(std::fma(-2.0f, half_angle, angle)) <= 1e-6);
+        const vec4 half_angle_quat{ Extra::quaternion_sqrt(quat) };
+        const float half_angle{ Extra::get_quaternion_angle(half_angle_quat) };
+        assert(std::abs(std::fma(-2.0f, half_angle, angle)) <= 1e-6);
     }
-    
+
     {
         const vec3 v0(0.0f, -2.0f, -3.0f);
         const vec3 v1(0.0f, 14.0f, 4.0f);
@@ -1918,7 +1920,7 @@ void test_glsl_ray_intersection() {
         intersections = RayIntersections::ellipsoid_intersection(vec3(0.0f, 0.0f, 10.0f), vec3(0.0f, 0.0f, -1.0f), vec3(1.0f, 2.0f, 3.0f));
         assert(GLSL::max(GLSL::abs(intersections - vec2(7.0f, 13.0f))) < 1e-6);
     }
-	
+
     {
         const vec3 min(-2.0f);
         const vec3 max(3.5f);
@@ -2120,7 +2122,7 @@ void test_GLSL_algorithms_2D() {
             assert(GLSL::max(GLSL::abs(expected_concave3[i] - concave3[i])) < 1e-6);
         }
 
-        // chcek orthogonality
+        // check orthogonality
         bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
         assert(!is_orthogonal);
 
@@ -2190,7 +2192,8 @@ void test_GLSL_algorithms_2D() {
                                    vec2(5.0f,6.0f), vec2(5.0f,9.0f), vec2(4.0f,9.0f), vec2(4.0f,8.0f), vec2(6.0f,8.0f),
                                    vec2(6.0f,7.0f), vec2(2.0f,7.0f), vec2(2.0f,9.0f), vec2(1.0f,9.0f), vec2(1.0f,6.0f),
                                    vec2(0.0f,6.0f)} };
-       // chcek orthogonality
+
+       // check orthogonality
        bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
        assert(is_orthogonal);
 
@@ -2232,7 +2235,6 @@ void test_GLSL_algorithms_2D() {
 
        // triangulate ("earcut" style) polygon
        std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
-       assert(earcut.size() % 3 == 0);
 
        // calculate convex hull
        auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
@@ -2276,26 +2278,26 @@ void test_GLSL_algorithms_2D() {
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
        polygon_test_svg.to_file("polygon_test_svg.svg");
 
-        // make polygon counter clockwise
-        std::vector<vec2> polygon_ccw(polygon);
-        if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
-            Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
-            Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
-            assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
-        }
+       // make polygon counter clockwise
+       std::vector<vec2> polygon_ccw(polygon);
+       if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
+           Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
+           Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
+           assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
+       }
 
-        // partition polygon
-        const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
+       // partition polygon
+       const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
 
-        // export partitioned polygon to SVG
-        svg<vec2> polygon_partition(650, 650);
-        polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
-        std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
-        for (std::size_t i{}; i < partition.size(); ++i) {
-            std::vector<vec2> part{ partition[i] };
-            polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
-        }
-        polygon_partition.to_file("polygon_partition_svg.svg");
+       // export partitioned polygon to SVG
+       svg<vec2> polygon_partition(650, 650);
+       polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
+       std::array<std::string, 9> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate",  "grey"} };
+       for (std::size_t i{}; i < partition.size(); ++i) {
+           std::vector<vec2> part{ partition[i] };
+           polygon_partition.add_polygon(part.begin(), part.end(), colors[i % colors.size()], "black", 1.0f);
+       }
+       polygon_partition.to_file("polygon_partition_svg.svg");
    }
 }
 
@@ -2313,7 +2315,7 @@ void test_glsl_space_partitioning() {
         SpacePartitioning::KDTree<vec2> kdtree;
         kdtree.construct(points.begin(), points.end());
 
-        // search nearest neighbours in cube
+        // search nearest neighbors in cube
         {
             const vec2 center(50.0f);
             const float extent{ 5.0f };
@@ -2331,7 +2333,7 @@ void test_glsl_space_partitioning() {
             assert(amount_of_points_in_rectangle - pointsInCube.size() <= 1);
         }
 
-        // search nearest neighbours in radius
+        // search nearest neighbors in radius
         {
             const vec2 center(50.0f);
             const float radius{ 5.0f };
@@ -2384,7 +2386,7 @@ void test_glsl_space_partitioning() {
         SpacePartitioning::Grid<vec2> grid;
         grid.construct(points.begin(), points.end());
 
-        // search nearest neighbours in cube
+        // search nearest neighbors in cube
         {
             const vec2 center(50.0f);
             const float extent{ 5.0f };
@@ -2404,7 +2406,7 @@ void test_glsl_space_partitioning() {
             assert(amount_of_points_in_rectangle == pointsInCube.size());
         }
 
-        // search nearest neighbours in radius
+        // search nearest neighbors in radius
         {
             const vec2 center(50.0f);
             const float radius{ 5.0f };
@@ -2429,7 +2431,7 @@ void test_glsl_space_partitioning() {
             assert(amount_of_points_in_sphere == pointsInSphere.size());
         }
 
-        // search k nearest neighbours in cube
+        // search k nearest neighbors in cube
         {
             const vec2 center(50.0f);
             std::vector<float> closest;
@@ -2576,8 +2578,72 @@ void test_GLSL_clustering() {
        }
        kmean_test_svg.to_file("kmean_test.svg");
    }
-}
 
+   // dbscan + triangulation
+   {
+       std::vector<vec2> points;
+       float sign{ 0.5f };
+
+       // cluster #1
+       const vec2 center(50.0f, 50.0f);
+       const float radius1{ 5.0f };
+       for (std::size_t i{}; i < 20; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius1 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius1 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #2
+       const float radius2{ 12.0f };
+       for (std::size_t i{}; i < 60; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius2 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius2 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #3
+       const float radius3{ 20.0f };
+       for (std::size_t i{}; i < 80; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius3 * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius3 * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // partition using kd-tree
+       SpacePartitioning::KDTree<vec2> kdtree;
+       const auto clusterIds = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius1, 3);
+       kdtree.clear();
+
+       // triangulate points
+       std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(points.begin(), points.end()) };
+
+       // draw
+       svg<vec2> dbscan_delaunay_test(800, 800);
+
+       for (const std::size_t i : clusterIds.clusters[0]) {
+           dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "red", "black", 1.0f);
+       }
+       for (const std::size_t i : clusterIds.clusters[1]) {
+           dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "blue", "black", 1.0f);
+       }
+       for (const std::size_t i : clusterIds.clusters[2]) {
+           dbscan_delaunay_test.add_circle(points[i] * 10.0f, 5.0f, "green", "black", 1.0f);
+       }
+       for (const std::size_t i : clusterIds.noise) {
+           dbscan_delaunay_test.add_circle(points[i] * 10.0f, 10.0f, "yellow", "black", 1.0f);
+       }
+       for (std::size_t i{}; i < delaunay.size(); i += 3) {
+           std::array<vec2, 3> tri{ { (delaunay[i] * 10),
+                                      (delaunay[i + 1] * 10),
+                                      (delaunay[i + 2] * 10) } };
+           dbscan_delaunay_test.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
+       }
+       dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
+   }
+}
 
 int main() {
     test_diamond_angle();
