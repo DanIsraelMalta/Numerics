@@ -5,13 +5,11 @@ Features include:
 + Generic, modern and extensible numerical toolkit which follows the syntax and functionality of the GLSL shading language.
 + Implementations of canonical linear algebra operations, ranging from decompositions to linear equation system set solvers.
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
-+ A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries and clustering algorithms to 2D tailored operations (enclosing shapes, partitions, convex/concave hull...) etc.
++ A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations (enclosing shapes, partitions, convex/concave hull...) etc.
 
-**Sample:**
+**Sample #1 - syntax:**
 ```cpp
-//
 // GLSL swizzle syntax
-//
 vec2 a(1.0f, -1.0f);
 vec2 b(3.2f, 2.0f);
 vec2 c = a.yx + b.xy; // c = {2.2f, 3.0f}
@@ -20,10 +18,6 @@ a.xy += b.xx; // a = {4.2f, 2.2f}
 vec3 d(0.0f, 1.0f, 2.0f);
 vec3 e(2.0f, 1.0f, 3.0f);
 vec3 f = GLSL::mix<0.5f>(d, e); // f = {1.0f, 1.0f, 2.5f}
-
-//
-// GLSL matrices
-//
 
 // build matrix from column vectors
 // /4 7\
@@ -45,11 +39,10 @@ assert(GLSL::equal(bx, ivec2(51, 60)));
 // basic operations
 assert(GLSL::determinant(b) == -3);
 assert(GLSL::equal(GLSL::transpose(b), mat2i(4, 7, 5, 8)));
+```
 
-//
-// basic spatial transformations
-//
-
+**Sample #2 - spatial transformations:**
+```cpp
 // define axis and angle
 vec3 axis = GLSL::normalize(vec3(1.0f, 2.0f, 3.0f));
 float angle{ std::numbers::pi_v<float> / 4.0f };
@@ -61,11 +54,10 @@ vec4 quat = Transformation::create_quaternion_from_axis_angle(axis, angle);
 // create rotation matrix from quaternion and extract rotation axis
 mat3 mat = Transformation::create_rotation_matrix_from_quaternion(quat);
 auto axis_from_mat = Transformation::get_axis_angle_from_rotation_matrix(mat);
+```
 
-//
-// decompositions and linear equation system solvers
-//
-
+**Sample #3 - decompositions and linear equation system solvers:**
+```cpp
 mat3 a(12.0, -51.0, 4.0,
        6.0,  167.0, -68.0,
        -4.0, 24.0,  -41.0);
@@ -87,11 +79,10 @@ auto qr = Decomposition::QR_GivensRotation(a);
 vec3 b(70.0, 12.0, 50.0);
 auto solution = Solvers::SolveQR(a, b);
 // solution = {3.71118, 1.74416, -3.75020}
+```
 
-//
-// sign distance field calculation, ray-intersections and axis aligned bounding boxes
-//
-
+**Sample #4 - sign distance field calculation, ray-intersections and axis aligned bounding boxes:**
+```cpp
 // define polygon and calculate its SDF in various locations
 std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 float distance = PointDistance::sdf_to_polygon<5>(polygon, vec2(2.0f, 0.0f)); // distance = 1
@@ -125,67 +116,10 @@ vec3 center{10.0f, 10.0f, 0.0f};
 vec3 axis1{2.0f, 0.0f, 0.0f};
 vec3 axis2{0.0f, 2.0f, 0.0f};
 auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
-
-//
-// computational geometry
-//
-
-// define polygon
-std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
-                            vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
-                            vec2(1.0f, 2.0f)} };
-
-// calculate bounding areas
-const auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end()); // get polygon convex hull
-const auto concave = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.3f); // get polygon concave hull
-const auto antipodal = Algorithms2D::get_convex_diameter(convex); // get polygon convex hull diameter
-const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex); // get polygon minimal area boundingbox
-const auto circle = Algorithms2D::get_minimal_bounding_circle(convex); // get polygon minimal bounding circle
-
-// create random points on the plane
-std::vector<vec2> points;
-for (std::size_t i{}; i < 50; ++i) {
-    points.emplace_back(vec2(static_cast<float>(rand() % 100 - 50),
-                             static_cast<float>(rand() % 100 - 50)));
-}
-
-// sort points in clock wise manner and calculate its principle axis
-const vec2 centroid = Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend());
-Algorithms2D::sort_points_clock_wise(points.begin(), points.end(), centroid);
-const vec2 direction{ Algorithms2D::get_principle_axis(points.cbegin(), points.cend()) };
-
-// create points in space
-std::vector<vec2> points;
-for (std::size_t i{}; i < 10000; ++i) {
-    points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 100.0f,
-                             static_cast<float>(rand()) / RAND_MAX * 100.0f));
-}
-
-// calculate nearest neighbors
-SpacePartitioning::KDTree<vec2> kdtree;
-kdtree.construct(points.begin(), points.end());
-auto pointsInCube = kdtree.range_query(SpacePartitioning::RangeSearchType::Manhattan, vec2(50.0f), 5.0f); // nearest neighbours in cube
-auto pointsInSphere = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, vec2(50.0f), 5.0f); // nearest neighbours in sphere
-const auto nearest10 = kdtree.nearest_neighbors_query(vec2(50.0f), 19); // get 19 nearest neighbors ot point at (50, 50)
-kdtree.clear();
-
-// cluster/partition points using DBSCAN with a kd-tree
-const auto clusterIds = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, 1.0f, 10);
-kdtree.clear();
-
-// cluster/partition points using DBSCAN with a lattice-bin grid
-SpacePartitioning::Grid<vec2> grid;
-clusterIds0= Clustering::get_density_based_clusters(points.cbegin(), points.cend(), grid, 1.0f, 10);
-grid.clear();
-
-// k-mean might be faster...
-clusterIds0 = Clustering::k_means(points.cbegin(), points.cend(), 3, 10, 0.01f);
 ```
 
-It is also possible to export two dimensional calculation in scalable vector graphic format for debug purposes.
-As an example, here are several calculations showing how toto calculate polygon bounded shapes, triangulation and parition to convex components as well as clustering point cloud and triangulating it:
+**Sample #5 - calculate polygon convex hull, bounding box, bounding circle, triangulate it and export as svg file:**
 ```cpp
-
 // define polygon
 std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                             vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
@@ -235,6 +169,20 @@ for (std::size_t i{}; i < earcut.size(); i += 3) {
 polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
 polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
 polygon_test_svg.to_file("polygon_test_svg.svg");
+```
+![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
+
+**Sample #6 - reorient polygon, partition it to convex components and export as svg file:**
+```cpp
+// define polygon
+std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                            vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                            vec2(1.0f, 2.0f)} };
+
+// scale plygon
+for (auto& p : polygon) {
+   p = 50.0f * p + 50.0f;
+}
 
 // make polygon counter clockwise
 std::vector<vec2> polygon_ccw(polygon);
@@ -256,7 +204,11 @@ for (std::size_t i{}; i < partition.size(); ++i) {
     polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
 }
 polygon_partition.to_file("polygon_partition_svg.svg");
+```
+![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
 
+**Sample #7 - generate points, cluster them using KD-tree and density estimator, triangulate them (delaunay) and export as svg file:**
+```cpp
 std::vector<vec2> points;
 float sign{ 0.5f };
 
@@ -319,10 +271,6 @@ for (std::size_t i{}; i < delaunay.size(); i += 3) {
 }
 dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
-and here is the outcome (one picture shows the polygon in thick black, its triangulation is in thin black, convex hull in green, convex hull points marked as green circles, minimal bounding circle in blue and minimal area bounding rectangle in red; second picture shows a polygon partitioned to convex components; third picture shows a point cloud clutered using density method and then triangulated):
-
-![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
-![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
 ![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
 
