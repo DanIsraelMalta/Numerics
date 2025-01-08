@@ -152,7 +152,7 @@ namespace NumericalAlgorithms {
     template<std::forward_iterator It1, std::forward_iterator It2, std::forward_iterator Ot, class T = typename std::decay_t<decltype(*std::declval<It1>())>>
         requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<Ot>())>> &&
                  std::is_same_v<T, typename std::decay_t<decltype(*std::declval<It2>())>>)
-    constexpr auto conv(const It1 u_first, const It1 u_last,
+    constexpr void conv(const It1 u_first, const It1 u_last,
                         const It2 v_first, const It2 v_last, Ot out) {
         const std::size_t size_u{ static_cast<std::size_t>(std::distance(u_first, u_last)) };
         const std::size_t size_v{ static_cast<std::size_t>(std::distance(v_first, v_last)) };
