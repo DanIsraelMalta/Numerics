@@ -41,6 +41,7 @@ assert(GLSL::determinant(b) == -3);
 assert(GLSL::equal(GLSL::transpose(b), mat2i(4, 7, 5, 8)));
 ```
 
+
 **Sample #2 - spatial transformations:**
 ```cpp
 // define axis and angle
@@ -55,6 +56,7 @@ vec4 quat = Transformation::create_quaternion_from_axis_angle(axis, angle);
 mat3 mat = Transformation::create_rotation_matrix_from_quaternion(quat);
 auto axis_from_mat = Transformation::get_axis_angle_from_rotation_matrix(mat);
 ```
+
 
 **Sample #3 - decompositions and linear equation system solvers:**
 ```cpp
@@ -80,6 +82,7 @@ vec3 b(70.0, 12.0, 50.0);
 auto solution = Solvers::SolveQR(a, b);
 // solution = {3.71118, 1.74416, -3.75020}
 ```
+
 
 **Sample #4 - sign distance field calculation, ray-intersections and axis aligned bounding boxes:**
 ```cpp
@@ -117,6 +120,7 @@ vec3 axis1{2.0f, 0.0f, 0.0f};
 vec3 axis2{0.0f, 2.0f, 0.0f};
 auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
 ```
+
 
 **Sample #5 - calculate polygon convex hull, bounding box, bounding circle, triangulate it and export as svg file:**
 ```cpp
@@ -172,6 +176,7 @@ polygon_test_svg.to_file("polygon_test_svg.svg");
 ```
 ![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
 
+
 **Sample #6 - reorient polygon, partition it to convex components and export as svg file:**
 ```cpp
 // define polygon
@@ -206,6 +211,7 @@ for (std::size_t i{}; i < partition.size(); ++i) {
 polygon_partition.to_file("polygon_partition_svg.svg");
 ```
 ![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
+
 
 **Sample #7 - generate points, cluster them using KD-tree and density estimator, triangulate them (delaunay) and export as svg file:**
 ```cpp
