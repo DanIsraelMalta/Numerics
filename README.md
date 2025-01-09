@@ -213,7 +213,7 @@ polygon_partition.to_file("polygon_partition_svg.svg");
 ![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
 
 
-**Sample #7 - generate points, cluster them using KD-tree and density estimator, triangulate them (delaunay) and export as svg file:**
+**Sample #7 - generate points, cluster them using density estimator, triangulate them (delaunay) and export as svg file:**
 ```cpp
 std::vector<vec2> points;
 float sign{ 0.5f };
@@ -279,7 +279,7 @@ dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
 ![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
-**Sample #8 - perform closest neighbour queries with different structures and in different shapes, calculate hole diameter, find closest pair and export as svg file:**
+**Sample #8 - perform closest neighbour queries with different structures and in different shapes, calculate hull diameter, find closest pair and export as svg file:**
 ```cpp
 // place points on a plane
 std::vector<vec2> points;
