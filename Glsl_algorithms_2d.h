@@ -34,8 +34,10 @@
 #include <vector>
 #include <iterator>
 #include <random>
-#include <queue> // earcut
-#include <set>  // delaunay
+#include <queue>  // earcut triangulation
+#include <set>    // delaunay triangulation
+#include <map>    // |
+#include <chrono> //  \ closest pair
 
 //
 // collection of algorithms for 2D cloud points and shapes
@@ -479,9 +481,6 @@ namespace Algorithms2D {
     constexpr std::vector<VEC> get_convex_hull(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
 
-        // check that polygon is simple
-        assert(Algorithms2D::Internals::is_simple(first, last));
-
         // houskeeping
         std::vector<VEC> points(first, last);
 
@@ -602,26 +601,26 @@ namespace Algorithms2D {
     /**
     * \brief given convex hull of collection of points, return its diameter
     * @param {vector<IFixedVector>,           in}  points convex hull
-    * @param {{value_type, array<size_t, 2>}, out} {squared diameter, <index of anti podal oint #1, index of anti podal point #2>}
+    * @param {{value_type, array<size_t, 2>}, out} {squared diameter, <index of anti podal point #1, index of anti podal point #2>}
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
     constexpr auto get_convex_diameter(const std::vector<VEC>& hull) {
         using T = typename VEC::value_type;
-        using out_t = struct { T diamater_squared; std::array<std::size_t, 2> indices; };
+        using out_t = struct { T diameter_squared; std::array<std::size_t, 2> indices; };
 
         // housekeeping
         const std::size_t N{ hull.size() };
         out_t out{
-            .diamater_squared = T{},
+            .diameter_squared = T{},
             .indices = std::array<std::size_t, 2>{{0, 0}}
         };
         const auto checkPoints = [N, &out, &hull](const std::size_t i, const std::size_t j) {
             const VEC a{ hull[i % N] };
             const VEC b{ hull[j % N] };
             const T furthest{ GLSL::dot(a - b) };
-            const bool update{ furthest > out.diamater_squared };
-            out.diamater_squared = update ? furthest : out.diamater_squared;
+            const bool update{ furthest > out.diameter_squared };
+            out.diameter_squared = update ? furthest : out.diameter_squared;
             out.indices = update ? std::array<std::size_t, 2>{{i, j}} : out.indices;
         };
 
@@ -1680,32 +1679,32 @@ namespace Algorithms2D {
                         upperIndex += len;
                     }
 
-                    T closestDist{ std::numeric_limits<T>::max() };
-                    for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
-                        const VEC curr_j{ poly[wrap(j, len)] };
+T closestDist{ std::numeric_limits<T>::max() };
+for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
+    const VEC curr_j{ poly[wrap(j, len)] };
 
-                        if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
-                            if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
-                                closestDist = d;
-                                closestIndex = j % len;
-                            }
-                        }
-                    }
+    if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
+        if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
+            closestDist = d;
+            closestIndex = j % len;
+        }
+    }
+}
 
-                    if (i < closestIndex) {
-                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
-                        if (closestIndex != 0) {
-                            upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
-                        }
-                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
-                    }
-                    else {
-                        if (i != 0) {
-                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
-                        }
-                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
-                        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
-                    }
+if (i < closestIndex) {
+    lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
+    if (closestIndex != 0) {
+        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
+    }
+    upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
+}
+else {
+    if (i != 0) {
+        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
+    }
+    lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
+    upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
+}
                 }
 
                 // partition smallest polygon first and then the largest one
@@ -1736,5 +1735,101 @@ namespace Algorithms2D {
 
         // output
         return polygons;
+    }
+
+    /**
+    * \brief given a point cloud, return the closest pair.
+    *        complexity is O(n) due to using Rabin & Lipton method.
+    *
+    * @param {forward_iterator, in}  iterator to first point in point collection
+    * @param {forward_iterator, in}  iterator to last point in point collection
+    * @param {{forward_iterator, forward_iterator}, out} iterators to first and second points in pair whose distance is minimal
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr auto get_closest_pair(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+        using vec3 = next_vector_type<VEC>::vector_type;
+        using out_t = struct { InputIt p0; InputIt p1; };
+
+        // lambda to hash 2d point in the range [0, 1]
+        const auto hash = [](const VEC p) -> T {
+            constexpr T bias{ static_cast<T>(33.33) };
+            constexpr T scale{ static_cast<T>(0.1031) };
+
+            vec3 p3(p.x * scale, p.y * scale, p.x * scale);
+            p3 -= GLSL::floor(p3);
+            const vec3 p4(p3.y + bias, p3.z + bias, p3.x + bias);
+            p3 += GLSL::dot(p3, p4);
+
+            const T h{ (p3.x + p3.y) * p3.z };
+            return (h - std::floor(h));
+        };
+
+        // housekeeping
+        out_t pair;
+        const std::size_t n{ static_cast<std::size_t>(std::distance(first, last)) };
+        T md{ std::numeric_limits<T>::max() };
+
+        // Select n/100 pairs of points uniformly at random, with replacement, and let 'md' be the minimum distance of the selected pairs.
+        for (std::size_t i{}; i < n / 100; ++i) {
+            static std::mt19937_64 rng1(std::chrono::steady_clock::now().time_since_epoch().count());
+            static std::mt19937_64 rng2(std::chrono::steady_clock::now().time_since_epoch().count());
+            const std::size_t A{ static_cast<std::size_t>(rng1()) % n };
+            const std::size_t B{ static_cast<std::size_t>(rng2()) % n };
+            if (A != B) {
+                md = Numerics::min(md, GLSL::dot(*(first + A) - *(first + B)));
+                if (md == T{}) {
+                    pair.p0 = first + A;
+                    pair.p1 = first + B;
+                    return pair;
+                }
+            }
+        }
+
+        // Round the input points to a square grid of points whose size (the separation between adjacent grid points) is 'md'
+        // and use a hash table to collect together pairs of input points that round to the same grid point.
+        std::map<T, std::vector<std::size_t>> neighbors;
+        md = std::ceil(std::sqrt(md));
+        for (std::size_t i{}; i < n; ++i) {
+            neighbors[hash(*(first + i) / md)].push_back(i);
+        }
+
+        // For each input point, compute the distance to all other inputs that either round to the same grid point
+        // or to another grid point within the Moore neighborhood of 3^k-1 surrounding grid points.
+        std::size_t a{};
+        std::size_t b{ 1 };
+        md = GLSL::dot(*(first + a) - *(first + b));
+        for (const auto& [p, id] : neighbors) {
+            for (std::int32_t dx : {-1, 0, 1}) {
+                for (std::int32_t dy : {-1, 0, 1}) {
+                    const VEC pp{ p + VEC(static_cast<T>(dx), static_cast<T>(dy)) };
+                    const T hash_pp{ hash(pp) };
+                    if (!neighbors.count(hash_pp)) {
+                        continue;
+                    }
+
+                    for (std::size_t i : neighbors[hash_pp]) {
+                        for (std::size_t j : id) {
+                            if (j == i) {
+                                break;
+                            }
+
+                            if (const T cur{ GLSL::dot(*(first + i) - *(first + j)) };
+                                cur < md) {
+                                md = cur;
+                                a = i;
+                                b = j;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // output
+        pair.p0 = first + a;
+        pair.p1 = first + b;
+        return pair;
     }
 }
