@@ -1679,32 +1679,32 @@ namespace Algorithms2D {
                         upperIndex += len;
                     }
 
-T closestDist{ std::numeric_limits<T>::max() };
-for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
-    const VEC curr_j{ poly[wrap(j, len)] };
-
-    if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
-        if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
-            closestDist = d;
-            closestIndex = j % len;
-        }
-    }
-}
-
-if (i < closestIndex) {
-    lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
-    if (closestIndex != 0) {
-        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
-    }
-    upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
-}
-else {
-    if (i != 0) {
-        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
-    }
-    lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
-    upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
-}
+                    T closestDist{ std::numeric_limits<T>::max() };
+                    for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
+                        const VEC curr_j{ poly[wrap(j, len)] };
+                    
+                        if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
+                            if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
+                                closestDist = d;
+                                closestIndex = j % len;
+                            }
+                        }
+                    }
+                    
+                    if (i < closestIndex) {
+                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
+                        if (closestIndex != 0) {
+                            upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
+                        }
+                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
+                    }
+                    else {
+                        if (i != 0) {
+                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
+                        }
+                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
+                        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
+                    }
                 }
 
                 // partition smallest polygon first and then the largest one
