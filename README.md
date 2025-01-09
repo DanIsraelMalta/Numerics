@@ -279,6 +279,83 @@ dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
 ![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
+**Sample #8 - perform closest neighbour queries with different structures and in different shapes, calculate hole diameter, find closest pair and export as svg file:**
+```cpp
+// place points on a plane
+std::vector<vec2> points;
+const std::size_t n{ 1000 };
+points.reserve(n);
+for (int i = 0; i < n; i++) {
+    points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 200.0f,
+                             static_cast<float>(rand()) / RAND_MAX * 200.0f));
+}
+
+// find all points within given circle using kd-tree based nearest neighbors
+SpacePartitioning::KDTree<vec2> kdtree;
+kdtree.construct(points.begin(), points.end());
+const vec2 circle_center(115.0f, 160.0f);
+const float circle_radius{ 20.0f };
+auto points_in_circle = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, circle_center, circle_radius);
+
+// find extent of the diameter of the convex hull surrounding these points
+std::vector<vec2> circle_points;
+circle_points.reserve(points_in_circle.size());
+for (std::size_t i{}; i < points_in_circle.size(); ++i) {
+    circle_points.emplace_back(points[points_in_circle[i].second]);
+}
+auto circle_convex = Algorithms2D::get_convex_hull(circle_points.begin(), circle_points.end());
+auto circle_diameter = Algorithms2D::get_convex_diameter(circle_convex);
+
+// find all points within given rectangle using grid based nearest neighbors
+SpacePartitioning::Grid<vec2> grid;
+grid.construct(points.begin(), points.end());
+const vec2 rectangle_center(50.0f, 60.0f);
+const float rectangle_extent{ 25.0f };
+auto points_in_rectangle = grid.range_query(SpacePartitioning::RangeSearchType::Manhattan, rectangle_center, rectangle_extent);
+
+// find extent of the diameter of the convex hull surrounding these points
+std::vector<vec2> rectangle_points;
+rectangle_points.reserve(points_in_rectangle.size());
+for (std::size_t i{}; i < points_in_rectangle.size(); ++i) {
+    rectangle_points.emplace_back(points[points_in_rectangle[i].second]);
+}
+auto rectangle_convex = Algorithms2D::get_convex_hull(rectangle_points.begin(), rectangle_points.end());
+auto rectangle_diameter = Algorithms2D::get_convex_diameter(rectangle_convex);
+
+// find closest pair without using a spatial structure
+auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
+
+// export information to svg file
+svg<vec2> point_query_svg(200, 200);
+
+// points
+for (const vec2 p : points) {
+    point_query_svg.add_circle(p, 2.0f, "black", "none", 1.0f);
+}
+
+// circle range query
+for (const vec2 p : circle_points) {
+    point_query_svg.add_circle(p, 2.0f, "red", "red", 1.0f);
+}
+point_query_svg.add_polygon(circle_convex.begin(), circle_convex.end(), "none", "red", 1.0f);
+point_query_svg.add_line(circle_convex[circle_diameter.indices[0]], circle_convex[circle_diameter.indices[1]], "red", "red", 1.0f);
+
+// rectangle range query
+for (const vec2 p : rectangle_points) {
+    point_query_svg.add_circle(p, 2.0f, "blue", "blue", 1.0f);
+}
+point_query_svg.add_polygon(rectangle_convex.begin(), rectangle_convex.end(), "none", "blue", 1.0f);
+point_query_svg.add_line(rectangle_convex[rectangle_diameter.indices[0]], rectangle_convex[rectangle_diameter.indices[1]], "red", "blue", 1.0f);
+
+// closest pair
+point_query_svg.add_line(*closest_pair.p0, *closest_pair.p1, "green", "green", 3.0f);
+point_query_svg.add_circle((*closest_pair.p0 + *closest_pair.p1) / 2.0f, 5.0f, "none", "green", 1.0f);
+
+// output
+point_query_svg.to_file("point_query_svg.svg");
+```
+![image](https://github.com/user-attachments/assets/90581f6d-a791-45a8-9e41-81d40e014735)
+
 
 ## Files in repository:
 + Utilities.h - generic utilities and local STL replacements.
