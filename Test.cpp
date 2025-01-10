@@ -1674,6 +1674,9 @@ void test_glsl_point_distance() {
 
         distance = PointDistance::sdf_to_polygon(std::vector<vec2>(polygon.begin(), polygon.end()), vec2(3.0f, 1.5f));
         assert(std::abs(distance - -0.5f) < 1e-6);
+
+	distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
+	assert(std::abs(distance - -0.5f) < 1e-6);
     }
 
     {
