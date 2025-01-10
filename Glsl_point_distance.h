@@ -219,6 +219,40 @@ namespace PointDistance {
     }
 
     /**
+    * \brief return the signed distance of closed polygon
+    * @param {forward_iterator, in}  first point in polygon
+    * @param {forward_iterator, in}  last point in polygon
+    * @param {IFixedVector,     in}  point
+    * @param {value_type,       out} signed distance
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr auto sdf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
+        using T = typename VEC::value_type;
+
+        constexpr T one{ static_cast<T>(1) };
+        T d{ GLSL::dot(p - *first) };
+        T s{ one };
+        for (InputIt i{ first }, j{ last - 1 }; i != last; j = i, ++i) {
+            const VEC pi{ *i };
+            const VEC pj{ *j };
+            const VEC e{ pj - pi };
+            const VEC w{ p - pi };
+            const T dot{ GLSL::dot(e) };
+            assert(!Numerics::areEquals(dot, T{}));
+
+            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            d = Numerics::min(d, GLSL::dot(b));
+            if (p.y >= pi.y && p.y < pj.y && e.x * w.y > e.y * w.x) {
+                s *= static_cast<T>(-1);
+            }
+        }
+
+        [[assume(d >= T{})]];
+        return (s * std::sqrt(d));
+    }
+
+    /**
     * \brief return the signed distance of n-star polygon located around center
     * @param {IFixedVector, in}  point
     * @param {value_type,   in}  polygon radius
@@ -382,7 +416,7 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of bound ellipsoid located at center.
-    *        this calculation is not exact, but is useful for checking if points is inside ellipsoied bounding box.
+    *        this calculation is not exact, but is useful for checking if points is inside ellipsoid bounding box.
     * @param {IFixedVector, in}  point
     * @param {IFixedVector, in}  ellipsoid radii
     * @param {value_type,   out} signed distance
@@ -406,7 +440,7 @@ namespace PointDistance {
     }
 
     /**
-    * \brief return the unsigned distance of triangle. point inside the triange will be returned as zero.
+    * \brief return the unsigned distance of triangle. point inside the triangle will be returned as zero.
     * @param {IFixedVector, in}  point
     * @param {IFixedVector, in}  vertex #0
     * @param {IFixedVector, in}  vertex #1
@@ -415,7 +449,7 @@ namespace PointDistance {
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(std::is_floating_point_v<T> && (VEC::length() == 3))
-    constexpr auto udf_to_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
+    constexpr T udf_to_triangle(const VEC& p, const VEC& a, const VEC& b, const VEC& c) {
         constexpr T one{ static_cast<T>(1) };
         const VEC ba(b - a);
         const VEC pa(p - a);
@@ -464,7 +498,7 @@ namespace PointDistance {
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(std::is_floating_point_v<T> && (VEC::length() == 3))
-    constexpr auto udf_to_quad(const VEC& p, const VEC& a, const VEC& b, const VEC& c, const VEC& d) {
+    constexpr T udf_to_quad(const VEC& p, const VEC& a, const VEC& b, const VEC& c, const VEC& d) {
         constexpr T one{ static_cast<T>(1) };
         const VEC ba(b - a);
         const VEC pa(p - a);
