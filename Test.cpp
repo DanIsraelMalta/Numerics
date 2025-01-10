@@ -2377,6 +2377,27 @@ void test_GLSL_algorithms_2D() {
        // output
        point_query_svg.to_file("point_query_svg.svg");
    }
+
+    {
+        // uniformly place points on a grid
+        std::vector<vec2> points;
+        for (std::int32_t x{ -100 }; x < 100; x += 10) {
+            for (std::int32_t y{ -100 }; y < 100; y += 10) {
+                points.emplace_back(vec2(static_cast<float>(x), static_cast<float>(y)));
+            }
+        }
+
+        // continuously place last point somewhere in the range of the grid
+        for (std::int32_t x{-95}; x < 95; x += 60) {
+            for (std::int32_t y{ -95 }; y < 95; y += 60) {
+                const vec2 p(static_cast<float>(x), static_cast<float>(y));
+                points.emplace_back(p);
+                auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
+                assert(Extra::are_vectors_identical(p, *closest_pair.p0) || Extra::are_vectors_identical(p, *closest_pair.p1));
+                points.pop_back();
+            }
+        }
+    }
 }
 
 void test_glsl_space_partitioning() {
