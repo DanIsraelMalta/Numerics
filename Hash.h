@@ -23,6 +23,7 @@
 // 
 //-------------------------------------------------------------------------------
 #pragma once
+#include "Numerics.h"
 #include <type_traits>
 #include <limits> // std::numeric_limits
 #include <cmath> // std::pow
@@ -38,10 +39,10 @@ namespace Hash {
     *        Mark Jarzynski and Marc Olano, Hash Functions for GPU Rendering,
     *        Journal of Computer Graphics Techniques (JCGT), vol. 9, no. 3, 21-38, 2020
     *        Available online http://jcgt.org/published/0009.
-    * @param {unsigned,   in}  x coordinate
-    * @param {unsigned,   in}  y coordinate
-    * @param {unsigned,   in}  z coordinate (optional)
-    * @param {floaintg,   out} hash value in region [0, 1]
+    * @param {unsigned, in}  x coordinate
+    * @param {unsigned, in}  y coordinate
+    * @param {unsigned, in}  z coordinate (optional)
+    * @param {floating, out} hash value in region [0, 1]
     **/
     template<typename T>
         requires(std::is_unsigned_v<T>)
@@ -71,7 +72,7 @@ namespace Hash {
     * \brief hash integral 2D/3D coordinate into 1D integral value, where grid size is determined at compile time.
     *        based upon: “VDB: High-Resolution Sparse Volumes with Dynamic Topology”, p. 27:9)
     *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
-    * @param {integral}      hash table size. 20 by deault.
+    * @param {integral}      hash table size. 20 by default.
     *                        N = 20 -> 2^20 = 1,048,576 ~= 100x100x100 grid size
     *                        N = 24 -> 2^24 = 16,777,216 = 256*256*256 grid size
     * @param {integral, in}  x coordinate
@@ -99,7 +100,7 @@ namespace Hash {
     * \brief hash 2D/3D coordinate into 1D integral value, where grid size is determined at run time.
     *        based upon: “VDB: High-Resolution Sparse Volumes with Dynamic Topology”, p. 27:9)
     *        notice that: X % Y == X & (1 << (log2(pow(2, Y))) - 1) == X & (1 << Y - 1)
-    * @param {integral, in}  hash table size. 20 by deault.
+    * @param {integral, in}  hash table size. 20 by default.
     *                        N = 20 -> 2^20 = 1,048,576 ~= 100x100x100 grid size
     *                        N = 24 -> 2^24 = 16,777,216 = 256*256*256 grid size
     * @param {integral, in}  x coordinate
@@ -124,7 +125,7 @@ namespace Hash {
     }
 
     /**
-    * \brief hash 2D coordinate into 1D integral value, well - better terminology will
+    * \brief hash 2D integral coordinate into 1D integral value, well - better terminology will
     *        be "sample white noise over 2D domain, i.e. - integer lattice".
     *        this "hash" uses concepts from "Equidistributed sequence", see:
              https://en.wikipedia.org/wiki/Equidistributed_sequence
@@ -143,6 +144,33 @@ namespace Hash {
 
         return M * (W0 * x) ^ (W1 * y);
     }
+
+    /**
+    * \brief hash 2D floating point coordinate into 1D floating point value in the range [0, 1],
+    *        well - better terminology will be "sample white noise over 2D domain"
+    * @param {floating_point, in}  x coordinate (positive, at least 32bit)
+    * @param {floating_point, in}  y coordinate (positive, at least 32bit)
+    * @param {floating_point, out} hash value ("sampled white noise")
+    **/
+    template<typename T>
+        requires(std::is_floating_point_v<T> && sizeof(T) >= sizeof(float))
+    constexpr T sample_white_noise_over_2D_domain(T x, T y) {
+        constexpr T bias{ static_cast<T>(33.33) };
+        constexpr T scale{ static_cast<T>(0.1031) };
+
+        T p3x{ scale * x }; p3x -= std::floor(p3x);
+        T p3y{ scale * y }; p3y -= std::floor(p3y);
+
+        const T p4x{ p3y + bias };
+        const T p4y{ p3x + bias };
+
+        const T p3z{ p3x + Numerics::dot(p3x, p4y) };
+        p3x += Numerics::dot(p3x, p4x);
+        p3y += Numerics::dot(p3y, p4y);
+
+        const T h{ (p3x + p3y) * p3z };
+        return (h - std::floor(h));
+    };
 
     /**
     * \brief 1D to 1D pseudo random number generator over unsigned integral numbers from PCG family
