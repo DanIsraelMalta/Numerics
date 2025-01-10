@@ -30,6 +30,7 @@
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "DiamondAngle.h"
 #include "Glsl_triangle.h"
+#include "Hash.h"
 #include <limits>
 #include <vector>
 #include <iterator>
@@ -1752,20 +1753,6 @@ namespace Algorithms2D {
         using vec3 = next_vector_type<VEC>::vector_type;
         using out_t = struct { InputIt p0; InputIt p1; };
 
-        // lambda to hash 2d point in the range [0, 1]
-        const auto hash = [](const VEC p) -> T {
-            constexpr T bias{ static_cast<T>(33.33) };
-            constexpr T scale{ static_cast<T>(0.1031) };
-
-            vec3 p3(p.x * scale, p.y * scale, p.x * scale);
-            p3 -= GLSL::floor(p3);
-            const vec3 p4(p3.y + bias, p3.z + bias, p3.x + bias);
-            p3 += GLSL::dot(p3, p4);
-
-            const T h{ (p3.x + p3.y) * p3.z };
-            return (h - std::floor(h));
-        };
-
         // housekeeping
         out_t pair;
         const std::size_t n{ static_cast<std::size_t>(std::distance(first, last)) };
@@ -1792,7 +1779,9 @@ namespace Algorithms2D {
         std::map<T, std::vector<std::size_t>> neighbors;
         md = std::ceil(std::sqrt(md));
         for (std::size_t i{}; i < n; ++i) {
-            neighbors[hash(*(first + i) / md)].push_back(i);
+            const VEC p{ *(first + i) / md };
+            const T hash{ Hash::sample_white_noise_over_2D_domain(p.x, p.y) };
+            neighbors[hash].push_back(i);
         }
 
         // For each input point, compute the distance to all other inputs that either round to the same grid point
@@ -1801,16 +1790,16 @@ namespace Algorithms2D {
         std::size_t b{ 1 };
         md = GLSL::dot(*(first + a) - *(first + b));
         for (const auto& [p, id] : neighbors) {
-            for (std::int32_t dx : {-1, 0, 1}) {
-                for (std::int32_t dy : {-1, 0, 1}) {
+            for (const std::int32_t dx : {-1, 0, 1}) {
+                for (const std::int32_t dy : {-1, 0, 1}) {
                     const VEC pp{ p + VEC(static_cast<T>(dx), static_cast<T>(dy)) };
-                    const T hash_pp{ hash(pp) };
+                    const T hash_pp{ Hash::sample_white_noise_over_2D_domain(pp.x, pp.y) };
                     if (!neighbors.count(hash_pp)) {
                         continue;
                     }
 
-                    for (std::size_t i : neighbors[hash_pp]) {
-                        for (std::size_t j : id) {
+                    for (const std::size_t i : neighbors[hash_pp]) {
+                        for (const std::size_t j : id) {
                             if (j == i) {
                                 break;
                             }
