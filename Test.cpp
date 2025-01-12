@@ -2403,6 +2403,18 @@ void test_GLSL_algorithms_2D() {
             }
         }
     }
+
+   {
+       std::vector<vec2> triangle{ {vec2(4.0f, 11.0f), vec2(4.0, 5.0f), vec2(9.0f, 9.0f) }};
+       std::vector<vec2> quad{ {vec2(5.0f, 7.0f), vec2(7.0f, 3.0f), vec2(10.0f, 2.0f), vec2(12.0f, 7.0f) } };
+       assert(Algorithms2D::do_convex_hulls_intersect(triangle, quad));
+
+       triangle[1] = vec2(5.1f, 6.9f);
+       assert(Algorithms2D::do_convex_hulls_intersect(triangle, quad));
+
+       triangle[1] = vec2(5.1f, 7.1f);
+       assert(!Algorithms2D::do_convex_hulls_intersect(triangle, quad));
+   }
 }
 
 void test_glsl_space_partitioning() {
