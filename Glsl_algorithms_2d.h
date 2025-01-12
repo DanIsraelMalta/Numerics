@@ -1821,4 +1821,45 @@ namespace Algorithms2D {
         pair.p1 = first + b;
         return pair;
     }
+
+    /**
+    * \brief given a polygon (as a collection of points) and its Delaunay triangulation return the largest inscribed circle (bounded circle).
+    *        notice that Delaunay triangulation can be calculated using "Algorithms2d::triangulate_points_delaunay".
+    * 
+    * @param {forward_iterator,     in}        iterator to polygon first point
+    * @param {forward_iterator,     in}        iterator to polygon last point
+    * @param {vector<IFixedVector>, in}        vector of vertices of triangles (Delaunay triangulation),
+    *                                          every three consecutive iterators define a triangle.
+    * @param {{IFixedVector, value_type}, out} {largest inscribed circle center, largest inscribed circle squared radius}
+    */
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr auto get_maximal_inscribed_circle(const InputIt first, const InputIt last, const std::vector<VEC>& delaunay) {
+        using T = typename VEC::value_type;
+        using out_t = struct { VEC center; T radius; };
+
+        // housekeeping
+        assert(delaunay.size() % 3 == 0);
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
+        // get Voronoi points
+        std::vector<VEC> voronoi;
+        voronoi.reserve(delaunay.size() / 3);
+        for (std::size_t i{}; i < delaunay.size(); i += 3) {
+            voronoi.emplace_back((delaunay[i] + delaunay[i + 1] + delaunay[i + 2]) / static_cast<T>(3.0));
+        }
+        
+        // find Voronoi point furthest from polygon edges
+        out_t inscribed{ voronoi[0], T{} };
+        for (const VEC& v : voronoi) {
+            if (const T minimalDistance{ PointDistance::sdf_to_polygon(first, last, v) };
+                minimalDistance > inscribed.radius) {
+                inscribed.center = v;
+                inscribed.radius = minimalDistance;
+            }
+        }
+
+        // output
+        return inscribed;
+    }
 }
