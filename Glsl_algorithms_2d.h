@@ -482,7 +482,7 @@ namespace Algorithms2D {
     constexpr std::vector<VEC> get_convex_hull(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
 
-        // houskeeping
+        // housekeeping
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
@@ -661,7 +661,7 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
         using out_t = decltype(Algorithms2D::Internals::get_circumcircle(hull[0], hull[0]));
 
-        // is hulll composed of two/three/four points?
+        // is hull composed of two/three/four points?
         const std::size_t N{ hull.size() };
         if (N == 2) {
             return Internals::get_circumcircle(hull[0], hull[1]);
@@ -749,6 +749,127 @@ namespace Algorithms2D {
         }
 
         return circle;
+    }
+
+    /**
+    * \brief given two convex hulls, return true if they intersect and false otherwise.
+    *        this function uses Gilbert-Johnson-Keerthi algorithm (with Minkowski sum) for fast intersection calculation.
+    * 
+    * @param {MAX_ITER} maximal iteration for calculation to stop (default is 50)
+    * @param {vector<IFixedVector>, in}  convex hull #1
+    * @param {vector<IFixedVector>, in}  convex hull #1
+    * @param {bool,                 out} true if convex hulls intersect each other, false otherwise
+    **/
+    template<std::size_t MAX_ITER = 50, GLSL::IFixedVector VEC>
+        requires(VEC::length() == 2)
+    constexpr bool do_convex_hulls_intersect(const std::vector<VEC>& hull0, const std::vector<VEC>& hull1) {
+        using T = typename VEC::value_type;
+
+        // lambda to calculate triple product
+        const auto triple_product = [](const VEC& a, const VEC& b, const VEC& c) -> VEC {
+            const T ac{ GLSL::dot(a, c) };
+            const T bc{ GLSL::dot(b, c) };
+            return VEC(b.x * ac - a.x * bc, b.y * ac - a.y * bc);
+        };
+
+        // lambda to return the index of the furthest point along a given direction from a point
+        const auto index_of_furthest_point = [](const std::vector<VEC>& vertices, const VEC d) -> std::size_t {
+            T maxDistSquared{ GLSL::dot(d, vertices[0]) };
+            std::size_t index{};
+
+            for (size_t i{ 1 }; i < vertices.size(); ++i) {
+                if (const T dist2{ GLSL::dot(d, vertices[i]) };
+                    dist2 > maxDistSquared) {
+                    maxDistSquared = dist2;
+                    index = i;
+                }
+            }
+
+            return index;
+        };
+        
+        // lambda to calculate local Minkowski sum
+        const auto minkowski_support = [&hull0, &hull1, &index_of_furthest_point](const VEC d) -> VEC {
+            const std::size_t i{ index_of_furthest_point(hull0,  d) };
+            const std::size_t j{ index_of_furthest_point(hull1, -d) };
+            return (hull0[i] - hull1[j]);
+        };
+
+        // direction from the center of 'hull0' to 'hull1', if its zero - set it to be X axis (arbitrary)
+        VEC d{ Algorithms2D::Internals::get_centroid(hull0.begin(), hull0.end()) -
+               Algorithms2D::Internals::get_centroid(hull1.begin(), hull1.end()) };
+        if (Numerics::areEquals(d.x, T{}) && Numerics::areEquals(d.y, T{})) {
+            d.x = static_cast<T>(1.0);
+        }
+
+        // first support is identical to simplex initial point
+        VEC a{ minkowski_support(d) };
+        std::array<VEC, 3> simplex = { {a, a, a} };
+        if (GLSL::dot(a, d) <= T{}) {
+            return false;
+        }
+
+        // next search direction is towards the origin
+        d = -d;
+
+        // Gilbert-Johnson-Keerthi
+        std::size_t iter{};
+        std::size_t index{};
+        while (iter < MAX_ITER) {
+            ++iter;
+
+            a = minkowski_support(d);
+            simplex[++index] = a;
+
+            if (GLSL::dot(a, d) <= T{}) {
+                return false;
+            }
+
+            // a -> origin
+            const VEC ao{ -a };
+
+            // simplex is a segment
+            if (index < 2) {
+                const VEC b{ simplex[0] };
+                const VEC ab{ b - a };
+                d = triple_product(ab, ao, ab);
+
+                // direction will be normal to AB towards origin
+                if (Numerics::areEquals(GLSL::dot(d), T{})) {
+                    d.x =  ab.y;
+                    d.y = -ab.x;
+                }
+
+                continue;
+            } // simplex is a triangle
+            else {
+                const VEC b{ simplex[1] };
+                const VEC c{ simplex[0] };
+                const VEC ab{ b - a };
+                const VEC ac{ c - a };
+
+                // set new direction as normal to AC towards origin
+                if (const VEC ac_perpendicular{ triple_product(ab, ac, ac) };
+                    GLSL::dot(ac_perpendicular, ao) >= T{}) {
+                    d = ac_perpendicular;
+                } // swap simplex vertices and choose new direction as normal to AB towards origin?
+                else if (const VEC ab_perpendicular{ triple_product(ac, ab, ab) };
+                         GLSL::dot(ab_perpendicular, ao) >= T{}) {
+                    simplex[0] = simplex[1];
+                    d = ab_perpendicular;
+                } // collision!
+                else {
+                    return true;
+                }
+
+                // swap simplex middle vertex
+                simplex[1] = simplex[2];
+                --index;
+            }
+        }
+
+        // output
+        return false;
     }
 
     /**
