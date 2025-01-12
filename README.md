@@ -122,7 +122,7 @@ auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
 ```
 
 
-**Sample #5 - calculate polygon convex hull, bounding box, bounding circle, triangulate it and export as svg file:**
+**Sample #5 - calculate polygon convex hull, bounding box, bounding circle, inscribed circle, triangulate it and export as svg file:**
 ```cpp
 // define polygon
 std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
@@ -157,6 +157,10 @@ for (auto& p : obbs) {
 // calculate minimal bounding circle
 const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
 
+// calculate maximal inscribed circle
+const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end()) };
+const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
+
 // export polygon and its bounding objects to SVG
 svg<vec2> polygon_test_svg(650, 650);
 polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
@@ -172,9 +176,10 @@ for (std::size_t i{}; i < earcut.size(); i += 3) {
 }
 polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
 polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
+polygon_test_svg.add_circle(inscribed.center, inscribed.radius, "none", "chocolate", 2.0f);
 polygon_test_svg.to_file("polygon_test_svg.svg");
 ```
-![polygon_test_svg](https://github.com/user-attachments/assets/4da2847b-0b13-44da-ba6f-daeae174a8eb)
+![image](https://github.com/user-attachments/assets/73341e16-edf4-4de3-8dde-0f299bb74e03)
 
 
 **Sample #6 - reorient polygon, partition it to convex components and export as svg file:**
