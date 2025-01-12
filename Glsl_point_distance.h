@@ -225,10 +225,10 @@ namespace PointDistance {
     * @param {IFixedVector,     in}  point
     * @param {value_type,       out} signed distance
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr auto sdf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
-        using T = typename VEC::value_type;
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+         class T = typename VEC::value_type>
+    requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+        constexpr T sdf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
 
         constexpr T one{ static_cast<T>(1) };
         T d{ GLSL::dot(p - *first) };
