@@ -5,7 +5,7 @@ Features include:
 + Generic, modern and extensible numerical toolkit which follows the syntax and functionality of the GLSL shading language.
 + Implementations of canonical linear algebra operations, ranging from decompositions to linear equation system set solvers.
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
-+ A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations (enclosing shapes, partitions, convex/concave hull...) etc.
++ A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations.
 
 **Sample #1 - syntax:**
 ```cpp
@@ -284,7 +284,7 @@ dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
 ![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
-**Sample #8 - perform closest neighbour queries with different structures and in different shapes, calculate hull diameter, find closest pair and export as svg file:**
+**Sample #8 - perform closest neighbour queries with different spatial structures and in different shapes, calculate hull diameter, find closest pair and export as svg file:**
 ```cpp
 // place points on a plane
 std::vector<vec2> points;
