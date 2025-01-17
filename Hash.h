@@ -29,7 +29,7 @@
 #include <cmath> // std::pow
 
 /**
-* Hashing and pairing functions
+* Hashing, pairing and pseudo random number generator related functions
 **/
 namespace Hash {
 
@@ -200,6 +200,57 @@ namespace Hash {
 #define RAND01(x) (static_cast<T>(x)) * (static_cast<T>(rand())) /  (static_cast<T>(RAND_MAX))
         return (static_cast<T>(2.0) * (RAND01(C2) + RAND01(C2) + RAND01(C2)) - static_cast<T>(3.0) * (C2 - static_cast<T>(1.0))) * C3;
 #undef RAND01
+    }
+
+    /**
+    * \brief generate a 64bit uniformly distributed random number (can be positive or negative).
+    * @param {double, out} uniformly distributed random numbers
+    **/
+    double rand64() {
+        using double_t = union { std::uint64_t u; double d; };
+        constexpr std::array<std::int32_t, 14> possible_exponents{ { 2046, 2045, 1994, 1995, 1993, 0, 1, 2,
+                                                                     1021, 1022, 1023, 1024, 1025, 1026 } };
+        constexpr std::array<std::uint64_t, 8> possible_significands{ { 0b1111111111111111111111111111111111111111111111111111,
+                                                                        0b1000000000000000000000000000000000000000000000000000,
+                                                                        0b1000000000000000000000000000000000000000000000000001,
+                                                                        0b1111111111111111111111111111111111111111111111111110,
+                                                                        0b111111111111111111111111111111111111111111111111111,
+                                                                        0, 1, 2 } };
+        constexpr std::int32_t exponent_hash{ 2047 };
+
+        // random sign
+        const std::int32_t sign{ rand() & 1 };
+
+        // random exponent
+        std::int32_t exponent{};
+        if (static_cast<bool>(rand() & 1)) {
+            exponent = rand() & exponent_hash;
+            while (exponent == exponent_hash) {
+                exponent = rand() & exponent_hash;
+            }
+        }
+        else {
+            exponent = possible_exponents[rand() % possible_exponents.size()];
+        }
+        assert(exponent >= 0 && exponent <= exponent_hash - 1);
+
+        // random significand
+        std::uint64_t significand;
+        if (static_cast<bool>(rand() & 1)) {
+            significand = (static_cast<std::uint64_t>(rand()) << 32) ^
+                          (static_cast<std::uint64_t>(rand()) << 16) ^
+                          static_cast<std::uint64_t>(rand());
+            significand &= ((1ULL << 52) - 1);
+        }
+        else {
+            significand = possible_significands[rand() % possible_significands.size()];
+        }
+        assert(significand < (1ULL << 52));
+
+        // construct double by its components (sign, exponent, significand) and return
+        double_t dbl{};
+        dbl.u = (static_cast<std::uint64_t>(sign) << 63) | (static_cast<std::uint64_t>(exponent) << 52) | significand;
+        return dbl.d;
     }
 
     /**
