@@ -2759,6 +2759,67 @@ void test_GLSL_clustering() {
        }
        dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
    }
+
+   // mean-shift based clustering
+   {
+       svg<vec2> mean_shift_test_svg(250, 160);
+       std::vector<vec2> points;
+       float sign{ 0.5f };
+
+       // cluster #1
+       vec2 center(20.0f, 12.0f);
+       float radius{ 3.0f };
+       for (std::size_t i{}; i < 80; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #2
+       center = vec2(12.0f, 7.0f);
+       radius = 3.0f;
+       for (std::size_t i{}; i < 80; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster #3
+       center = vec2(4.0f, 2.0f);
+       radius = 2.0f;
+       for (std::size_t i{}; i < 80; ++i) {
+           float fi{ static_cast<float>(i) };
+           points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       // cluster
+       const auto clusterIds = Clustering::get_mean_shift_based_clusters(points.cbegin(), points.cend(), 2.0f);
+       assert(clusterIds.centers.size() == 3);
+       assert(clusterIds.clusters[0].size() == 80);
+       assert(clusterIds.clusters[1].size() == 80);
+       assert(clusterIds.clusters[2].size() == 80);
+
+       for (const std::size_t i : clusterIds.clusters[0]) {
+           mean_shift_test_svg.add_circle(points[i] * 10.0f, 2.0f, "none", "red", 1.0f);
+       }
+       mean_shift_test_svg.add_circle(clusterIds.centers[0] * 10.0f, 2.0f, "red", "red", 1.0f);
+
+       for (const std::size_t i : clusterIds.clusters[1]) {
+           mean_shift_test_svg.add_circle(points[i] * 10.0f, 2.0f, "none", "blue", 1.0f);
+       }
+       mean_shift_test_svg.add_circle(clusterIds.centers[1] * 10.0f, 2.0f, "blue", "blue", 1.0f);
+
+       for (const std::size_t i : clusterIds.clusters[2]) {
+           mean_shift_test_svg.add_circle(points[i] * 10.0f, 2.0f, "none", "green", 1.0f);
+       }
+       mean_shift_test_svg.add_circle(clusterIds.centers[2] * 10.0f, 2.0f, "green", "green", 1.0f);
+
+       mean_shift_test_svg.to_file("mean_shift_test.svg");
+   }
 }
 
 int main() {
