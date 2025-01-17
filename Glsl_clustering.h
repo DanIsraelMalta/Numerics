@@ -113,7 +113,7 @@ namespace Clustering {
             }
         }
 
-        // accumelate noise
+        // accumulate noise
         indices_t notClusters;
         for (std::size_t i{}; i < len; ++i) {
             if (noise[i]) {
@@ -129,7 +129,7 @@ namespace Clustering {
     }
 
     /**
-    * \brief perform clustering operation using k-means algorithm.
+    * \brief perform clustering operation using k-means algorithm (Euclidean distance is used as clustering metric).
     * @param {forward_iterator,          in}  iterator to point cloud collection first point
     * @param {forward_iterator,          in}  iterator to point cloud collection last point
     * @param {size_t,                    in}  number of clusters
@@ -156,7 +156,7 @@ namespace Clustering {
         std::size_t i{};
         bool converged{ false };
         const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
-        std::vector<T> dist(k); // temporary vectot which holds distance from given point to all clusters
+        std::vector<T> dist(k); // temporary vector which holds distance from given point to all clusters
         std::vector<VEC> sum(k); // temporary vector to sum distances in every cluster
         std::vector<std::size_t> count(k); // temporary vector to hold amount of points in each cluster
         std::vector<std::size_t> assigned_clusters(len); // point 'i' in cloud point belongs to cluster center in 'dist' at position initi[i]
@@ -205,5 +205,138 @@ namespace Clustering {
             out[assigned_clusters[i]].push_back(i);
         }
         return out;
+    }
+
+    /**
+    * \brief perform clustering operation using mean-shift algorithm.
+    * 
+    *        remarks:
+    *        > Euclidean distance is used as clustering metric and the kernel is of Gaussian form.
+    *        > disadvantage of this non-parametric clustering method is that it is relatively slow compared to
+    *          other clustering algorithms in this namespace since it is more complex than k-means
+    *          and does not use accelerated spatial query structures as DBSCAN does.
+    * 
+    * @param {forward_iterator,          in}  iterator to point cloud collection first point
+    * @param {forward_iterator,          in}  iterator to point cloud collection last point
+    * @param {value_type,                in}  kernel bandwidth / window size
+    * @param {value_type,                in}  tolerance for point shifting to stop (default is 1e-4)
+    * @param {value_type,                in}  tolerance for point to be considered in cluster (default is 1e-1)
+    * @param {{vector<vector<integral>>,      {vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i),
+    *          vector<IFixedVector>},    out}  vector holding clusters centers. center at index 'i' is the center of cluster 'i' in first output argument}
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>)
+    constexpr auto get_mean_shift_based_clusters(const InputIt first, const InputIt last, const T bandwidth,
+                                                 const T shifting_tolerance = static_cast<T>(1e-4),
+                                                 const T cluster_tolerance = static_cast<T>(1e-1)) {
+        using out_t = struct { std::vector<std::vector<std::size_t>> clusters; std::vector<VEC> centers; };
+
+        const T sqrt_tau{ std::sqrt(static_cast<T>(6.283185307179586476925286766559)) };
+        assert(bandwidth > T{});
+        [[assume(bandwidth > T{})]];
+
+        // Gaussian kernel
+        const auto kernel = [sqrt_tau, bandwidth](const T distance) -> T {
+            const T ratio{ distance / bandwidth };
+            const T exp{ std::exp(static_cast<T>(-0.5) * ratio * ratio) };
+            const T coeff{ static_cast<T>(1.0) / (bandwidth * sqrt_tau) };
+            return (coeff * exp);
+        };
+
+         // lambda to calculate how much to shift a point
+         const auto mean_shift_point = [&first, &last, _kernel = FWD(kernel), bandwidth]
+                                       (const VEC point) -> VEC {
+            VEC shifted;
+            T scale{};
+
+            for (InputIt it{ first }; it != last; ++it) {
+                const VEC pt{ *it };
+                const T dist{ GLSL::distance(point, pt) };
+                if (Numerics::areEquals(dist, T{})) {
+                    continue;
+                }
+
+                const T weight{ _kernel(dist) };
+                shifted += weight * pt;
+                scale += weight;
+            }
+
+            shifted /= scale;
+            return shifted;
+         };
+
+         // housekeeping
+         const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
+         std::vector<bool> shifting(len, true);
+         std::vector<VEC> shift_points;
+         shift_points.reserve(len);
+         for (InputIt it{ first }; it != last; ++it) {
+             shift_points.emplace_back(*it);
+         }
+
+         //
+         // mean-shift
+         //
+
+         while (true) {
+             T max_dist{};
+
+             for (std::size_t i{}; i < len; ++i) {
+                 if (!shifting[i]) {
+                     continue;
+                 }
+
+                 const VEC p_shift_init{ shift_points[i] };
+                 shift_points[i] = mean_shift_point(shift_points[i]);
+                 const T dist{ GLSL::distance(p_shift_init, shift_points[i]) };
+                 max_dist = Numerics::max(max_dist, dist);
+                 shifting[i] = dist > shifting_tolerance;
+             }
+
+             if (max_dist < shifting_tolerance) {
+                 break;
+             }
+         }
+
+         //
+         // clustering
+         // 
+         
+         std::vector<std::size_t> cluster_ids;
+         std::vector<VEC> cluster_centers;
+         cluster_ids.reserve(len);
+         std::size_t cluster_index{};
+         for (std::size_t i{}; i < len; ++i) {
+             const VEC point{ shift_points[i] };
+
+             if (!cluster_ids.empty()) [[likely]] {
+                 std::size_t c{};
+                 for (const VEC center : cluster_centers) {
+                     const T dist{ GLSL::distance(point, center) };
+                     if (dist < cluster_tolerance) {
+                         cluster_ids.emplace_back(c);
+                     }
+                     ++c;
+                 }
+
+                 if (cluster_ids.size() < i + 1) {
+                     cluster_ids.emplace_back(cluster_index);
+                     cluster_centers.emplace_back(shift_points[i]);
+                     ++cluster_index;
+                 }
+             } else {
+                 cluster_ids.emplace_back(cluster_index);
+                 cluster_centers.emplace_back(shift_points[i]);
+                 ++cluster_index;
+             }
+         }
+
+         // output
+         std::vector<std::vector<std::size_t>> clusters(cluster_centers.size(), std::vector<std::size_t>{});
+         for (std::size_t i{}; i < len; ++i) {
+             clusters[cluster_ids[i]].emplace_back(i);
+         }
+         return out_t{ clusters, cluster_centers };
     }
 }
