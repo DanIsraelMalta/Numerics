@@ -81,6 +81,19 @@ void test_hash() {
         }
         assert(std::abs(mean) < 0.002);
     }
+
+        // test rand64
+    {
+        std::int32_t above_limit{};
+        const std::int32_t lottery{ 100 };
+        for (std::size_t i{}; i < 100; ++i) {
+            const double r{ Hash::rand64() };
+            if (std::abs(r) > static_cast<double>(std::numeric_limits<float>::max())) {
+                ++above_limit;
+            }
+        }
+        assert(above_limit >= lottery / 4);
+    }
 }
 
 void test_variadic() {
