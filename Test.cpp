@@ -2441,6 +2441,33 @@ void test_GLSL_algorithms_2D() {
        triangle[1] = vec2(5.1f, 7.1f);
        assert(!Algorithms2D::do_convex_hulls_intersect(triangle, quad));
    }
+
+   {
+       // define polygon
+       std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                    vec2(1.0f, 2.0f)} };
+       for (vec2& p : polygon) {
+           p = 50.0f * p + 50.0f;
+       }
+       const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end()) };
+       Algorithms2D::sort_points_counter_clock_wise(polygon.begin(), polygon.end(), centroid);
+
+       std::vector<vec2> clipped1{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, 1.0f)) };
+       std::vector<vec2> clipped2{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, -1.0f)) };
+
+       // export information to svg file
+       svg<vec2> polygon_clipped_svg(600, 600);
+       polygon_clipped_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 1.0f);
+
+       polygon_clipped_svg.add_polygon(clipped1.begin(), clipped1.end(), "none", "red", 2.0f);
+       polygon_clipped_svg.add_point_cloud(clipped1.begin(), clipped1.end(), 4.0f, "none", "red", 2.0f);
+       
+       polygon_clipped_svg.add_polygon(clipped2.begin(), clipped2.end(), "none", "green", 2.0f);
+       polygon_clipped_svg.add_point_cloud(clipped2.begin(), clipped2.end(), 4.0f, "none", "green", 2.0f);
+
+       polygon_clipped_svg.to_file("polygon_clipped_svg.svg");
+   }
 }
 
 void test_glsl_space_partitioning() {
