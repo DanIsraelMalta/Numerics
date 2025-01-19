@@ -69,7 +69,7 @@ auto eigs = Decomposition::eigenvalues(a);
 // eigs = {-34.196675001469160, 156.13668406196879, 16.059990939500377}
 
 // perform QR decomposition
-auto qr = Decomposition::QR_GivensRotation(a);
+auto qr = Decomposition::QR(a);
 // qr.Q = (0.228375, -0.9790593, 0.076125,
 //         0.618929, 0.084383,   -0.780901,
 //         0.751513, 0.225454,   0.619999);
@@ -77,7 +77,7 @@ auto qr = Decomposition::QR_GivensRotation(a);
 //         -165.895209, 70.906839,  0.0,
 //          -27.328842, 31.566433, -23.015097);
 
-// solve set of linear equation using LU decomposition
+// solve set of linear equation using QR decomposition
 vec3 b(70.0, 12.0, 50.0);
 auto solution = Solvers::SolveQR(a, b);
 // solution = {3.71118, 1.74416, -3.75020}
