@@ -166,6 +166,23 @@ class svg {
         }
 
         /**
+        * \brief add collection of points
+        * @param {forward_iterator, in} iterator to first point in collection
+        * @param {forward_iterator, in} iterator to last point in collection
+        * @param {value_type,       in} point radius
+        * @param {string,           in} point fill color
+        * @param {string,           in} point border color
+        * @param {value_type,       in} point border width
+        **/
+        template<std::forward_iterator It, class V = typename std::decay_t<decltype(*std::declval<It>())>>
+            requires(std::is_same_v<VEC, V>&& V::length() == 2)
+        constexpr void add_point_cloud(const It start, const It finish, const T radius, const std::string fill_color, const std::string border_color, const T width) {
+            for (It it{ start }; it != finish; ++it) {
+                this->add_circle(*it, radius, fill_color, border_color, width);
+            }
+        }
+
+        /**
         * @param {string, in} file name to export svg schema to
         **/
         constexpr void to_file(const std::string& file_name = "debug.svg") const {
