@@ -165,9 +165,7 @@ const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin()
 svg<vec2> polygon_test_svg(650, 650);
 polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
 polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
-for (const vec2 p : convex) {
-           polygon_test_svg.add_circle(p, 10.0f, "green", "green", 1.0f);
-}
+polygon_test_svg.add_point_cloud(convex.begin(), convex.end(), 10.0f, "green", "green", 1.0f);
 for (std::size_t i{}; i < earcut.size(); i += 3) {
     std::array<vec2, 3> tri{ { *(earcut[i]),
                                *(earcut[i + 1]),
@@ -334,21 +332,15 @@ auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end())
 svg<vec2> point_query_svg(200, 200);
 
 // points
-for (const vec2 p : points) {
-    point_query_svg.add_circle(p, 2.0f, "black", "none", 1.0f);
-}
+point_query_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "black", "none", 1.0f);
 
 // circle range query
-for (const vec2 p : circle_points) {
-    point_query_svg.add_circle(p, 2.0f, "red", "red", 1.0f);
-}
+point_query_svg.add_point_cloud(circle_points.begin(), circle_points.end(), 2.0f, "red", "red", 1.0f);
 point_query_svg.add_polygon(circle_convex.begin(), circle_convex.end(), "none", "red", 1.0f);
 point_query_svg.add_line(circle_convex[circle_diameter.indices[0]], circle_convex[circle_diameter.indices[1]], "red", "red", 1.0f);
 
 // rectangle range query
-for (const vec2 p : rectangle_points) {
-    point_query_svg.add_circle(p, 2.0f, "blue", "blue", 1.0f);
-}
+point_query_svg.add_point_cloud(rectangle_points.begin(), rectangle_points.end(), 2.0f, "blue", "blue", 1.0f);
 point_query_svg.add_polygon(rectangle_convex.begin(), rectangle_convex.end(), "none", "blue", 1.0f);
 point_query_svg.add_line(rectangle_convex[rectangle_diameter.indices[0]], rectangle_convex[rectangle_diameter.indices[1]], "red", "blue", 1.0f);
 
