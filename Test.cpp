@@ -1233,16 +1233,29 @@ void test_glsl_solvers() {
         const mat3 aa(13.0f, 21.0f, 92.0f,
                       21.0f, 5.0f, 57.0f,
                       92.0f, 57.0f, 72.0f);
-        auto eigen = Decomposition::EigenSymmetric3x3(aa);
-        Utilities::static_for<0, 1, 3>([&aa, &eigen](std::size_t i) {
-            const vec3 lhs{ aa * eigen.eigenvectors[i] };
-            const vec3 rhs{ eigen.eigenvalues[i] * eigen.eigenvectors[i] };
+        auto eigen33 = Decomposition::EigenSymmetric(aa);
+        Utilities::static_for<0, 1, 3>([&aa, &eigen33](std::size_t i) {
+            const vec3 lhs{ aa * eigen33.eigenvectors[i] };
+            const vec3 rhs{ eigen33.eigenvalues[i] * eigen33.eigenvectors[i] };
             assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
         });
+
+        const mat4 bb(1.0f, 2.0f, 3.0f, 4.0f,
+                      2.0f, 5.0f, 6.0f, 7.0f,
+                      3.0f, 6.0f, 8.0f, 9.0f,
+                      4.0f, 7.0f, 9.0f, 10.0f);
+        auto eigen44 = Decomposition::EigenSymmetric(bb);
+        Utilities::static_for<0, 1, 4>([&bb, &eigen44](std::size_t i) {
+            const vec4 lhs{ bb * eigen44.eigenvectors[i] };
+            const vec4 rhs{ eigen44.eigenvalues[i] * eigen44.eigenvectors[i] };
+            assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
+        });
+        const vec4 expected44(0.184913f, 0.558036f, 24.0625f, -0.805485f);
+        assert(std::abs(GLSL::length(expected44) - GLSL::length(eigen44.eigenvalues)) < 1e-4);
     }
 
     {
-        // chack that balancing a matrix allows faster eigenvalue decomposition
+        // check that balancing a matrix allows faster eigenvalue decomposition
         mat4 df(12.0f, 16.0f,  38.0f, 92.0f,
                 13.0f, 15.0f,  75.0f, 32.0f,
                 14.0f, 14.0f, -15.0f, 27.0f,
