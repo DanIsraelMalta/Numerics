@@ -36,7 +36,7 @@ namespace Decomposition {
     enum class QR_DEOMPOSITION_TYPE : std::uint8_t {
         GramSchmidt        = 0, // use gram-schmidt process. very fast. numerically unstable.
         SchwarzRutishauser = 1, // use Schwarz-Rutishauser algorithm. better numerical accuracy than gram-schmidt and faster yet slower.
-        GivensRotation     = 3  // use "givens rotation" algorithm. numerically precise. slower than other options.
+        GivensRotation     = 2  // use "givens rotation" algorithm. numerically precise. slower than other options.
     };
 
     /**
@@ -586,50 +586,184 @@ namespace Decomposition {
     }
 
     /**
-    * \brief calculate the eigenvalues and eigenvectors of cubic 3x3 symmetric matrix.
+    * \brief calculate the eigenvalues and eigenvectors of symmetric matrix (suitable for matrices with less than 10 columns/rows).
     *        notice that this calculation is correct only in cases where the eigenvalues are real and "well separated".
     * @param {IFixedCubicMatrix,                 in}  matrix
     * @param {IFixedCubicMatrix, IFixedVector}, out} {matrix whose columns are eigenvectors, vector whose elements are eigenvalues }
     **/
     template<GLSL::IFixedCubicMatrix MAT>
-        requires(MAT::columns() == 3)
-    constexpr auto EigenSymmetric3x3(const MAT& mat) {
+        requires(MAT::columns() <= 10)
+    constexpr auto EigenSymmetric(const MAT& mat) {
         using VEC = typename MAT::vector_type;
         using T = typename MAT::value_type;
         using out_t = struct { MAT eigenvectors; VEC eigenvalues; };
+        constexpr std::size_t N{ MAT::columns() };
 
         assert(Extra::is_symmetric(mat));
         
-        // eigenvalues
-        const VEC eigenvalues{ Decomposition::eig(mat) };
-        
-        // eigenvectors
-        MAT eigenvectors(T{});
-        VEC r1(mat[0]);
-        VEC r2(mat[1]);
-        VEC r3(mat[2]);
-        Utilities::static_for<0, 1, 3>([&mat, &eigenvectors, &r1, &r2, &r3, eigenvalues](std::size_t i) {
-            const T value{ eigenvalues[i] };
-            r1[0] = mat(0, 0) - value;
-            r2[1] = mat(1, 1) - value;
-            r3[2] = mat(2, 2) - value;
-            const VEC e1{ GLSL::cross(r1, r2) };
-            VEC e2{ GLSL::cross(r2, r3) };
-            VEC e3{ GLSL::cross(r3, r1) };
+        if constexpr (N == 3) {
+            // eigenvalues
+            const VEC eigenvalues{ Decomposition::eig(mat) };
 
-            // make e2 and e2 point in the direction of e1
-            if (GLSL::dot(e1, e2) < T{}) {
-                e2 *= static_cast<T>(-1);
+            // eigenvectors
+            MAT eigenvectors(T{});
+            VEC r1(mat[0]);
+            VEC r2(mat[1]);
+            VEC r3(mat[2]);
+            Utilities::static_for<0, 1, 3>([&mat, &eigenvectors, &r1, &r2, &r3, eigenvalues](std::size_t i) {
+                const T value{ eigenvalues[i] };
+                r1[0] = mat(0, 0) - value;
+                r2[1] = mat(1, 1) - value;
+                r3[2] = mat(2, 2) - value;
+                const VEC e1{ GLSL::cross(r1, r2) };
+                VEC e2{ GLSL::cross(r2, r3) };
+                VEC e3{ GLSL::cross(r3, r1) };
+
+                // make e2 and e2 point in the direction of e1
+                if (GLSL::dot(e1, e2) < T{}) {
+                    e2 *= static_cast<T>(-1);
+                }
+                if (GLSL::dot(e1, e3) < T{}) {
+                    e3 *= static_cast<T>(-1);
+                }
+
+                eigenvectors[i] = GLSL::normalize(e1 + e2 + e3);
+            });
+
+            // output
+#ifdef _DEBUG
+            Utilities::static_for<0, 1, N>([&mat, &eigenvectors, &eigenvalues](const std::size_t i) {
+                assert(Extra::is_normalized(eigenvectors[i]));
+                const VEC lhs(mat * eigenvectors[i]);
+                const VEC rhs(eigenvalues[i] * eigenvectors[i]);
+                assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
+            });
+#endif
+            return out_t{ eigenvectors, eigenvalues };
+        }
+        else {
+            // housekeeping 
+            constexpr std::size_t max_sweeps{ 50 }; // Maximum number of matrix sweeps
+            VEC eigenvalues(GLSL::trace(mat));
+            MAT a(mat);
+            VEC b(eigenvalues);
+            VEC z(T{});
+            MAT eigenvectors;
+            Extra::make_identity(eigenvectors);
+
+            // lambda to perform givens rotation
+            const auto rotate = [](MAT& mat, std::size_t i, std::size_t j, std::size_t k, std::size_t l, T s, T tau) {
+                const T g{ mat(i, j) };
+                const T h{ mat(k, l) };
+                mat(i, j) = g - s * (h + g * tau);
+                mat(k, l) = h + s * (g - h * tau);
+            };
+
+            // lambda to calculate 'a' matrix "average sum of off-diagonal elements"
+            const auto average_off_diagonal_sum = [N, &a]() -> T {
+                T sm{};
+                for (std::size_t i{}; i < N - 1; ++i) {
+                    for (std::size_t j{ i + 1 }; j < N; ++j) {
+                        sm += std::abs(a(i, j));
+                    }
+                }
+                return (sm / (N * N));
+            };
+
+            std::size_t sweeps{};
+            T average_sum{ average_off_diagonal_sum() };
+            while (sweeps < max_sweeps && average_sum > std::numeric_limits<T>::min()) {
+                average_sum = average_off_diagonal_sum();
+
+                // choose a fraction of 'off diagonal elements threshold' for first 3 iterations.
+                const T tol{ sweeps < 4 ? static_cast<T>(0.2) * average_sum : std::numeric_limits<T>::min() };
+
+                // sweep
+                for (std::size_t p{}; p < N - 1; ++p) {
+                    for (std::size_t q{ p + 1 }; q < N; ++q) {
+                        T& a_pq{ a(p, q) };
+                        T& eig_at_p{ eigenvalues[p] };
+                        T& eig_at_q{ eigenvalues[q] };
+
+                        const T abs_a_pq{ std::abs(a_pq) };
+                        const T g{ static_cast<T>(100.0) * abs_a_pq };
+
+                        // After four sweeps, skip the rotation if the off-diagonal element is small
+                        if (sweeps > 4 &&
+                            Numerics::areEquals(std::abs(eig_at_p) + g, std::abs(eig_at_p)) &&
+                            Numerics::areEquals(std::abs(eig_at_q) + g, std::abs(eig_at_q))) {
+                            a_pq = T{};
+                        }
+                        else if (abs_a_pq > tol) {
+                            T h{ eig_at_q - eig_at_p };
+                            const T abs_h{ std::abs(h) };
+                            T t{};
+                            if (Numerics::areEquals(abs_h + g, abs_h)) {
+                                [[assume(h != T{})]];
+                                t = a_pq / h;
+                            }
+                            else {
+                                const T theta{ static_cast<T>(0.5) * h / a_pq };
+                                t = static_cast<T>(1.0) / (std::abs(theta) + std::sqrt(static_cast<T>(1.0) + theta * theta));
+                                if (theta < T{}) {
+                                    t = -t;
+                                }
+                            }
+
+                            const T c{ static_cast<T>(1.0) / std::sqrt(static_cast<T>(1.0) + t * t) };
+                            const T s{ t * c };
+                            [[assume(c > T{})]];
+                            const T tau{ s / (static_cast<T>(1.0) + c) };
+                            h = t * a_pq;
+
+                            a_pq = T{};
+
+                            z[p] -= h;
+                            z[q] += h;
+
+                            eig_at_p -= h;
+                            eig_at_q += h;
+
+                            // rotate matrix
+                            for (std::size_t j{}; j < p; ++j) {
+                                rotate(a, j, p, j, q, s, tau);
+                            }
+                            for (std::size_t j{ p + 1 }; j < q; ++j) {
+                                rotate(a, p, j, j, q, s, tau);
+                            }
+                            for (std::size_t j{ q + 1 }; j < N; ++j) {
+                                rotate(a, p, j, q, j, s, tau);
+                            }
+                            for (std::size_t j{}; j < N; ++j) {
+                                rotate(eigenvectors, j, p, j, q, s, tau);
+                            }
+                        }
+                    }
+                }
+
+                // Update eigenvalues
+                Utilities::static_for<0, 1, N>([&b, &z, &eigenvalues](const std::size_t i) {
+                    b[i] += z[i];
+                    eigenvalues[i] = b[i];
+                    z[i] = T{};
+                });
+
+                // update iterations
+                ++sweeps;
             }
-            if (GLSL::dot(e1, e3) < T{}) {
-                e3 *= static_cast<T>(-1);
-            }
 
-            eigenvectors[i] = GLSL::normalize(e1 + e2 + e3);
-        });
-
-        // output
-        return out_t{ eigenvectors, eigenvalues };
+            // output
+            eigenvectors = GLSL::transpose(eigenvectors);
+#ifdef _DEBUG
+            Utilities::static_for<0, 1, N>([&mat, &eigenvectors, &eigenvalues](const std::size_t i) {
+                assert(Extra::is_normalized(eigenvectors[i]));
+                const VEC lhs(mat * eigenvectors[i]);
+                const VEC rhs(eigenvalues[i] * eigenvectors[i]);
+                assert(std::abs(GLSL::length(lhs) - GLSL::length(rhs)) < 1e-2);
+            });
+#endif
+            return out_t{ eigenvectors, eigenvalues };
+        }
     }
 };
 
