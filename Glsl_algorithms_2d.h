@@ -1983,4 +1983,67 @@ namespace Algorithms2D {
         // output
         return inscribed;
     }
+
+    /**
+    * \brief given a polygon (as a collection of points ordered in counter clockwise manner) and an infinite line (defined by origin and direction)
+    *        return the polygon clipped by this half space.
+    *
+    * @param {forward_iterator,     in}  iterator to polygon first point (polygon is ordered in counter clockwise manner)
+    * @param {forward_iterator,     in}  iterator to polygon last point (polygon is ordered in counter clockwise manner)
+    * @param {IFixedVector,         in}  infinite line origin
+    * @param {IFixedVector,         in}  infinite line direction (does not need to be normalized)
+    * @param {vector<IFixedVector>, out} clipped polygon
+    */
+    template<std::forward_iterator It, class VEC = typename std::decay_t<decltype(*std::declval<It>())>>
+    requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr std::vector<VEC> clip_polygon_by_infinte_line(const It first, const It last, const VEC& origin, const VEC& normal) {
+        using T = typename VEC::value_type;
+
+#ifdef _DEBUG
+        const vec2 centroid{ Algorithms2D::Internals::get_centroid(first, last) };
+        assert(!Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid));
+#endif
+
+        // housekeeping
+        std::vector<VEC> clipped;
+        clipped.reserve(static_cast<std::size_t>(std::distance(first, last)));
+
+        // Determine state of last point
+        VEC e1{ *(last - 1) };
+        T prev_num{ GLSL::dot(origin - e1, normal) };
+        bool prev_inside{ prev_num < T{} };
+
+        // iterate over all vertices
+        for (It j{ first }; j != last; ++j) {
+            // is second point inside?
+            VEC e2{ *j };
+            const T num{ GLSL::dot(origin - e2, normal) };
+            bool cur_inside{ num < T{} };
+
+            // In -> Out or Out -> In: Add point on clipping plane
+            if (cur_inside != prev_inside) {
+                // Solve: dot(X - origin, normal) = 0 where X = e1 + t * (e2 - e1)
+                const VEC e12{ e2 - e1 };
+                if (const T denom{ GLSL::dot(e12, normal) };
+                    !Numerics::areEquals(denom, T{})) {
+                    clipped.emplace_back(e1 + (prev_num / denom) * e12);
+                } // polygon edge is parallel to half space
+                else {
+                    cur_inside = prev_inside;
+                }
+            }
+
+            // Point inside, add it
+            if (cur_inside) {
+                clipped.emplace_back(e2);
+            }
+
+            // Update previous state
+            prev_num = num;
+            prev_inside = cur_inside;
+            e1 = e2;
+        }
+
+        return clipped;
+    }
 }
