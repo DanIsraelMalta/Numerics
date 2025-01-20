@@ -37,7 +37,7 @@ namespace GLSL {
     **/
     template<typename VEC, typename...Args>
     concept IFixedVector = std::is_integral_v<decltype(VEC::length())> &&                                         // IFixedVector amount of elements
-                           std::is_arithmetic_v<typename VEC::value_type> &&                                      // IFixedVector arithmetics underlying type
+                           std::is_arithmetic_v<typename VEC::value_type> &&                                      // IFixedVector arithmetic underlying type
                            std::is_constructible_v<VEC, typename VEC::value_type> &&                              // IFixedVector is constructible from a single scalar element
                            (std::is_arithmetic_v<Args> && ...) &&                                                 // arguments are of arithmetic type...
                            std::is_constructible_v<VEC, Args...>&&                                                // IFixedVector is constructible from variadic amount of arithmetics (amount identical to VEC::length)
@@ -56,15 +56,15 @@ namespace GLSL {
     template<typename MAT, typename...Args>
     concept IFixedCubicMatrix = std::is_integral_v<decltype(MAT::length())> &&                                        // IFixedMatrix amount of elements
                                 std::is_integral_v<decltype(MAT::columns())> &&                                       // IFixedMatrix amount of columns
-                                std::is_arithmetic_v<typename MAT::value_type> &&                                     // IFixedMatrix arithmetics underlying type
-                                IFixedVector<typename MAT::vector_type> &&                                            // IFixedMatrix arithmetics underlying column type is an IFixedVector
+                                std::is_arithmetic_v<typename MAT::value_type> &&                                     // IFixedMatrix arithmetic underlying type
+                                IFixedVector<typename MAT::vector_type> &&                                            // IFixedMatrix arithmetic underlying column type is an IFixedVector
                                 std::is_constructible_v<MAT, typename MAT::value_type> &&                             // IFixedMatrix is constructible from a single scalar element
                                 (std::is_arithmetic_v<Args> && ...) &&                                                // arguments are of arithmetic type...
                                 std::is_constructible_v<MAT, Args...>&&                                               // IFixedMatrix is constructible from variadic amount of arithmetics (amount identical to VEC::length)
                                 std::is_constructible_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&& // IFixedMatrix is constructible from a moveable array
                                 std::is_assignable_v<MAT, std::array<typename MAT::value_type, MAT::length()>&&>&&    // IFixedMatrix is assignable from a moveable array
         requires(MAT mat, std::size_t i) {
-            { mat[i]    } -> std::same_as<typename MAT::vector_type&>;  // IFixedMatrix columns can be accessed randomly
+            { mat[i] } -> std::same_as<typename MAT::vector_type&>;  // IFixedMatrix columns can be accessed randomly
             { mat(i, i) } -> std::same_as<typename MAT::value_type&>;   // IFixedMatrix elements can be accessed randomly (col, row)
     };
 
@@ -244,7 +244,7 @@ namespace GLSL {
         return result;                                                             \
     }
 
-    M_BOOL_FUNCTION(all, &= );
+    M_BOOL_FUNCTION(all, &=);
     M_BOOL_FUNCTION(any, != );
 
 #undef M_BOOL_FUNCTION
@@ -353,7 +353,7 @@ namespace GLSL {
     }
 
     template<auto minVal, auto maxVal, IFixedVector VEC, class T = decltype(minVal)>
-        requires(std::is_same_v<T, decltype(maxVal)> && std::is_same_v<T, typename VEC::value_type> && (minVal < maxVal))
+        requires(std::is_same_v<T, decltype(maxVal)>&& std::is_same_v<T, typename VEC::value_type> && (minVal < maxVal))
     constexpr VEC clamp(const VEC& x) noexcept {
         VEC out{};
         Utilities::static_for<0, 1, VEC::length()>([&x, &out](std::size_t i) {
@@ -395,7 +395,7 @@ namespace GLSL {
         return out;
     }
     template<auto a, IFixedVector VEC, class T = typename VEC::value_type>
-        requires(std::is_same_v<T, decltype(a)> && std::is_floating_point_v<T> && (a >= T{}) && (a <= static_cast<T>(1)))
+        requires(std::is_same_v<T, decltype(a)>&& std::is_floating_point_v<T> && (a >= T{}) && (a <= static_cast<T>(1)))
     constexpr VEC mix(const VEC& x, const VEC& y) noexcept {
         constexpr T am1{ static_cast<T>(1) - a };
         VEC out{};
@@ -484,7 +484,7 @@ namespace GLSL {
         return out;
     }
     template<auto edge0, auto edge1, IFixedVector VEC, class T = typename VEC::value_type>
-        requires(std::is_arithmetic_v<decltype(edge0)> && std::is_same_v<decltype(edge0), decltype(edge1)> && std::is_same_v<decltype(edge0), T> && (edge1 > edge0))
+        requires(std::is_arithmetic_v<decltype(edge0)>&& std::is_same_v<decltype(edge0), decltype(edge1)>&& std::is_same_v<decltype(edge0), T> && (edge1 > edge0))
     constexpr VEC smoothstep(const VEC& x) noexcept {
         constexpr T den{ edge1 - edge0 };
         [[assume(den > T)]];
@@ -525,7 +525,8 @@ namespace GLSL {
             Utilities::static_for<0, 1, VEC::length()>([&dot, &x, &y](std::size_t i) {
                 dot = std::fma(x[i], y[i], dot);
             });
-        } else {
+        }
+        else {
             Utilities::static_for<0, 1, VEC::length()>([&dot, &x, &y](std::size_t i) {
                 dot += x[i] * y[i];
             });
@@ -589,16 +590,12 @@ namespace GLSL {
     /**
     * \brief project one vector on another
     * @param {VEC, in}  vector to project
-    * @param {VEC, in}  vectoer to be projected on
+    * @param {VEC, in}  vector to be projected on
     * @param {VEC, out} projected vector
     **/
     template<IFixedVector VEC>
     constexpr VEC project(const VEC& to, const VEC& on) {
-        using T = typename VEC::value_type;
-        const T d{ dot(on) };
-        assert(d >= T{});
-        [[assume(d >= T{})]];
-        return (dot(to, on) / d) * on;
+        return (GLSL::dot(to, on) / GLSL::dot(on)) * on;
     }
 
     /**
@@ -608,11 +605,24 @@ namespace GLSL {
     * @param {VEC,            in}  y (2d or 3d vector)
     * @param {VEC|value_type, out} cross product between x and y (vector in 3D case, value in 2D case)
     **/
-    template<IFixedVector VEC>
-        requires(VEC::length() == 2 || VEC::length() == 3)
-    constexpr auto cross(const VEC& x, const VEC& y) noexcept {
-        if constexpr (VEC::length() == 2) {
+    template<IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 2)
+    constexpr T cross(const VEC& x, const VEC& y) noexcept {
+        if constexpr (std::is_floating_point_v<T>) {
+            return Numerics::diff_of_products(x[0], y[1], x[1], y[0]);
+        }
+        else {
             return (x[0] * y[1] - x[1] * y[0]);
+        }
+    }
+    template<IFixedVector VEC>
+        requires(VEC::length() == 3)
+    constexpr VEC cross(const VEC& x, const VEC& y) noexcept {
+        using T = typename VEC::value_type;
+        if constexpr (std::is_floating_point_v<T>) {
+            return VEC(Numerics::diff_of_products(x[1], y[2], y[1], x[2]),
+                       Numerics::diff_of_products(x[2], y[0], y[2], x[0]),
+                       Numerics::diff_of_products(x[0], y[1], y[0], x[1]));
         }
         else {
             return VEC(x[1] * y[2] - y[1] * x[2],
@@ -624,14 +634,22 @@ namespace GLSL {
     /**
     * \brief calculate Euclidean/L2 norm of vector
     * @param {VEC,        in}  vector
-    * @param {value_type, out} euclidean/L2 norm of vector
+    * @param {value_type, out} Euclidean/L2 norm of vector
     **/
     template<IFixedVector VEC, class T = typename VEC::value_type>
     constexpr T length(const VEC& x) {
-        const T d{ dot(x) };
-        assert(d >= T{});
-        [[assume(d >= T{})]];
-        return static_cast<T>(std::sqrt(d));
+        return static_cast<T>(std::sqrt(GLSL::dot(x)));
+    }
+
+    /**
+    * \brief calculate Euclidean distance between two vectors
+    * @param {VEC,        in}  vector #1
+    * @param {VEC,        in}  vector #2
+    * @param {value_type, out} Euclidean distance between two vectors
+    **/
+    template<IFixedVector VEC, class T = typename VEC::value_type>
+    constexpr T distance(const VEC& x, const VEC& y) {
+        return static_cast<T>(std::sqrt(GLSL::dot(x - y)));
     }
 
     /**
@@ -652,20 +670,6 @@ namespace GLSL {
     }
 
     /**
-    * \brief return a normalized vector (might throw exception if 'x' is nullified)
-    * @param {VEC, in}  vector
-    * @param {VEC, out} normalized vector
-    **/
-    template<IFixedVector VEC>
-    constexpr VEC normalize(const VEC& x) {
-        using T = typename VEC::value_type;
-        const T l{ GLSL::length(x) };
-        assert(l >= T{});
-        [[assume(l >= T{})]];
-        return (x / l);
-    }
-
-    /**
     * \brief return a vector pointing in the same direction as another
     * @param {VEC, in}  N (vector orientation)
     * @param {VEC, in}  I (incident vector)
@@ -675,8 +679,8 @@ namespace GLSL {
     template<IFixedVector VEC>
     constexpr VEC faceforward(const VEC& N, const VEC& I, const VEC& Nref) noexcept {
         using T = typename VEC::value_type;
-        assert(Numerics::areEquals(length(N), static_cast<T>(1)));
-        return (dot(Nref, I) < T{}) ? N : (-N);
+        assert(Numerics::areEquals(GLSL::length(N), static_cast<T>(1)));
+        return (GLSL::dot(Nref, I) < T{}) ? N : (-N);
     }
 
     /**
@@ -688,8 +692,8 @@ namespace GLSL {
     template<IFixedVector VEC>
     constexpr VEC reflect(const VEC& I, const VEC& N) noexcept {
         using T = typename VEC::value_type;
-        assert(Numerics::areEquals(length(N), static_cast<T>(1)));
-        return (I - static_cast<T>(2) * dot(I, N) * N);
+        assert(Numerics::areEquals(GLSL::length(N), static_cast<T>(1)));
+        return (I - static_cast<T>(2) * GLSL::dot(I, N) * N);
     }
 
     /**
@@ -701,9 +705,9 @@ namespace GLSL {
     **/
     template<IFixedVector VEC, class T = typename VEC::value_type>
     constexpr VEC refract(const VEC& I, const VEC& N, const T eta) {
-        assert(Numerics::areEquals(length(N), static_cast<T>(1)));
+        assert(Numerics::areEquals(GLSL::length(N), static_cast<T>(1)));
 
-        const T _dot{ dot(N, I) };
+        const T _dot{ GLSL::dot(N, I) };
         const T k{ static_cast<T>(1) - eta * eta * (static_cast<T>(1) - _dot * _dot) };
         assert(k > T{});
 
@@ -863,9 +867,9 @@ namespace GLSL {
 
         MAT out;
         Utilities::static_for<0, 1, N>([&lhs, &rhs, &out](std::size_t i) {
-            VEC r(row(lhs, i));
+            VEC r(GLSL::row(lhs, i));
             Utilities::static_for<0, 1, N>([&r, &rhs, &out, i](std::size_t j) {
-                out(j, i) = dot(r, rhs[j]);
+                out(j, i) = GLSL::dot(r, rhs[j]);
             });
         });
 
@@ -889,9 +893,9 @@ namespace GLSL {
         constexpr std::size_t N{ MAT::columns() };
 
         Utilities::static_for<0, 1, N>([&lhs, &rhs](std::size_t i) {
-            VEC r(row(lhs, i));
+            VEC r(GLSL::row(lhs, i));
             Utilities::static_for<0, 1, N>([&r, &rhs, &lhs, i](std::size_t j) {
-                lhs(j, i) = dot(r, rhs[j]);
+                lhs(j, i) = GLSL::dot(r, rhs[j]);
             });
         });
 
@@ -914,9 +918,9 @@ namespace GLSL {
         constexpr std::size_t N{ MAT::columns() };
 
         Utilities::static_for<0, 1, N>([&lhs, &rhs](std::size_t i) {
-            VEC r(row(lhs, i));
+            VEC r(GLSL::row(lhs, i));
             Utilities::static_for<0, 1, N>([&r, _rhs = MOV(rhs), &lhs, i](std::size_t j) {
-                lhs(j, i) = dot(r, _rhs[j]);
+                lhs(j, i) = GLSL::dot(r, _rhs[j]);
             });
         });
 
@@ -971,60 +975,60 @@ namespace GLSL {
 
     /**
     * \brief perform matrix-vector multiplication (right multiplication)
-    *        this is slower than vector-matrix multiplicaton (left multiplication)
+    *        this is slower than vector-matrix multiplication (left multiplication)
     * @param {MAT, in}  matrix
     * @param {VEC, in}  vector
     * @param {MAT, out} matrix * vector
     **/
     template<IFixedCubicMatrix MAT, IFixedVector VEC>
-        requires(std::is_same_v<typename MAT::vector_type, VEC> &&
-                 std::is_same_v<typename MAT::value_type, typename VEC::value_type> &&
+        requires(std::is_same_v<typename MAT::vector_type, VEC>&&
+                 std::is_same_v<typename MAT::value_type, typename VEC::value_type>&&
                  MAT::columns() == VEC::length())
     constexpr VEC operator * (MAT& lhs, const VEC& rhs) {
         VEC out;
         Utilities::static_for<0, 1, MAT::columns()>([&lhs, &rhs, &out](std::size_t i) {
-            out[i] = dot(row(lhs, i), rhs);
+            out[i] = GLSL::dot(GLSL::row(lhs, i), rhs);
         });
         return out;
     }
     template<IFixedCubicMatrix MAT, IFixedVector VEC>
-        requires(std::is_same_v<typename MAT::vector_type, VEC> &&
-                 std::is_same_v<typename MAT::value_type, typename VEC::value_type> &&
-                 MAT::columns() == VEC::length())
+        requires(std::is_same_v<typename MAT::vector_type, VEC>&&
+                 std::is_same_v<typename MAT::value_type, typename VEC::value_type>&&
+                MAT::columns() == VEC::length())
     constexpr VEC operator * (const MAT& lhs, const VEC& rhs) {
         VEC out;
         Utilities::static_for<0, 1, MAT::columns()>([&lhs, &rhs, &out](std::size_t i) {
-            out[i] = dot(row(lhs, i), rhs);
+            out[i] = GLSL::dot(GLSL::row(lhs, i), rhs);
         });
         return out;
     }
 
     /**
     * \brief perform vector-matrix multiplication (left multiplication)
-    *        this is faster than matrix-vector multiplicaton (right multiplication)
+    *        this is faster than matrix-vector multiplication (right multiplication)
     * @param {VEC, in}  vector
     * @param {MAT, in}  matrix
     * @param {MAT, out} vector * matrix
     **/
     template<IFixedCubicMatrix MAT, IFixedVector VEC>
-        requires(std::is_same_v<typename MAT::vector_type, VEC> &&
-                 std::is_same_v<typename MAT::value_type, typename VEC::value_type> &&
+        requires(std::is_same_v<typename MAT::vector_type, VEC>&&
+                 std::is_same_v<typename MAT::value_type, typename VEC::value_type>&&
                  MAT::columns() == VEC::length())
     constexpr VEC operator * (VEC& lhs, const MAT& rhs) {
         const VEC _lhs(lhs);
         Utilities::static_for<0, 1, MAT::columns()>([&lhs, &rhs, &_lhs](std::size_t i) {
-            lhs[i] = dot(_lhs, rhs[i]);
+            lhs[i] = GLSL::dot(_lhs, rhs[i]);
         });
         return lhs;
     }
     template<IFixedCubicMatrix MAT, IFixedVector VEC>
-        requires(std::is_same_v<typename MAT::vector_type, VEC> &&
-                 std::is_same_v<typename MAT::value_type, typename VEC::value_type> &&
+        requires(std::is_same_v<typename MAT::vector_type, VEC>&&
+                 std::is_same_v<typename MAT::value_type, typename VEC::value_type>&&
                  MAT::columns() == VEC::length())
     constexpr VEC operator * (const VEC& lhs, const MAT& rhs) {
         VEC out;
         Utilities::static_for<0, 1, MAT::columns()>([&lhs, &rhs, &out](std::size_t i) {
-            out[i] = dot(lhs, rhs[i]);
+            out[i] = GLSL::dot(lhs, rhs[i]);
         });
         return out;
     }
@@ -1076,7 +1080,8 @@ namespace GLSL {
                         Numerics::diff_of_products(b03, b08, b04, b07) +
                         b02 * b09 + b05 * b06);
             }
-        } else {
+        }
+        else {
             if constexpr (N == 2) {
                 return (mat(0, 0) * mat(1, 1) - mat(0, 1) * mat(1, 0));
             }
@@ -1094,7 +1099,7 @@ namespace GLSL {
                 const VEC& z(mat[2]);
                 const VEC& w(mat[3]);
 
-                
+
                 const T b00{ x.x * y.y - x.y * y.x };
                 const T b01{ x.x * y.z - x.z * y.x };
                 const T b02{ x.x * y.w - x.w * y.x };
@@ -1165,11 +1170,11 @@ namespace GLSL {
         if constexpr (N == 2) {
             const VEC x(mat[0]);
             const VEC y(mat[1]);
-            const T det{ x.x * y.y - x.y * y.x };
+            const T det{ Numerics::diff_of_products(x.x, y.y, x.y, y.x) };
             assert(!Numerics::areEquals(det, T{}));
 
-            return MAT( y.y / det, -x.y / det,
-                       -y.x / det,  x.x / det);
+            return MAT(y.y / det, -x.y / det,
+                      -y.x / det, x.x / det);
         }
         else if constexpr (N == 3) {
             const VEC x(mat[0]);
@@ -1186,16 +1191,16 @@ namespace GLSL {
             const T a21{ z.y };
             const T a22{ z.z };
 
-            const T b01{  a22 * a11 - a12 * a21 };
-            const T b11{ -a22 * a10 + a12 * a20 };
-            const T b21{  a21 * a10 - a11 * a20 };
+            const T b01{ Numerics::diff_of_products(a22, a11, a12, a21) };
+            const T b11{ Numerics::diff_of_products(a12, a20, a22, a10) };
+            const T b21{ Numerics::diff_of_products(a21, a10, a11, a20) };
 
             const T det{ a00 * b01 + a01 * b11 + a02 * b21 };
             assert(!Numerics::areEquals(det, T{}));
 
-            return MAT(b01 / det, (-a22 * a01 + a02 * a21) / det, ( a12 * a01 - a02 * a11) / det,
-                       b11 / det, ( a22 * a00 - a02 * a20) / det, (-a12 * a00 + a02 * a10) / det,
-                       b21 / det, (-a21 * a00 + a01 * a20) / det, ( a11 * a00 - a01 * a10) / det);
+            return MAT(b01 / det, Numerics::diff_of_products(a02, a21, a22, a01) / det, Numerics::diff_of_products(a12, a01, a02, a11) / det,
+                       b11 / det, Numerics::diff_of_products(a22, a00, a02, a20) / det, Numerics::diff_of_products(a02, a10, a12, a00) / det,
+                       b21 / det, Numerics::diff_of_products(a01, a20, a21, a00) / det, Numerics::diff_of_products(a11, a00, a01, a10) / det);
         }
         else if constexpr (N == 4) {
             const VEC x(mat[0]);
@@ -1220,38 +1225,40 @@ namespace GLSL {
             const T a32{ w.z };
             const T a33{ w.w };
 
-            const T b00{ a00 * a11 - a01 * a10 };
-            const T b01{ a00 * a12 - a02 * a10 };
-            const T b02{ a00 * a13 - a03 * a10 };
-            const T b03{ a01 * a12 - a02 * a11 };
-            const T b04{ a01 * a13 - a03 * a11 };
-            const T b05{ a02 * a13 - a03 * a12 };
-            const T b06{ a20 * a31 - a21 * a30 };
-            const T b07{ a20 * a32 - a22 * a30 };
-            const T b08{ a20 * a33 - a23 * a30 };
-            const T b09{ a21 * a32 - a22 * a31 };
-            const T b10{ a21 * a33 - a23 * a31 };
-            const T b11{ a22 * a33 - a23 * a32 };
+            const T b00{ Numerics::diff_of_products(a00, a11, a01, a10) };
+            const T b01{ Numerics::diff_of_products(a00, a12, a02, a10) };
+            const T b02{ Numerics::diff_of_products(a00, a13, a03, a10) };
+            const T b03{ Numerics::diff_of_products(a01, a12, a02, a11) };
+            const T b04{ Numerics::diff_of_products(a01, a13, a03, a11) };
+            const T b05{ Numerics::diff_of_products(a02, a13, a03, a12) };
+            const T b06{ Numerics::diff_of_products(a20, a31, a21, a30) };
+            const T b07{ Numerics::diff_of_products(a20, a32, a22, a30) };
+            const T b08{ Numerics::diff_of_products(a20, a33, a23, a30) };
+            const T b09{ Numerics::diff_of_products(a21, a32, a22, a31) };
+            const T b10{ Numerics::diff_of_products(a21, a33, a23, a31) };
+            const T b11{ Numerics::diff_of_products(a22, a33, a23, a32) };
 
-            const T det{ b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06 };
+            const T det{ Numerics::diff_of_products(b00, b11, b01, b10) +
+                         Numerics::diff_of_products(b03, b08, b04, b07) +
+                         b02 * b09 + b05 * b06 };
             assert(!Numerics::areEquals(det, T{}));
 
-            return MAT((a11 * b11 - a12 * b10 + a13 * b09) / det,
-                       (a02 * b10 - a01 * b11 - a03 * b09) / det,
-                       (a31 * b05 - a32 * b04 + a33 * b03) / det,
-                       (a22 * b04 - a21 * b05 - a23 * b03) / det,
-                       (a12 * b08 - a10 * b11 - a13 * b07) / det,
-                       (a00 * b11 - a02 * b08 + a03 * b07) / det,
-                       (a32 * b02 - a30 * b05 - a33 * b01) / det,
-                       (a20 * b05 - a22 * b02 + a23 * b01) / det,
-                       (a10 * b10 - a11 * b08 + a13 * b06) / det,
-                       (a01 * b08 - a00 * b10 - a03 * b06) / det,
-                       (a30 * b04 - a31 * b02 + a33 * b00) / det,
-                       (a21 * b02 - a20 * b04 - a23 * b00) / det,
-                       (a11 * b07 - a10 * b09 - a12 * b06) / det,
-                       (a00 * b09 - a01 * b07 + a02 * b06) / det,
-                       (a31 * b01 - a30 * b03 - a32 * b00) / det,
-                       (a20 * b03 - a21 * b01 + a22 * b00) / det);
+            return MAT(std::fma( a13, b09, Numerics::diff_of_products(a11, b11, a12, b10)) / det,
+                       std::fma(-a03, b09, Numerics::diff_of_products(a02, b10, a01, b11)) / det,
+                       std::fma( a33, b03, Numerics::diff_of_products(a31, b05, a32, b04)) / det,
+                       std::fma(-a23, b03, Numerics::diff_of_products(a22, b04, a21, b05)) / det,
+                       std::fma(-a13, b07, Numerics::diff_of_products(a12, b08, a10, b11)) / det,
+                       std::fma( a03, b07, Numerics::diff_of_products(a00, b11, a02, b08)) / det,
+                       std::fma(-a33, b01, Numerics::diff_of_products(a32, b02, a30, b05)) / det,
+                       std::fma( a23, b01, Numerics::diff_of_products(a20, b05, a22, b02)) / det,
+                       std::fma( a13, b06, Numerics::diff_of_products(a10, b10, a11, b08)) / det,
+                       std::fma(-a03, b06, Numerics::diff_of_products(a01, b08, a00, b10)) / det,
+                       std::fma( a33, b00, Numerics::diff_of_products(a30, b04, a31, b02)) / det,
+                       std::fma(-a23, b00, Numerics::diff_of_products(a21, b02, a20, b04)) / det,
+                       std::fma(-a12, b06, Numerics::diff_of_products(a11, b07, a10, b09)) / det,
+                       std::fma( a02, b06, Numerics::diff_of_products(a00, b09, a01, b07)) / det,
+                       std::fma(-a32, b00, Numerics::diff_of_products(a31, b01, a30, b03)) / det,
+                       std::fma( a22, b00, Numerics::diff_of_products(a20, b03, a21, b01)) / det);
         }
     }
 
@@ -1264,7 +1271,7 @@ namespace GLSL {
     constexpr auto frobenius_norm(const MAT& mat) noexcept {
         typename MAT::value_type frob{};
         Utilities::static_for<0, 1, MAT::columns()>([&mat, &frob](std::size_t i) {
-            frob += dot(mat[i]);
+            frob += GLSL::dot(mat[i]);
         });
 
         [[assume(frob >= T{})]];
@@ -1322,139 +1329,139 @@ namespace GLSL {
     *
     * @param {arithmetic, in} swizzled element underlying type
     * @param {size_t,     in} swizzled element length, i.e. - VectorBase<..,N>
-    * @param {Indexes..., in} elements to swizzle, given as indices's in array
+    * @param {Indexes..., in} elements to swizzle, given as indices in array
     *                         their length should be equal to the underlying VectorBase, i.e. sizeof...(Indexes) = N
     **/
     template<typename T, std::size_t N, std::size_t... Indexes>
         requires(std::is_arithmetic_v<T> && (N > 0) && (N == sizeof...(Indexes)))
     class Swizzle final {
         // internals
-        private:
-            AlignedStorage(T) std::array<T, N> data{};
+    private:
+        AlignedStorage(T) std::array<T, N> data{};
 
         // API
-        public:
-            //
-            // constructors, assignments and casting
-            //
+    public:
+        //
+        // constructors, assignments and casting
+        //
 
-            // underlying type and amount of elements
-            using value_type = T;
-            static constexpr std::integral_constant<std::size_t, N> length = {};
+        // underlying type and amount of elements
+        using value_type = T;
+        static constexpr std::integral_constant<std::size_t, N> length = {};
 
-            // default constructors
-            constexpr Swizzle() noexcept = default;
+        // default constructors
+        constexpr Swizzle() noexcept = default;
 
-            // construct from a single value
-            explicit constexpr Swizzle(const T value) noexcept {
-                Utilities::static_for<0, 1, N>([this, value](std::size_t i) {
-                    data[i] = value;
+        // construct from a single value
+        explicit constexpr Swizzle(const T value) noexcept {
+            Utilities::static_for<0, 1, N>([this, value](std::size_t i) {
+                data[i] = value;
                 });
-            }
+        }
 
-            // construct from a moveable array
-            explicit constexpr Swizzle(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
+        // construct from a moveable array
+        explicit constexpr Swizzle(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
 
-            // construct from a parameter pack
-            template<typename...TS>
-                requires(std::is_same_v<T, TS> && ...)
-            explicit constexpr Swizzle(TS&&... values) noexcept : data{ FWD(values)... } {}
+        // construct from a parameter pack
+        template<typename...TS>
+            requires(std::is_same_v<T, TS> && ...)
+        explicit constexpr Swizzle(TS&&... values) noexcept : data{ FWD(values)... } {}
 
-            // assign a moveable array
-            constexpr Swizzle& operator=(std::array<T, length>&& _data) noexcept {
-                data = Utilities::exchange(_data, std::array<T, length>{});
-                return *this;
-            };
+        // assign a moveable array
+        constexpr Swizzle& operator=(std::array<T, length>&& _data) noexcept {
+            data = Utilities::exchange(_data, std::array<T, length>{});
+            return *this;
+        };
 
-            // copy semantics
-            template<std::size_t... OtherIndexes>
-                requires(N == sizeof...(OtherIndexes))
-            explicit(false) Swizzle(const Swizzle<T, N, OtherIndexes...>& other) {
-                static_assert(Variadic::lowerThan<N>(Indexes...));
-                static_assert(Variadic::lowerThan<N>(OtherIndexes...));
-                constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
-                constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
+        // copy semantics
+        template<std::size_t... OtherIndexes>
+            requires(N == sizeof...(OtherIndexes))
+        explicit(false) Swizzle(const Swizzle<T, N, OtherIndexes...>& other) {
+            static_assert(Variadic::lowerThan<N>(Indexes...));
+            static_assert(Variadic::lowerThan<N>(OtherIndexes...));
+            constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
+            constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
 
-                Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
-                    data[indexesLhs[i]] = other[indexesRhs[i]];
+            Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
+                data[indexesLhs[i]] = other[indexesRhs[i]];
                 });
-            }
-            template<std::size_t... OtherIndexes>
-                requires(N == sizeof...(OtherIndexes))
-            Swizzle& operator=(const Swizzle<T, N, OtherIndexes...>& other) {
-                static_assert(Variadic::lowerThan<N>(Indexes...));
-                static_assert(Variadic::lowerThan<N>(OtherIndexes...));
-                constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
-                constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
+        }
+        template<std::size_t... OtherIndexes>
+            requires(N == sizeof...(OtherIndexes))
+        Swizzle& operator=(const Swizzle<T, N, OtherIndexes...>& other) {
+            static_assert(Variadic::lowerThan<N>(Indexes...));
+            static_assert(Variadic::lowerThan<N>(OtherIndexes...));
+            constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
+            constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
 
-                Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
-                    data[indexesLhs[i]] = other[indexesRhs[i]];
-                });
-
-                return *this;
-            }
-
-            // move semantics
-            template<std::size_t... OtherIndexes>
-                requires(N == sizeof...(OtherIndexes))
-            explicit(false) Swizzle(Swizzle<T, N, OtherIndexes...>&& other) noexcept {
-                static_assert(Variadic::lowerThan<N>(Indexes...));
-                static_assert(Variadic::lowerThan<N>(OtherIndexes...));
-                constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
-                constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
-
-                Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
-                    data[indexesLhs[i]] = MOV(other[indexesRhs[i]]);
-                });
-            }
-            template<std::size_t... OtherIndexes>
-                requires(N == sizeof...(OtherIndexes))
-            Swizzle& operator=(Swizzle<T, N, OtherIndexes...>&& other) noexcept {
-                static_assert(Variadic::lowerThan<N>(Indexes...));
-                static_assert(Variadic::lowerThan<N>(OtherIndexes...));
-                constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
-                constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
-
-                Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
-                    data[indexesLhs[i]] = MOV(other[indexesRhs[i]]);
+            Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
+                data[indexesLhs[i]] = other[indexesRhs[i]];
                 });
 
-                return *this;
-            }
+            return *this;
+        }
 
-            // cast as IFixedVector
-            template<IFixedVector VEC> explicit(false) operator VEC() const {
-                constexpr std::array<std::size_t, N> indexes{ Indexes... };
+        // move semantics
+        template<std::size_t... OtherIndexes>
+            requires(N == sizeof...(OtherIndexes))
+        explicit(false) Swizzle(Swizzle<T, N, OtherIndexes...>&& other) noexcept {
+            static_assert(Variadic::lowerThan<N>(Indexes...));
+            static_assert(Variadic::lowerThan<N>(OtherIndexes...));
+            constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
+            constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
 
-                VEC pack;
-                Utilities::static_for<0, 1, N>([this, &pack, indexes](std::size_t i) {
-                    assert(indexes[i] < N);
-                    pack[i] = data.at(indexes[i]);
+            Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
+                data[indexesLhs[i]] = MOV(other[indexesRhs[i]]);
+                });
+        }
+        template<std::size_t... OtherIndexes>
+            requires(N == sizeof...(OtherIndexes))
+        Swizzle& operator=(Swizzle<T, N, OtherIndexes...>&& other) noexcept {
+            static_assert(Variadic::lowerThan<N>(Indexes...));
+            static_assert(Variadic::lowerThan<N>(OtherIndexes...));
+            constexpr std::array<std::size_t, N> indexesLhs{ Indexes... };
+            constexpr std::array<std::size_t, N> indexesRhs{ OtherIndexes... };
+
+            Utilities::static_for<0, 1, N>([this, &other, indexesLhs, indexesRhs](std::size_t i) {
+                data[indexesLhs[i]] = MOV(other[indexesRhs[i]]);
                 });
 
-                return pack;
-            }
+            return *this;
+        }
 
-            // overload stream '<<' operator
-            friend std::ostream& operator<<(std::ostream& xio_stream, const Swizzle& swizzle) {
-                xio_stream << "{";
-                Utilities::static_for<0, 1, N - 1>([&xio_stream, &swizzle](std::size_t i) {
-                    xio_stream << swizzle[i] << ", ";
+        // cast as IFixedVector
+        template<IFixedVector VEC> explicit(false) operator VEC() const {
+            constexpr std::array<std::size_t, N> indexes{ Indexes... };
+
+            VEC pack;
+            Utilities::static_for<0, 1, N>([this, &pack, indexes](std::size_t i) {
+                assert(indexes[i] < N);
+                pack[i] = data.at(indexes[i]);
                 });
-                xio_stream << swizzle[N-1] << "}";
 
-                return xio_stream;
-            }
+            return pack;
+        }
 
-            //
-            // operator overloading
-            //
+        // overload stream '<<' operator
+        friend std::ostream& operator<<(std::ostream& xio_stream, const Swizzle& swizzle) {
+            xio_stream << "{";
+            Utilities::static_for<0, 1, N - 1>([&xio_stream, &swizzle](std::size_t i) {
+                xio_stream << swizzle[i] << ", ";
+                });
+            xio_stream << swizzle[N - 1] << "}";
 
-            // overload operator '[]' for element access
-            constexpr T  operator[](const std::size_t i) const { constexpr std::array<std::size_t, N> indexes{ Indexes... }; assert(i < N); assert(indexes[i] < N); return data.at(indexes[i]); }
-            constexpr T& operator[](const std::size_t i) { constexpr std::array<std::size_t, N> indexes{ Indexes... }; assert(i < N); assert(indexes[i] < N); return data[indexes[i]]; }
+            return xio_stream;
+        }
 
-            // compound arithmetic operator overload
+        //
+        // operator overloading
+        //
+
+        // overload operator '[]' for element access
+        constexpr T  operator[](const std::size_t i) const { constexpr std::array<std::size_t, N> indexes{ Indexes... }; assert(i < N); assert(indexes[i] < N); return data.at(indexes[i]); }
+        constexpr T& operator[](const std::size_t i) { constexpr std::array<std::size_t, N> indexes{ Indexes... }; assert(i < N); assert(indexes[i] < N); return data[indexes[i]]; }
+
+        // compound arithmetic operator overload
 #define M_OPERATOR(OP)                                                                                    \
             template<std::size_t... OtherIndexes>                                                         \
                 requires(N == sizeof...(OtherIndexes))                                                    \
@@ -1499,7 +1506,7 @@ namespace GLSL {
 
 #undef M_OPERATOR
 
-            // arithmetic operator overload
+        // arithmetic operator overload
 #define M_OPERATOR(OP, AOP)                                                                                            \
             template<std::size_t... OtherIndexes>                                                                      \
             friend Swizzle operator OP (Swizzle<T, N, Indexes...> lhs, const Swizzle<T, N, OtherIndexes...>& rhs) {    \
@@ -1525,9 +1532,9 @@ namespace GLSL {
 
 #undef M_OPERATOR     
 
-            bool operator==(const Swizzle& other) const {
-                return (data == other.data);
-            }
+        bool operator==(const Swizzle& other) const {
+            return (data == other.data);
+        }
     };
 
     // swizzle traits and concept
@@ -1543,7 +1550,7 @@ namespace GLSL {
 
         Utilities::static_for<0, 1, SWZ::length()>([&s](std::size_t i) {
             s[i] *= static_cast<typename SWZ::value_type>(-1.0);
-        });
+            });
 
         return s;
     }
@@ -2134,7 +2141,7 @@ namespace GLSL {
         constexpr explicit VectorN(const T value) noexcept {
             Utilities::static_for<0, 1, length>([this, value](std::size_t i) {
                 data[i] = value;
-            });
+                });
         }
 
         // construct from a moveable array
@@ -2163,9 +2170,9 @@ namespace GLSL {
             xio_stream << "{";
             Utilities::static_for<0, 1, length - 1>([&xio_stream, &vec](std::size_t i) {
                 xio_stream << vec[i] << ",";
-             });
-             xio_stream  << vec[length - 1] << "}";
-             return xio_stream;
+                });
+            xio_stream << vec[length - 1] << "}";
+            return xio_stream;
         }
 
         // overload operator '[]'
@@ -2207,9 +2214,11 @@ namespace GLSL {
 
         // construct from a single value
         constexpr explicit Matrix2(const T value) noexcept : data{ value, value,
-                                                                   value, value } {}
+                                                                   value, value } {
+        }
         constexpr explicit Matrix2(const T v0, const T v1, const T v2, const T v3) noexcept : data{ v0, v1,
-                                                                                                    v2, v3} {}
+                                                                                                    v2, v3 } {
+        }
 
         // construct from a moveable array
         constexpr explicit Matrix2(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -2237,8 +2246,8 @@ namespace GLSL {
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix2& mat) {
-            return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ",\n" <<
-                                        mat(0,1) << ", " << mat(1, 1) << "}";
+            return xio_stream << '{' << mat(0, 0) << ", " << mat(1, 0) << ",\n" <<
+                mat(0, 1) << ", " << mat(1, 1) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2247,7 +2256,7 @@ namespace GLSL {
 
         // overload operator '()' to return value
         constexpr value_type  operator()(const std::size_t col, const std::size_t row) const { assert(col < columns); assert(row < columns); return data[col * columns + row]; }
-        constexpr value_type& operator()(const std::size_t col, const std::size_t row)       { assert(col < columns); assert(row < columns); return data[col * columns + row]; }
+        constexpr value_type& operator()(const std::size_t col, const std::size_t row) { assert(col < columns); assert(row < columns); return data[col * columns + row]; }
 
         // return vectors by subscript
         constexpr vector_type x() const { return c[0]; }
@@ -2272,7 +2281,7 @@ namespace GLSL {
     **/
     template<typename T>
         requires(std::is_arithmetic_v<T>)
-     struct Matrix3 final {
+    struct Matrix3 final {
         static constexpr std::integral_constant<std::size_t, 9> length = {};
         static constexpr std::integral_constant<std::size_t, 3> columns = {};
         using value_type = T;
@@ -2281,12 +2290,14 @@ namespace GLSL {
         // construct from a single value
         constexpr explicit Matrix3(const T value) noexcept : data{ value, value, value,
                                                                    value, value, value,
-                                                                   value, value, value } {}
+                                                                   value, value, value } {
+        }
         constexpr explicit Matrix3(const T v0, const T v1, const T v2,
-                                   const T v3, const T v4, const T v5,
-                                   const T v6, const T v7, const T v8) noexcept : data{ v0, v1, v2,
-                                                                                        v3, v4, v5,
-                                                                                        v6, v7, v8 } {}
+            const T v3, const T v4, const T v5,
+            const T v6, const T v7, const T v8) noexcept : data{ v0, v1, v2,
+                                                                 v3, v4, v5,
+                                                                 v6, v7, v8 } {
+        }
 
         // construct from a moveable array
         constexpr explicit Matrix3(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -2315,8 +2326,8 @@ namespace GLSL {
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix3& mat) {
             return xio_stream << '{' << mat(0, 0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ",\n" <<
-                                        mat(0, 1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ",\n" <<
-                                        mat(0, 2) << ", " << mat(1, 2) << ", " << mat(2, 2) << "}";
+                mat(0, 1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ",\n" <<
+                mat(0, 2) << ", " << mat(1, 2) << ", " << mat(2, 2) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2361,14 +2372,16 @@ namespace GLSL {
         constexpr explicit Matrix4(const T value) noexcept : data{ value, value, value, value,
                                                                    value, value, value, value,
                                                                    value, value, value, value,
-                                                                   value, value, value, value } {}
-        constexpr explicit Matrix4(const T v0,  const T v1,  const T v2,  const T v3,
-                                   const T v4,  const T v5,  const T v6,  const T v7,
-                                   const T v8,  const T v9,  const T v10, const T v11,
-                                   const T v12, const T v13, const T v14, const T v15) noexcept : data{ v0,  v1,  v2,  v3,
-                                                                                                        v4,  v5,  v6,  v7,
-                                                                                                        v8,  v9,  v10, v11,
-                                                                                                        v12, v13, v14, v15} {}
+                                                                   value, value, value, value } {
+        }
+        constexpr explicit Matrix4(const T v0, const T v1, const T v2, const T v3,
+            const T v4, const T v5, const T v6, const T v7,
+            const T v8, const T v9, const T v10, const T v11,
+            const T v12, const T v13, const T v14, const T v15) noexcept : data{ v0,  v1,  v2,  v3,
+                                                                                 v4,  v5,  v6,  v7,
+                                                                                 v8,  v9,  v10, v11,
+                                                                                 v12, v13, v14, v15 } {
+        }
 
         // construct from a moveable array
         constexpr explicit Matrix4(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
@@ -2393,14 +2406,15 @@ namespace GLSL {
 
         // construct from two Vector2 (two columns)
         constexpr Matrix4(const vector_type& c0, const vector_type& c1,
-                          const vector_type& c2, const vector_type& c3) : c{ c0, c1, c2, c3 } {}
+            const vector_type& c2, const vector_type& c3) : c{ c0, c1, c2, c3 } {
+        }
 
         // overload stream '<<' operator
         friend std::ostream& operator<<(std::ostream& xio_stream, const Matrix4& mat) {
-            return xio_stream << '{' << mat(0,0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ", " << mat(3, 0) << ",\n" <<
-                                        mat(0,1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ", " << mat(3, 1) << ",\n" <<
-                                        mat(0,2) << ", " << mat(1, 2) << ", " << mat(2, 2) << ", " << mat(3, 2) << ",\n" <<
-                                        mat(0,3) << ", " << mat(1, 3) << ", " << mat(2, 3) << ", " << mat(3, 3) << "}";
+            return xio_stream << '{' << mat(0, 0) << ", " << mat(1, 0) << ", " << mat(2, 0) << ", " << mat(3, 0) << ",\n" <<
+                mat(0, 1) << ", " << mat(1, 1) << ", " << mat(2, 1) << ", " << mat(3, 1) << ",\n" <<
+                mat(0, 2) << ", " << mat(1, 2) << ", " << mat(2, 2) << ", " << mat(3, 2) << ",\n" <<
+                mat(0, 3) << ", " << mat(1, 3) << ", " << mat(2, 3) << ", " << mat(3, 3) << "}";
         }
 
         // overload operator '[]' to return column
@@ -2438,7 +2452,7 @@ namespace GLSL {
     template<typename T, std::size_t N>
         requires(std::is_arithmetic_v<T> && (N > 0))
     struct MatrixN final {
-        static constexpr std::integral_constant<std::size_t, N * N> length = {};
+        static constexpr std::integral_constant<std::size_t, N* N> length = {};
         static constexpr std::integral_constant<std::size_t, N> columns = {};
         using value_type = T;
         using vector_type = VectorN<T, N>;
@@ -2447,9 +2461,9 @@ namespace GLSL {
         constexpr explicit MatrixN(const T value) noexcept {
             Utilities::static_for<0, 1, length>([this, value](std::size_t i) {
                 data[i] = value;
-            });
+                });
         }
-        
+
         // construct from a moveable array
         constexpr explicit MatrixN(std::array<T, length>&& _data) noexcept : data(Utilities::exchange(_data, std::array<T, length>{})) {}
 
@@ -2484,9 +2498,9 @@ namespace GLSL {
             xio_stream << "{";
             Utilities::static_for<0, 1, columns - 1>([&xio_stream, &mat](std::size_t i) {
                 xio_stream << mat[i] << ",\n";
-             });
-             xio_stream  << mat[columns - 1] << "}";
-             return xio_stream;
+                });
+            xio_stream << mat[columns - 1] << "}";
+            return xio_stream;
         }
 
         // overload operator '[]' to return column
@@ -2509,7 +2523,7 @@ namespace GLSL {
     template<typename T, std::size_t N> struct is_matrixN<MatrixN<T, N>> : public std::true_type {};
     template<typename T> constexpr bool is_matrixn_v = is_matrixN<T>::value;
     template<typename T> concept IMatrixN = is_matrixn_v<T>;
-    
+
     // trait to check if a type is a GLSL matrix
     template<typename>   struct is_matrix : public std::false_type {};
     template<typename T> struct is_matrix<Matrix2<T>> : public std::true_type {};
@@ -2543,21 +2557,21 @@ using dmat4 = GLSL::Matrix4<double>;
 // given vector type, return appropriate matrix type in struct type called 'matrix_type'
 template<GLSL::IFixedVector VEC> struct appropriate_matrix_type {
     using matrix_type = std::conditional_t<VEC::length() == 2, GLSL::Matrix2<typename VEC::value_type>,
-                        std::conditional_t<VEC::length() == 3, GLSL::Matrix3<typename VEC::value_type>,
-                        std::conditional_t<VEC::length() == 4, GLSL::Matrix4<typename VEC::value_type>,
-                                                               GLSL::MatrixN<typename VEC::value_type, VEC::length()>>>>;
+        std::conditional_t<VEC::length() == 3, GLSL::Matrix3<typename VEC::value_type>,
+        std::conditional_t<VEC::length() == 4, GLSL::Matrix4<typename VEC::value_type>,
+        GLSL::MatrixN<typename VEC::value_type, VEC::length()>>>>;
 };
 
 // given vector type, return appropriate vector type with one more dimension
 template<GLSL::IFixedVector VEC> struct next_vector_type {
     static_assert(VEC::length() < 4);
     using vector_type = std::conditional_t<VEC::length() == 2, GLSL::Vector3<typename VEC::value_type>,
-                                                               GLSL::Vector4<typename VEC::value_type>>;
+        GLSL::Vector4<typename VEC::value_type>>;
 };
 
 // given vector type, return appropriate vector type with one less dimension
 template<GLSL::IFixedVector VEC> struct prev_vector_type {
     static_assert(VEC::length() > 2 && VEC::length() < 5);
     using vector_type = std::conditional_t<VEC::length() == 4, GLSL::Vector3<typename VEC::value_type>,
-                                                               GLSL::Vector2<typename VEC::value_type>>;
+        GLSL::Vector2<typename VEC::value_type>>;
 };
