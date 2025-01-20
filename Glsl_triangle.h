@@ -135,14 +135,16 @@ namespace Triangle {
         const VEC local_b{ b - p };
         const VEC local_c{ c - p };
 
-        const auto u = GLSL::cross(local_b, local_c);
-        const auto v = GLSL::cross(local_c, local_a);
-        const auto w = GLSL::cross(local_a, local_b);
-
         if constexpr (N == 2) {
+            const T u{ GLSL::cross(local_b, local_c) };
+            const T v{ GLSL::cross(local_c, local_a) };
+            const T w{ GLSL::cross(local_a, local_b) };
             return (u * v >= T{}) && (u * w >= T{});
         }
         else {
+            const VEC u{ GLSL::cross(local_b, local_c) };
+            const VEC v{ GLSL::cross(local_c, local_a) };
+            const VEC w{ GLSL::cross(local_a, local_b) };
             return (GLSL::dot(u, v) >= T{}) && (GLSL::dot(u, w) >= T{});
         }
     }
@@ -374,7 +376,7 @@ namespace Triangle {
         o1 = Triangle::point_triangle_orientation(_t2a, _t1a, _t1c, _t2b);
         o2 = Triangle::point_triangle_orientation(_t2a, _t1a, _t1b, _t2c);
 
-        // triangle normals
+        // triangle normal
         const VEC n1{ GLSL::normalize(GLSL::cross(_t1c - _t1b, _t1a - _t1b)) };
         const VEC n2{ GLSL::normalize(GLSL::cross(_t2c - _t2b, _t2a - _t2b)) };
 
