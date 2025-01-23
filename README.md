@@ -103,7 +103,7 @@ Extra::make_random(axis8);
 Extra::make_companion(companion8, axis8);
 const mat8 reflect8{ Extra::Householder(GLSL::normalize(axis8)) };
 assert(Decomposition::determinant_using_qr(reflect8) == 1); // calculate its determinant using QR decomposition
-const GLSL::MatrixN<double, 8> general_matrix_multiplicatoin{ Extra::gemm(1.0f, companion8, reflect8, 2.0f, axis8) };
+mat8 general_matrix_multiplicatoin = Extra::gemm(1.0f, companion8, reflect8, 2.0f, axis8);
 ```
 
 
