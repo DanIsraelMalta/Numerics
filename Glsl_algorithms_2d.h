@@ -28,7 +28,6 @@
 #include "Glsl_extra.h"
 #include "Glsl_point_distance.h"
 #include "Glsl_axis_aligned_bounding_box.h"
-#include "DiamondAngle.h"
 #include "Glsl_triangle.h"
 #include "Hash.h"
 #include <limits>
@@ -51,18 +50,51 @@ namespace Algorithms2D {
     namespace Internals {
 
         /**
-        * \brief check if a point is counter clock wise relative to two other points
+        * \brief check if point 'a' is left to point 'b' in relation to point 'x', i.e. - 
+        *        "is point 'a' less than point 'b' relative to 'c'".
         * @param {IFixedVector, in}  point a
         * @param {IFixedVector, in}  point b
         * @param {IFixedVector, in}  point c
-        * @param {value_type,   out} negative value means 'c' is counter clockwise to segment a-b,
-        *                            positive value means 'c' is clockwise to segment a-b,
-        *                            zero means 'c' is colinear with segment a-b,
+        * @param {bool,         out} true if 'a' is left to 'b' relative to 'c', false otherwise
         **/
-        template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
-        constexpr T are_points_ordered_counter_clock_wise(const VEC& a, const VEC& b, const VEC& c) noexcept {
-            return Numerics::diff_of_products(b.y - a.y, c.x - b.x, b.x - a.x, c.y - b.y);
+        constexpr bool is_point_less(const VEC& a, const VEC& b, const VEC& c) noexcept {
+            using T = typename VEC::value_type;
+
+            if (a.x - c.x >= T{} &&
+                b.x - c.x < T{}) {
+                return true;
+            }
+            if (a.x - c.x < T{} &&
+                b.x - c.x >= T{}) {
+                return false;
+            }
+            if (Numerics::areEquals(a.x - c.x, T{}) &&
+                Numerics::areEquals(b.x - c.x, T{})) {
+                if (a.y - c.y >= T{} ||
+                    b.y - c.y >= T{}) {
+                    return a.y > b.y;
+                }
+                return b.y > a.y;
+            }
+
+            // compute the cross product of vectors (c -> a) x (c -> b)
+            const VEC ac{ a - c };
+            const VEC bc{ b - c };
+            const T det{ Numerics::diff_of_products(ac.x, bc.y, bc.x, ac.y) };
+            if (det < T{}) {
+                return true;
+            }
+            if (det > T{}) {
+                return false;
+            }
+
+            // points 'a' and 'b' are on the same line from the 'c'
+            // check which point is closer to the 'c'
+            const T d1{ GLSL::dot(ac) };
+            const T d2{ GLSL::dot(bc) };
+            return d1 > d2;
         }
 
         /**
@@ -151,7 +183,7 @@ namespace Algorithms2D {
             using T = typename VEC::value_type;
             const VEC s1{ a1 - a0 };
             const VEC s2{ b1 - b0 };
-            const T denom{ s1.x * s2.y - s2.x * s1.y};
+            const T denom{ Numerics::diff_of_products(s1.x, s2.y, s2.x, s1.y) };
             if (Numerics::areEquals(denom, T{})) {
                 return false;
             }
@@ -174,21 +206,24 @@ namespace Algorithms2D {
         **/
         template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
-        constexpr VEC get_segments_intersection_point(const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) noexcept {
+        constexpr VEC get_segments_intersection_point(const VEC& p0, const VEC& p1, const VEC& q0, const VEC& q1) noexcept {
             using T = typename VEC::value_type;
 
             VEC p;
-            const VEC s1{ a1 - a0 };
-            const VEC s2{ b1 - b0 };
-            const T denom{ s1.x * s2.y - s2.x * s1.y };
+            const T a1{ p1.y - p0.y };
+            const T b1{ p0.x - p1.x };
+            const T c1{ a1 * p0.x + b1 * p0.y };
+            const T a2{ q1.y - q0.y };
+            const T b2{ q0.x - q1.x };
+            const T c2{ a2 * q0.x + b2 * q0.y };
+            const T denom{ Numerics::diff_of_products(a1, b2, a2, b1) };
             if (Numerics::areEquals(denom, T{})) {
                 return p;
             }
 
             [[assume(denom != T{})]];
-            const VEC ab{ a0 - b0 };
-            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
-            p = a0 + s * GLSL::normalize(s1);
+            p.x = Numerics::diff_of_products(b2, c1, b1, c2) / denom;
+            p.y = Numerics::diff_of_products(a1, c2, a2, c1) / denom;
             return p;
         }
 
@@ -384,7 +419,7 @@ namespace Algorithms2D {
             // housekeeping
             std::size_t index{};
             T distSquared{ std::numeric_limits<T>::max() };
-            const auto update_point = [&point, &index, &distSquared](const VEC& a, const VEC& b, const std::size_t i) {
+            const auto update_point = [&point, &index, &distSquared](const VEC& a, const VEC& b, const std::size_t i) -> void {
                 const T dist2{ PointDistance::squared_udf_to_segment(point, a, b) };
                 const bool closest{ dist2 < distSquared };
                 distSquared = closest ? dist2 : distSquared;
@@ -471,6 +506,14 @@ namespace Algorithms2D {
     };
 
     /**
+    * winding order
+    **/
+    enum class Winding : bool {
+        ClockWise        = false,
+        CounterClockWise = true
+    };
+
+    /**
     * \brief calculate the convex hull of collection of 2D points (using Graham scan algorithm).
     *       
     * @param {forward_iterator,     in}  iterator to point cloud collection first point
@@ -481,6 +524,11 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
     constexpr std::vector<VEC> get_convex_hull(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
+
+        // lambda to check if points are ordered clockwise
+        const auto are_points_ordered_counter_clock_wise = [](const VEC & a, const VEC & b, const VEC & c) -> T {
+            return Numerics::diff_of_products(b.y - a.y, c.x - b.x, b.x - a.x, c.y - b.y);
+        };
 
         // housekeeping
         std::vector<VEC> points(first, last);
@@ -502,14 +550,14 @@ namespace Algorithms2D {
         auto it = points.begin();
         std::vector<VEC> hull{ {*it++, *it++, *it++} };
         while (it != points.end()) {
-            while (Internals::are_points_ordered_counter_clock_wise(*(hull.rbegin() + 1), *(hull.rbegin()), *it) >= T{}) {
+            while (are_points_ordered_counter_clock_wise(*(hull.rbegin() + 1), *(hull.rbegin()), *it) >= T{}) {
                 hull.pop_back();
             }
             hull.push_back(*it++);
         }
 
         // check that polygon is simple
-        assert(Algorithms2D::Internals::is_simple(hull.begin(), hull.end()));
+        assert(Internals::is_simple(hull.begin(), hull.end()));
         return hull;
     }
 
@@ -903,67 +951,49 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given collection of points, return true if they are ordered in clock wise manner
-    * @param {forward_iterator, in}  iterator to cloud points collection first point
-    * @param {forward_iterator, in}  iterator to cloud points collection last point
-    * @param {IFixedVector,     in}  points geometric center
-    * @param {bool,             out} true if point are ordered in clock wise manner, false otherwise
+    * \brief given a polygon, determine its winding
+    * @param {forward_iterator, in}  iterator to polygon first point
+    * @param {forward_iterator, in}  iterator to polygon last point
+    * @param {Winding,          out} polygon winding
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr bool are_points_ordererd_clock_wise(const InputIt first, const InputIt last, const VEC& centroid) {
+    constexpr Algorithms2D::Winding get_polygon_winding(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
         using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
-        bool clockwise{ false };
-        for (InputIt f{ first }, s{ first + 1 }; s != last; ++f, ++s) {
-            const VEC a{ *f };
-            const VEC b{ *s };
-            const T angle_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
-            const T angle_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
-
-            clockwise = angle_a > angle_b ? !clockwise : clockwise;
+        T sum{};
+        VEC v1{ *(last - 1) };
+        for (InputIt it{ first }; it != last; ++it) {
+            const VEC v2{ *it };
+            sum += (v2.x - v1.x) * (v2.y + v1.y);
+            v1 = v2;
         }
 
-        return clockwise;
+        return sum > T{} ? Algorithms2D::Winding::CounterClockWise : Algorithms2D::Winding::ClockWise;
     }
 
     /**
-    * \brief given collection of points, sort them in clock wise manner
-    * @param {forward_iterator,     in}  iterator to point collection first point
-    * @param {forward_iterator,     in}  iterator to point collection last point
-    * @param {IFixedVector,         in}  points geometric center
-    * @param {vector<IFixedVector>, out} points sorted in clock wise manner
+    * \brief given collection of points, sort them (in place) in specified winding order around their centroid
+    * @param {Winding}               required winding
+    * @param {forward_iterator,  in} iterator to point collection first point
+    * @param {forward_iterator,  in} iterator to point collection last point
+    * @param {IFixedVector,      in} points geometric center
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+    template<Algorithms2D::Winding WINDING, std::forward_iterator InputIt,
+             class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-    constexpr void sort_points_clock_wise(InputIt first, InputIt last, const VEC centroid) {
-        using T = typename VEC::value_type;
-
-        Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
-            const T angel_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
-            const T angel_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
-            return angel_a > angel_b;
-        });
-    }
-
-    /**
-    * \brief given collection of points, sort them in counter clock wise manner
-    * @param {forward_iterator,     in}  iterator to point collection first point
-    * @param {forward_iterator,     in}  iterator to point collection last point
-    * @param {IFixedVector,         in}  points geometric center
-    * @param {vector<IFixedVector>, out} points sorted in clock wise manner
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-    constexpr void sort_points_counter_clock_wise(InputIt first, InputIt last, const VEC centroid) {
-        using T = typename VEC::value_type;
-
-        Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
-            const T angel_a{ DiamondAngle::atan2(a.y - centroid.y, a.x - centroid.x) };
-            const T angel_b{ DiamondAngle::atan2(b.y - centroid.y, b.x - centroid.x) };
-            return angel_a <= angel_b;
-        });
+    constexpr void sort_points(InputIt first, InputIt last, const VEC centroid) {
+        if constexpr (WINDING == Algorithms2D::Winding::ClockWise) {
+            Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+                return !Algorithms2D::Internals::is_point_less(a, b, centroid);
+            });
+        }
+        else if constexpr (WINDING == Algorithms2D::Winding::CounterClockWise) {
+            Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+                return Algorithms2D::Internals::is_point_less(a, b, centroid);
+            });
+        }
     }
 
     /**
@@ -1230,40 +1260,34 @@ namespace Algorithms2D {
     * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
     * @param {forward_iterator, in}  iterator to first point in polygon
     * @param {forward_iterator, in}  iterator to last point in polygon
-    * @param {bool,             in}  true if points are ordered counter clock wise, false otherwise (default is true)
     * @param {bool,             out} true if polygon is convex, false otherwise
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr bool is_polygon_convex(const InputIt first, const InputIt last, const bool is_sorted_cw = true) {
+    constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
 
         // check that polygon is simple
         assert(Algorithms2D::Internals::is_simple(first, last));
 
-        if (std::distance(first, last) < 4) {
-            return true;
-        }
-
         // lambda to calculate triangle signed area
-        const auto calculate_area = [&is_sorted_cw](const VEC a, const VEC b, const VEC c) -> bool {
+        const auto calculate_area = [](const VEC a, const VEC b, const VEC c) -> T {
             const VEC v1{ b - a };
             const VEC v2{ c - a };
-            const T det{ Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x) };
-            return is_sorted_cw ? det > T{} : det < T{};
+            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
         };
 
         // check polygon last two triangles
-        const bool area0{ calculate_area(*(last - 1), *first, *(first + 1)) };
-        bool area1{ calculate_area(*(last - 2), *(last - 1), *first) };
-        if (area0 != area1) {
+        const T area0{ Numerics::sign(calculate_area(*(last - 1), *first, *(first + 1))) };
+        T area1{ Numerics::sign(calculate_area(*(last - 2), *(last - 1), *first)) };
+        if (area0 * area1 < T{}) {
             return false;
         }
 
         // check rest ot triangles
         for (InputIt i0{ first }, i1{ first + 1 }, i2{ first + 2 }; i2 != last; ++i0, ++i1, ++i2) {
-            area1 = calculate_area(*i0, *i1, *i2);
-            if (area0 != area1) {
+            area1 = Numerics::sign(calculate_area(*i0, *i1, *i2));
+            if (area0 * area1 < T{}) {
                 return false;
             }
         }
@@ -1351,8 +1375,7 @@ namespace Algorithms2D {
         assert(Algorithms2D::Internals::is_simple(first, last));
 
         // housekeeping
-        const VEC centroid{ Algorithms2D::Internals::get_centroid(first, last) };
-        const bool is_clockwise{ Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid) };
+        const bool is_clockwise{ Algorithms2D::get_polygon_winding(first, last) == Algorithms2D::Winding::ClockWise };
 
         // lambda to check if vertex 'b' in a list of three consecutive vertices (a->b->c) is reflex vertex
         const auto is_reflex_vertex = [&is_clockwise](const InputIt a, const InputIt b, const InputIt c) -> bool {
@@ -1677,189 +1700,6 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given a closed simple polygon (as a collection of points) ordered in counter clock wise manner decompose it to convex parts.
-    *        remarks:
-    *        > function does not partition polygon to the minimal amount of convex components.
-    *        > function is recursive (recursion depth is the amount of reflex vertices in polygon).
-    * @param {forward_iterator,                 in}  iterator to first point in polygon (ordered in counter clock wise manner)
-    * @param {forward_iterator,                 in}  iterator to last point in polygon (ordered in counter clock wise manner)
-    * @param {vector<vector<forward_iterator>>, out} vector of vector of vertices of polygon convex parts. every vector is a convex part.
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr std::vector<std::vector<VEC>> partition_polygon_to_convex_parts(const InputIt first, const InputIt last) {
-        using T = typename VEC::value_type;
-
-        // check that polygon is simple and ordered counter clock wise
-        assert(Algorithms2D::Internals::is_simple(first, last));
-        assert(!Algorithms2D::are_points_ordererd_clock_wise(first, last, Algorithms2D::Internals::get_centroid(first, last)));
-
-        // housekeeping
-        std::vector<std::vector<VEC>> polygons;
-        std::vector<VEC> poly;
-        poly.reserve(static_cast<std::size_t>(std::distance(first, last)));
-        for (InputIt i{ first }; i != last; ++i) {
-            poly.emplace_back(*i);
-        }
-
-        // lambda to wrap index to region [0, size]
-        const auto wrap = [](const std::size_t i, const std::size_t size) -> std::size_t {
-            return i < 0 ? i % size + size : i % size;
-        };
-
-        // lambda to calculate triangle signed area
-        const auto area = [](const VEC& a, const VEC& b, const VEC& c) -> T {
-            const VEC v1{ b - a };
-            const VEC v2{ c - a };
-            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
-        };
-
-        // lambda to perform one iteration of recursive decomposition
-        const auto decompose = [&polygons, &wrap, &area](const std::vector<VEC>& poly, auto&& recursive_driver) -> void {
-            const std::size_t len{ poly.size() };
-            for (std::size_t i{}; i < len; ++i) {
-                const VEC prev_i{ poly[wrap(i - 1, len)] };
-                const VEC curr_i{ poly[wrap(i,     len)] };
-                const VEC next_i{ poly[wrap(i + 1, len)] };
-
-                // if not reflex, continue
-                if (area(prev_i, curr_i, next_i) >= T{}) {
-                    continue;
-                }
-
-                VEC upperInt;
-                VEC lowerInt;
-                T upperDist{ std::numeric_limits<T>::max() };
-                T lowerDist{ std::numeric_limits<T>::max() };
-                std::size_t upperIndex{};
-                std::size_t lowerIndex{};
-                std::size_t closestIndex{};
-                std::vector<VEC> lowerPoly;
-                std::vector<VEC> upperPoly;
-
-                for (std::size_t j{}; j < len; ++j) {
-                    const VEC prev_j{ poly[wrap(j - 1, len)] };
-                    const VEC curr_j{ poly[wrap(j,     len)] };
-                    const VEC next_j{ poly[wrap(j + 1, len)] };
-
-                    //
-                    // if line intersects with an edge
-                    //
-
-                    if ((area(prev_i, curr_i, curr_j) > T{}) && (area(prev_i, curr_i, prev_j) <= T{})) {
-                        // if 'p' is inside the polygon, check if its the closest intersection
-                        if (const VEC p{ Internals::get_segments_intersection_point(prev_i, curr_i, curr_j, prev_j) };
-                            area(next_i, curr_i, p) < T{}) {
-                            if (const T d{ GLSL::dot(curr_i, p) }; d < lowerDist) {
-                                lowerDist = d;
-                                lowerInt = p;
-                                lowerIndex = j;
-                            }
-                        }
-                    }
-
-                    if ((area(next_i, curr_i, next_j) > T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
-                        if (const VEC p{ Internals::get_segments_intersection_point(next_i, curr_i, curr_j, next_j) };
-                            area(prev_i, curr_i, p) > T{}) {
-                            if (const T d{ GLSL::dot(curr_i, p) }; d < upperDist) {
-                                upperDist = d;
-                                upperInt = p;
-                                upperIndex = j;
-                            }
-                        }
-                    }
-                }
-
-                //
-                // if there are no vertices to connect to, choose a point in the middle
-                //
-
-                if (lowerIndex == (upperIndex + 1) % len) {
-                    const VEC p{ (lowerInt + upperInt) / static_cast<T>(2.0) };
-
-                    if (i < upperIndex) {
-                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + upperIndex + 1);
-                        lowerPoly.push_back(p);
-                        upperPoly.push_back(p);
-                        if (lowerIndex != 0) {
-                            upperPoly.insert(upperPoly.end(), poly.begin() + lowerIndex, poly.end());
-                        }
-                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
-                    }
-                    else {
-                        if (i != 0) {
-                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
-                        }
-                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + upperIndex + 1);
-                        lowerPoly.push_back(p);
-                        upperPoly.push_back(p);
-                        upperPoly.insert(upperPoly.end(), poly.begin() + lowerIndex, poly.begin() + i + 1);
-                    }
-                } // connect to the closest point within the triangle
-                else {
-                    if (lowerIndex > upperIndex) {
-                        upperIndex += len;
-                    }
-
-                    T closestDist{ std::numeric_limits<T>::max() };
-                    for (std::size_t j{ lowerIndex }; j <= upperIndex; ++j) {
-                        const VEC curr_j{ poly[wrap(j, len)] };
-                    
-                        if ((area(prev_i, curr_i, curr_j) >= T{}) && (area(next_i, curr_i, curr_j) <= T{})) {
-                            if (const T d{ GLSL::dot(curr_i, curr_j) }; d < closestDist) {
-                                closestDist = d;
-                                closestIndex = j % len;
-                            }
-                        }
-                    }
-                    
-                    if (i < closestIndex) {
-                        lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.begin() + closestIndex + 1);
-                        if (closestIndex != 0) {
-                            upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.end());
-                        }
-                        upperPoly.insert(upperPoly.end(), poly.begin(), poly.begin() + i + 1);
-                    }
-                    else {
-                        if (i != 0) {
-                            lowerPoly.insert(lowerPoly.end(), poly.begin() + i, poly.end());
-                        }
-                        lowerPoly.insert(lowerPoly.end(), poly.begin(), poly.begin() + closestIndex + 1);
-                        upperPoly.insert(upperPoly.end(), poly.begin() + closestIndex, poly.begin() + i + 1);
-                    }
-                }
-
-                // partition smallest polygon first and then the largest one
-                if (lowerPoly.size() < upperPoly.size()) {
-                    recursive_driver(lowerPoly, recursive_driver);
-                    recursive_driver(upperPoly, recursive_driver);
-                }
-                else {
-                    recursive_driver(upperPoly, recursive_driver);
-                    recursive_driver(lowerPoly, recursive_driver);
-                }
-
-                return;
-            }
-
-            polygons.push_back(poly);
-        };
-
-        // recursively partition polygon to convex parts
-        decompose(poly, decompose);
-
-#ifdef _DEBUG
-        // check that input polygon is sorted in counter clock wise manner
-        for (const std::vector<VEC>& part : polygons) {
-            assert(Algorithms2D::is_polygon_convex(part.begin(), part.end(), false));
-        }
-#endif
-
-        // output
-        return polygons;
-    }
-
-    /**
     * \brief given a point cloud, return the closest pair.
     *        complexity is O(n) due to using Rabin & Lipton method.
     *
@@ -1999,10 +1839,7 @@ namespace Algorithms2D {
     constexpr std::vector<VEC> clip_polygon_by_infinte_line(const It first, const It last, const VEC& origin, const VEC& normal) {
         using T = typename VEC::value_type;
 
-#ifdef _DEBUG
-        const vec2 centroid{ Algorithms2D::Internals::get_centroid(first, last) };
-        assert(!Algorithms2D::are_points_ordererd_clock_wise(first, last, centroid));
-#endif
+        assert(Algorithms2D::get_polygon_winding(first, last) == Algorithms2D::Winding::CounterClockWise);
 
         // housekeeping
         std::vector<VEC> clipped;
