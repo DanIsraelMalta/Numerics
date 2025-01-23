@@ -7,7 +7,7 @@ Features include:
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of 2D/3D geometry.
 + A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations.
 
-**Sample #1 - syntax:**
+**Sample #1 - glsl syntax (swizzling, column major, etc.):**
 ```cpp
 // GLSL swizzle syntax
 vec2 a(1.0f, -1.0f);
@@ -48,17 +48,25 @@ assert(GLSL::equal(GLSL::transpose(b), mat2i(4, 7, 5, 8)));
 vec3 axis = GLSL::normalize(vec3(1.0f, 2.0f, 3.0f));
 float angle{ std::numbers::pi_v<float> / 4.0f };
 
-// create rotation matrix and quaternion from axis anf angle
+// create rotation matrix and quaternion from axis and angle
 const auto Rx = Transformation::rotation_matrix_from_axis_angle(vec3(1.0f, 0.0f, 0.0f), std::numbers::pi_v<float> / 2.0f);
 vec4 quat = Transformation::create_quaternion_from_axis_angle(axis, angle);
+
+// Euler angles from quaternion
+vec3 euler = Transformation::create_euler_angles_from_quaternion(quat);
 
 // create rotation matrix from quaternion and extract rotation axis
 mat3 mat = Transformation::create_rotation_matrix_from_quaternion(quat);
 auto axis_from_mat = Transformation::get_axis_angle_from_rotation_matrix(mat);
+
+// decompose quaternion to twist and swing components
+const auto decomp = Extra::decompose_quaternion_twist_swing(quat);
+const vec4 qa = Extra::multiply_quaternions(decomp.Qz, decomp.Qr);
+// quat = Extra::multiply_quaternions(decomp.Qz, decomp.Qr);
 ```
 
 
-**Sample #3 - decompositions and linear equation system solvers:**
+**Sample #3 - linear algebra (decompositions, linear equation system solvers, BLAS, etc.):**
 ```cpp
 mat3 a(12.0, -51.0, 4.0,
        6.0,  167.0, -68.0,
@@ -81,6 +89,17 @@ auto qr = Decomposition::QR(a);
 vec3 b(70.0, 12.0, 50.0);
 auto solution = Solvers::SolveQR(a, b);
 // solution = {3.71118, 1.74416, -3.75020}
+
+// create an 8x8 householder and companion matrices and calculate their generalized matrix-matrix multiplication (GEMM)
+using mat8 = typename GLSL::MatrixN<double, 8>;
+using vec8 = typename GLSL::VectorN<double, 8>;
+vec8 axis8;
+Extra::make_random(axis8);
+mat8 companion8;
+Extra::make_companion(companion8, axis8);
+const mat8 reflect8{ Extra::Householder(GLSL::normalize(axis8)) };
+assert(Decomposition::determinant_using_qr(reflect8) == 1); // calculate its determinant using QR decomposition
+const GLSL::MatrixN<double, 8> general_matrix_multiplicatoin{ Extra::gemm(1.0f, companion8, reflect8, 2.0f, axis8) };
 ```
 
 
@@ -89,7 +108,7 @@ auto solution = Solvers::SolveQR(a, b);
 // define polygon and calculate its SDF in various locations
 std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 float distance = PointDistance::sdf_to_polygon<5>(polygon, vec2(2.0f, 0.0f)); // distance = 1
-distance = PointDistance::sdf_to_polygon<5>(polygon, vec2(3.0f, 1.5f)); // distance = -0.5
+distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)); // distance = -0.5
 
 // calculate ellipse SDF
 distance = PointDistance::sdf_to_ellipse(vec2(5.0f, 0.0f), vec2(1.0f, 2.0f)); // distance = -4
@@ -122,7 +141,7 @@ auto aabb = AxisLignedBoundingBox::ellipse_aabb(center, axis1, axis2);
 ```
 
 
-**Sample #5 - calculate polygon convex hull, bounding box, bounding circle, inscribed circle, triangulate it and export as svg file:**
+**Sample #5 - calculate polygon convex hull, bounding box, bounding circle, inscribed circle, triangulate it (earcut) and export as svg file:**
 ```cpp
 // define polygon
 std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
@@ -180,43 +199,7 @@ polygon_test_svg.to_file("polygon_test_svg.svg");
 ![image](https://github.com/user-attachments/assets/73341e16-edf4-4de3-8dde-0f299bb74e03)
 
 
-**Sample #6 - reorient polygon, partition it to convex components and export as svg file:**
-```cpp
-// define polygon
-std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
-                            vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
-                            vec2(1.0f, 2.0f)} };
-
-// scale plygon
-for (auto& p : polygon) {
-   p = 50.0f * p + 50.0f;
-}
-
-// make polygon counter clockwise
-std::vector<vec2> polygon_ccw(polygon);
-if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
-    Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
-    Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
-    assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
-}
-
-// partition polygon
-const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
-
-// export partitioned polygon to SVG
-svg<vec2> polygon_partition(650, 650);
-polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
-std::array<std::string, 7> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate", "grey"} };
-for (std::size_t i{}; i < partition.size(); ++i) {
-    std::vector<vec2> part{ partition[i] };
-    polygon_partition.add_polygon(part.begin(), part.end(), colors[i % partition.size()], "black", 1.0f);
-}
-polygon_partition.to_file("polygon_partition_svg.svg");
-```
-![polygon_partition_svg](https://github.com/user-attachments/assets/30e2d31d-f13b-48f9-ab73-c1e8e41f3715)
-
-
-**Sample #7 - generate points, cluster them using density estimator, triangulate them (delaunay) and export as svg file:**
+**Sample #6 - generate points, cluster/partition/segment them using density estimator (DBSCAN), triangulate them (delaunay) and export as svg file:**
 ```cpp
 std::vector<vec2> points;
 float sign{ 0.5f };
@@ -282,7 +265,8 @@ dbscan_delaunay_test.to_file("dbscan_delaunay_test.svg");
 ```
 ![image](https://github.com/user-attachments/assets/483a4bc6-36fa-47f0-add8-8fa58ebf548f)
 
-**Sample #8 - perform closest neighbour queries with different spatial structures and in different shapes, calculate hull diameter, find closest pair and export as svg file:**
+
+**Sample #7 - perform closest neighbour queries with different spatial structures (kd-tree, spatial grid) and in different shapes (circle, rectangle), calculate neighbours hull diameter, find closest pair among all points and export as svg file:**
 ```cpp
 // place points on a plane
 std::vector<vec2> points;
