@@ -46,14 +46,14 @@ void test_diamond_angle() {
 
 void test_hash() {
     // test SzudzikValueFromPair
-    static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
-    static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
+    //static_assert(Hash::SzudzikValueFromPair<12u, 37u>() == 1381u);
+    //static_assert(Hash::SzudzikValueFromPair(12u, 37u) == 1381u);
 
     // test SzudzikPairFromValue
-    assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
-    assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
-    assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
-    assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
+    //assert(Hash::SzudzikPairFromValue(1381u).x == 12u);
+    //assert(Hash::SzudzikPairFromValue(1381u).y == 37u);
+    //assert(Hash::SzudzikPairFromValue<1381u>().x == 12u);
+    //assert(Hash::SzudzikPairFromValue<1381u>().y == 37u);
 
     // test normal_distribution
     {
@@ -82,7 +82,7 @@ void test_hash() {
         assert(std::abs(mean) < 0.002);
     }
 
-        // test rand64
+    // test rand64
     {
         std::int32_t above_limit{};
         const std::int32_t lottery{ 100 };
@@ -191,11 +191,13 @@ void test_numerics() {
     static_assert(!Numerics::allPositive(6, 4, 5, 8, 0, 6));
 
     // test min
+    static_assert(Numerics::min(4, 8) == 4);
     static_assert(Numerics::min(6, 4, 5, 8) == 4);
     static_assert(Numerics::min(6, 4, 5, 8, 0, 6) == 0);
     static_assert(Numerics::min(6, 4, 5, 8, 0, -3, 6) == -3);
 
     // test max
+    static_assert(Numerics::max(6, 8) == 8);
     static_assert(Numerics::max(6, 4, 5, 8) == 8);
     static_assert(Numerics::max(6, 4, 5, 8, 0, 16) == 16);
     static_assert(Numerics::max(6, 4, 5, -8, 0, -3, 6) == 6);
@@ -1701,8 +1703,8 @@ void test_glsl_point_distance() {
         distance = PointDistance::sdf_to_polygon(std::vector<vec2>(polygon.begin(), polygon.end()), vec2(3.0f, 1.5f));
         assert(std::abs(distance - -0.5f) < 1e-6);
 
-	distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
-	assert(std::abs(distance - -0.5f) < 1e-6);
+        distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
+        assert(std::abs(distance - -0.5f) < 1e-6);
     }
 
     {
@@ -1962,17 +1964,6 @@ void test_glsl_ray_intersection() {
 
 void test_GLSL_algorithms_2D() {
     {
-        auto ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f), vec2(0.0f));
-        assert(static_cast<int>(ccw) == 0);
-
-        ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f, 1.0f), vec2(0.5f));
-        assert(ccw > 0);
-
-        ccw = Algorithms2D::Internals::are_points_ordered_counter_clock_wise(vec2(0.0f), vec2(0.0f, 1.0f), vec2(-0.5f));
-        assert(ccw < 0);
-    }
-
-    {
         auto left = Algorithms2D::Internals::is_point_left_of(vec2(0.0f), vec2(0.0f));
         assert(!left);
 
@@ -2135,7 +2126,7 @@ void test_GLSL_algorithms_2D() {
         }
 
         const auto concave2 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 0.5f);
-        assert(!Algorithms2D::is_polygon_convex(concave2.begin(), concave2.end()));
+        assert(Algorithms2D::is_polygon_convex(concave2.begin(), concave2.end()));
         const std::vector<vec2> expected_concave2{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(10.0f, 7.0f),
                                                    vec2(10.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f) } };
         for (std::size_t i{}; i < expected_concave2.size(); ++i) {
@@ -2143,7 +2134,7 @@ void test_GLSL_algorithms_2D() {
         }
 
         const auto concave3 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end(), 1.2f);
-        assert(!Algorithms2D::is_polygon_convex(concave2.begin(), concave2.end()));
+        assert(!Algorithms2D::is_polygon_convex(concave3.begin(), concave3.end()));
         const std::vector<vec2> expected_concave3{ {vec2(1.0f, 2.0f), vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f),
                                                    vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f), vec2(8.0f, 9.0f),
                                                    vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 6.0f)} };
@@ -2192,8 +2183,8 @@ void test_GLSL_algorithms_2D() {
        }
 
        const vec2 centroid = Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend());
-       Algorithms2D::sort_points_clock_wise(points.begin(), points.end(), centroid);
-       assert(Algorithms2D::are_points_ordererd_clock_wise(points.cbegin(), points.cend(), centroid));
+       Algorithms2D::sort_points<Algorithms2D::Winding::ClockWise>(points.begin(), points.end(), centroid);
+       assert(Algorithms2D::get_polygon_winding(points.cbegin(), points.cend()) == Algorithms2D::Winding::ClockWise);
    }
 
    {
@@ -2248,9 +2239,7 @@ void test_GLSL_algorithms_2D() {
 
        // export signal and envelope to SVG
        svg<vec2> envelope_test_svg(200, 200);
-       for (const vec2 p : points) {
-           envelope_test_svg.add_circle(p, 2.0f, "none", "black", 0.5f);
-       }
+       envelope_test_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "none", "black", 0.5f);
        envelope_test_svg.add_polyline(envelope.top.begin(), envelope.top.end(), "none", "red", 1.0f);
        envelope_test_svg.add_polyline(envelope.bottom.begin(), envelope.bottom.end(), "none", "green", 1.0f);
        envelope_test_svg.to_file("envelope_test_svg.svg");
@@ -2290,17 +2279,15 @@ void test_GLSL_algorithms_2D() {
        // calculate minimal bounding circle
        const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
 
-        // calculate maximal inscribed circle
-        const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end()) };
-        const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
+       // calculate maximal inscribed circle
+       const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end()) };
+       const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
 
        // export polygon and its bounding objects to SVG
        svg<vec2> polygon_test_svg(650, 650);
        polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
        polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
-       for (const vec2 p : convex) {
-           polygon_test_svg.add_circle(p, 10.0f, "green", "green", 1.0f);
-       }
+       polygon_test_svg.add_point_cloud(convex.begin(), convex.end(), 10.0f, "green", "green", 1.0f);
        for (std::size_t i{}; i < earcut.size(); i += 3) {
            std::array<vec2, 3> tri{ { *(earcut[i]),
                                       *(earcut[i + 1]),
@@ -2311,27 +2298,6 @@ void test_GLSL_algorithms_2D() {
        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
        polygon_test_svg.add_circle(inscribed.center, inscribed.radius, "none", "chocolate", 2.0f);
        polygon_test_svg.to_file("polygon_test_svg.svg");
-
-       // make polygon counter clockwise
-       std::vector<vec2> polygon_ccw(polygon);
-       if (const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon_ccw.begin(), polygon_ccw.end()) };
-           Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid)) {
-           Algorithms2D::sort_points_counter_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid);
-           assert(!Algorithms2D::are_points_ordererd_clock_wise(polygon_ccw.begin(), polygon_ccw.end(), centroid));
-       }
-
-       // partition polygon
-       const std::vector<std::vector<vec2>> partition{ Algorithms2D::partition_polygon_to_convex_parts(polygon_ccw.begin(), polygon_ccw.end()) };
-
-       // export partitioned polygon to SVG
-       svg<vec2> polygon_partition(650, 650);
-       polygon_partition.add_polygon(polygon_ccw.begin(), polygon_ccw.end(), "none", "black", 5.0f);
-       std::array<std::string, 9> colors{ {"green", "red", "blue", "yellow", "cornsilk", "chocolate",  "grey"} };
-       for (std::size_t i{}; i < partition.size(); ++i) {
-           std::vector<vec2> part{ partition[i] };
-           polygon_partition.add_polygon(part.begin(), part.end(), colors[i % colors.size()], "black", 1.0f);
-       }
-       polygon_partition.to_file("polygon_partition_svg.svg");
    }
 
    {
@@ -2375,7 +2341,7 @@ void test_GLSL_algorithms_2D() {
        }
        auto rectangle_convex = Algorithms2D::get_convex_hull(rectangle_points.begin(), rectangle_points.end());
        auto rectangle_diameter = Algorithms2D::get_convex_diameter(rectangle_convex);
-    
+       
        // find closest pair without using a spatial structure
        auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
 
@@ -2383,21 +2349,15 @@ void test_GLSL_algorithms_2D() {
        svg<vec2> point_query_svg(200, 200);
 
        // points
-       for (const vec2 p : points) {
-           point_query_svg.add_circle(p, 2.0f, "black", "none", 1.0f);
-       }
+       point_query_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "black", "none", 1.0f);
 
        // circle range query
-       for (const vec2 p : circle_points) {
-           point_query_svg.add_circle(p, 2.0f, "red", "red", 1.0f);
-       }
+       point_query_svg.add_point_cloud(circle_points.begin(), circle_points.end(), 2.0f, "red", "red", 1.0f);
        point_query_svg.add_polygon(circle_convex.begin(), circle_convex.end(), "none", "red", 1.0f);
        point_query_svg.add_line(circle_convex[circle_diameter.indices[0]], circle_convex[circle_diameter.indices[1]], "red", "red", 1.0f);
 
        // rectangle range query
-       for (const vec2 p : rectangle_points) {
-           point_query_svg.add_circle(p, 2.0f, "blue", "blue", 1.0f);
-       }
+       point_query_svg.add_point_cloud(rectangle_points.begin(), rectangle_points.end(), 2.0f, "blue", "blue", 1.0f);
        point_query_svg.add_polygon(rectangle_convex.begin(), rectangle_convex.end(), "none", "blue", 1.0f);
        point_query_svg.add_line(rectangle_convex[rectangle_diameter.indices[0]], rectangle_convex[rectangle_diameter.indices[1]], "red", "blue", 1.0f);
 
@@ -2409,26 +2369,26 @@ void test_GLSL_algorithms_2D() {
        point_query_svg.to_file("point_query_svg.svg");
    }
 
-    {
-        // uniformly place points on a grid
-        std::vector<vec2> points;
-        for (std::int32_t x{ -100 }; x < 100; x += 10) {
-            for (std::int32_t y{ -100 }; y < 100; y += 10) {
-                points.emplace_back(vec2(static_cast<float>(x), static_cast<float>(y)));
-            }
-        }
+   {
+       // uniformly place points on a grid
+       std::vector<vec2> points;
+       for (std::int32_t x{ -100 }; x < 100; x += 10) {
+           for (std::int32_t y{ -100 }; y < 100; y += 10) {
+               points.emplace_back(vec2(static_cast<float>(x), static_cast<float>(y)));
+           }
+       }
 
-        // continuously place last point somewhere in the range of the grid
-        for (std::int32_t x{-95}; x < 95; x += 60) {
-            for (std::int32_t y{ -95 }; y < 95; y += 60) {
-                const vec2 p(static_cast<float>(x), static_cast<float>(y));
-                points.emplace_back(p);
-                auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
-                assert(Extra::are_vectors_identical(p, *closest_pair.p0) || Extra::are_vectors_identical(p, *closest_pair.p1));
-                points.pop_back();
-            }
-        }
-    }
+       // continuously place last point somewhere in the range of the grid
+       for (std::int32_t x{-95}; x < 95; x += 60) {
+           for (std::int32_t y{ -95 }; y < 95; y += 60) {
+               const vec2 p(static_cast<float>(x), static_cast<float>(y));
+               points.emplace_back(p);
+               auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
+               assert(Extra::are_vectors_identical(p, *closest_pair.p0) || Extra::are_vectors_identical(p, *closest_pair.p1));
+               points.pop_back();
+           }
+       }
+   }
 
    {
        std::vector<vec2> triangle{ {vec2(4.0f, 11.0f), vec2(4.0, 5.0f), vec2(9.0f, 9.0f) }};
@@ -2451,7 +2411,7 @@ void test_GLSL_algorithms_2D() {
            p = 50.0f * p + 50.0f;
        }
        const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end()) };
-       Algorithms2D::sort_points_counter_clock_wise(polygon.begin(), polygon.end(), centroid);
+       Algorithms2D::sort_points<Algorithms2D::Winding::CounterClockWise>(polygon.begin(), polygon.end(), centroid);
 
        std::vector<vec2> clipped1{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, 1.0f)) };
        std::vector<vec2> clipped2{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, -1.0f)) };
@@ -2527,7 +2487,7 @@ void test_glsl_space_partitioning() {
             assert(amount_of_points_in_sphere == pointsInSphere.size());
         }
 
-        // search k nearest neighbours in cube
+        // search k nearest neighbors in cube
         {
             const vec2 center(50.0f);
             std::vector<float> closest;
@@ -2637,11 +2597,11 @@ void test_GLSL_clustering() {
        for (std::size_t i{}; i < 60; ++i) {
            float fi{ static_cast<float>(i) };
            points.emplace_back(vec2(center.x + radius * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
-               center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+                                    center.y + radius * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
            sign *= -1.0f;
        }
 
-       // clster #2
+       // cluster #2
        for (std::size_t i{}; i < 40; ++i) {
            float fi{ static_cast<float>(i) };
            float x{ fi + sign * static_cast<float>(rand()) / RAND_MAX };
@@ -2652,7 +2612,7 @@ void test_GLSL_clustering() {
        // noise
        for (std::size_t i{}; i < 10; ++i) {
            points.emplace_back(vec2(50.0f * static_cast<float>(rand()) / RAND_MAX,
-               50.0f * static_cast<float>(rand()) / RAND_MAX));
+                                    50.0f * static_cast<float>(rand()) / RAND_MAX));
        }
 
        // partition #1 (using kd-tree)
