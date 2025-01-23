@@ -76,6 +76,10 @@ mat3 a(12.0, -51.0, 4.0,
 auto eigs = Decomposition::eigenvalues(a);
 // eigs = {-34.196675001469160, 156.13668406196879, 16.059990939500377}
 
+// orthonormalize matrix
+mat3 orthjo_a = Extra::orthonormalize(a);
+assert(Extra::is_orthonormal_matrix(orthjo_a));
+
 // perform QR decomposition
 auto qr = Decomposition::QR(a);
 // qr.Q = (0.228375, -0.9790593, 0.076125,
