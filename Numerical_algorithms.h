@@ -34,11 +34,13 @@ namespace NumericalAlgorithms {
     /**
     * \brief exact floating point numerical accumulation of a given collection using Neumaier variant of Kahan and Babuska summation.
     *        Its like Kahan summation but also covers the case where next value to be added is larger than absolute value of running sum.
-    *        notice that on large vectors (10 million elements) tests show that this accumulation is 25% slower than std::accumulate and 220% slower than std::reduce.
+    *        notice that on large vectors (10 million elements) tests show that this accumulation is 25% slower than std::accumulate
+    *        and 220% slower than std::reduce.
+    * 
     * @param {forward_iterator, in}  iterator to first element to sum
     * @param {forward_iterator, in}  iterator to last element to sum
-    * @param {arithmetic,       in}  initial value
-    * @param {arithmetic,       out} sum of elements
+    * @param {floating point,   in}  initial value
+    * @param {floating point,   out} sum of elements
     **/
     template<std::forward_iterator InputIt, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(std::is_arithmetic_v<T>)
@@ -62,6 +64,36 @@ namespace NumericalAlgorithms {
     template<Concepts::Iterable COL>
     constexpr auto accumulate(const COL& collection) {
         return accumulate(collection.begin(), collection.end());
+    }
+
+    /**
+    * \brief return the floating point precise circular mean of a collection of angles in the range [0, 2*PI].
+    * 
+    * @param {forward_iterator, in}  iterator to first angle
+    * @param {forward_iterator, in}  iterator to last angle
+    * @param {floating,         out} circular mean [rad]
+    **/
+    template<std::forward_iterator InputIt, class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(std::is_arithmetic_v<T>)
+    constexpr T circular_mean(InputIt first, const InputIt last) {
+        // circular sine and cosine sums
+        T sin_sum{};
+        T cos_sum{};
+        std::size_t i{};
+        for (; first != last; ++first) {
+            sin_sum += std::sin(*first);
+            cos_sum += std::cos(*first);
+            ++i;
+        }
+        sin_sum /= static_cast<T>(i);
+        cos_sum /= static_cast<T>(i);
+
+        // output
+        return std::atan2(sin_sum, cos_sum);
+    }
+    template<Concepts::Iterable COL>
+    constexpr auto circular_mean(const COL& collection) {
+        return circular_mean(collection.begin(), collection.end());
     }
 
     /**
