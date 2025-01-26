@@ -260,6 +260,13 @@ void test_numerical_algorithms() {
     assert(static_cast<std::size_t>(stats.mean * 10) == 129);
     assert(static_cast<std::size_t>(stats.std * 100) == 7329);
 
+    // test circular_mean
+    {
+        constexpr float deg_to_rad{ std::numbers::pi_v<float> / 180.0f };
+        std::array<float, 3> angles{ {350.0f * deg_to_rad, 5.0f * deg_to_rad, 20.0f * deg_to_rad } };
+        const float mean{ NumericalAlgorithms::circular_mean(angles) };
+        assert(Numerics::areEquals(mean, angles[1]));
+    }
     // test convolution
     {
         const std::array<int, 3> u{ {1, 0, 1} };
