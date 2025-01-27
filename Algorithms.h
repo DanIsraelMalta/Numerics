@@ -272,6 +272,17 @@ namespace Algoithms {
     }
 
     /**
+    * \brief local implementation of std::binary_search
+    **/
+    template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
+             requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<Compare, T, T>)
+    bool binary_search(It first, It last, const T& value, Compare&& comp)
+    {
+        first = Algoithms::lower_bound(first, last, value, FWD(comp));
+        return (!(first == last) and !(comp(value, *first)));
+    }
+
+    /**
     * \brief local implementation of std::unique
     **/
     template<class It, class BinaryPredicate, class T = typename std::decay_t<decltype(*std::declval<It>())>>
