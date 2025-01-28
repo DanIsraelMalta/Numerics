@@ -26,7 +26,7 @@
 #include "Glsl.h"
 
 //
-// euclidean unsigned/signed distance of a point from a primitive.
+// Euclidean unsigned/signed distance of a point from a primitive.
 // see https://iquilezles.org/articles/distfunctions2d/ and https://iquilezles.org/articles/distfunctions/.
 //
 namespace PointDistance {
@@ -160,93 +160,42 @@ namespace PointDistance {
 
     /**
     * \brief return the signed distance of closed polygon
-    * @param {array<IFixedVector>, in}  polygon points
-    * @param {IFixedVector,        in}  point
-    * @param {value_type,          out} signed distance
-    **/
-    template<std::size_t N, GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
-    constexpr T sdf_to_polygon(const std::array<VEC, N>& v, const VEC& p) {
-        constexpr T one{ static_cast<T>(1) };
-        T d{ GLSL::dot(p - v[0]) };
-        T s{ one };
-
-        for (std::size_t i{}, j{ N - 1 }; i < N; j = i, i++) {
-            const VEC e{ v[j] - v[i] };
-            const VEC w{ p - v[i] };
-            const T dot{ GLSL::dot(e) };
-            assert(!Numerics::areEquals(dot, T{}));
-
-            const VEC b{ w - e * Numerics::clamp<T{}, one> (GLSL::dot(w, e) / dot) };
-            d = Numerics::min(d, GLSL::dot(b));
-            if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
-                s *= static_cast<T>(-1);
-            }
-        }
-
-        [[assume(d >= T{})]];
-        return (s * std::sqrt(d));
-    }
-
-    /**
-    * \brief return the signed distance of closed polygon
-    * @param {vector<IFixedVector>, in}  polygon points
-    * @param {IFixedVector,         in}  point
-    * @param {value_type,           out} signed distance
-    **/
-    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
-        requires(std::is_floating_point_v<T> && (VEC::length() == 2))
-    constexpr T sdf_to_polygon(const std::vector<VEC>& v, const VEC& p) {
-        constexpr T one{ static_cast<T>(1) };
-        T d{ GLSL::dot(p - v[0]) };
-        T s{ one };
-        const std::size_t N{ v.size() };
-        for (std::size_t i{}, j{ N - 1 }; i < N; j = i, i++) {
-            const VEC e{ v[j] - v[i] };
-            const VEC w{ p - v[i] };
-            const T dot{ GLSL::dot(e) };
-            assert(!Numerics::areEquals(dot, T{}));
-
-            const VEC b{ w - e * Numerics::clamp<T{}, one> (GLSL::dot(w, e) / dot) };
-            d = Numerics::min(d, GLSL::dot(b));
-            if (p.y >= v[i].y && p.y < v[j].y && e.x * w.y > e.y * w.x) {
-                s *= static_cast<T>(-1);
-            }
-        }
-
-        [[assume(d >= T{})]];
-        return (s * std::sqrt(d));
-    }
-
-    /**
-    * \brief return the signed distance of closed polygon
     * @param {forward_iterator, in}  first point in polygon
     * @param {forward_iterator, in}  last point in polygon
     * @param {IFixedVector,     in}  point
     * @param {value_type,       out} signed distance
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
-         class T = typename VEC::value_type>
-    requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-        constexpr T sdf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
-
+    template<std::forward_iterator InputIt,
+             class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr T sdf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
         constexpr T one{ static_cast<T>(1) };
+
+        // housekeeping
         T d{ GLSL::dot(p - *first) };
         T s{ one };
-        for (InputIt i{ first }, j{ last - 1 }; i != last; j = i, ++i) {
-            const VEC pi{ *i };
-            const VEC pj{ *j };
-            const VEC e{ pj - pi };
-            const VEC w{ p - pi };
+
+        // lambda to update distance ('d') and its sign ('s') according to new segment given by two points ('p0', 'p1')
+        const auto signed_distance_to_segment = [&p, &d, &s](const VEC& p0, const VEC& p1) {
+            const VEC e{ p0 - p1 };
+            const VEC w{ p - p1 };
             const T dot{ GLSL::dot(e) };
             assert(!Numerics::areEquals(dot, T{}));
 
-            const VEC b{ w - e * Numerics::clamp < T{}, one > (GLSL::dot(w, e) / dot) };
+            const VEC b{ w - e * Numerics::clamp<T{}, one>(GLSL::dot(w, e) / dot) };
             d = Numerics::min(d, GLSL::dot(b));
-            if (p.y >= pi.y && p.y < pj.y && e.x * w.y > e.y * w.x) {
+            if ((p.y >= p1.y) &&
+                (p.y < p0.y) &&
+                (Numerics::diff_of_products(e.x, w.y, e.y, w.x) > T{})) {
                 s *= static_cast<T>(-1);
             }
+        };
+
+        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
+            signed_distance_to_segment(*it, *nt);
         }
+        signed_distance_to_segment(*(last - 1), *first);
 
         [[assume(d >= T{})]];
         return (s * std::sqrt(d));
