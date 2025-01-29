@@ -512,6 +512,46 @@ namespace Algorithms2D {
         }
     };
 
+
+    /**
+    * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
+    * @param {forward_iterator, in}  iterator to first point in polygon
+    * @param {forward_iterator, in}  iterator to last point in polygon
+    * @param {bool,             out} true if polygon is convex, false otherwise
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
+        using T = typename VEC::value_type;
+
+        // check that polygon is simple
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
+        // lambda to calculate triangle signed area
+        const auto calculate_area = [](const VEC a, const VEC b, const VEC c) -> T {
+            const VEC v1{ b - a };
+            const VEC v2{ c - a };
+            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
+            };
+
+        // check polygon last two triangles
+        const T area0{ Numerics::sign(calculate_area(*(last - 1), *first, *(first + 1))) };
+        T area1{ Numerics::sign(calculate_area(*(last - 2), *(last - 1), *first)) };
+        if (area0 * area1 < T{}) {
+            return false;
+        }
+
+        // check rest ot triangles
+        for (InputIt i0{ first }, i1{ first + 1 }, i2{ first + 2 }; i2 != last; ++i0, ++i1, ++i2) {
+            area1 = Numerics::sign(calculate_area(*i0, *i1, *i2));
+            if (area0 * area1 < T{}) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
     * \brief calculate the convex hull of collection of 2D points (using Graham scan algorithm).
     *       
@@ -555,8 +595,8 @@ namespace Algorithms2D {
             hull.push_back(*it++);
         }
 
-        // check that polygon is simple
-        assert(Internals::is_simple(hull.begin(), hull.end()));
+        // output
+        assert(Algorithms2D::is_polygon_convex(hull.begin(), hull.end()));
         return hull;
     }
 
@@ -1263,45 +1303,6 @@ namespace Algorithms2D {
         }
 
         return isOrthogonal;
-    }
-    
-    /**
-    * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
-    * @param {forward_iterator, in}  iterator to first point in polygon
-    * @param {forward_iterator, in}  iterator to last point in polygon
-    * @param {bool,             out} true if polygon is convex, false otherwise
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr bool is_polygon_convex(const InputIt first, const InputIt last) {
-        using T = typename VEC::value_type;
-
-        // check that polygon is simple
-        assert(Algorithms2D::Internals::is_simple(first, last));
-
-        // lambda to calculate triangle signed area
-        const auto calculate_area = [](const VEC a, const VEC b, const VEC c) -> T {
-            const VEC v1{ b - a };
-            const VEC v2{ c - a };
-            return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
-        };
-
-        // check polygon last two triangles
-        const T area0{ Numerics::sign(calculate_area(*(last - 1), *first, *(first + 1))) };
-        T area1{ Numerics::sign(calculate_area(*(last - 2), *(last - 1), *first)) };
-        if (area0 * area1 < T{}) {
-            return false;
-        }
-
-        // check rest ot triangles
-        for (InputIt i0{ first }, i1{ first + 1 }, i2{ first + 2 }; i2 != last; ++i0, ++i1, ++i2) {
-            area1 = Numerics::sign(calculate_area(*i0, *i1, *i2));
-            if (area0 * area1 < T{}) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**
