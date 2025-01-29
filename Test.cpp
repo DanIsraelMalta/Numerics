@@ -1701,13 +1701,15 @@ void test_glsl_point_distance() {
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
-        float distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f));
-        assert(!Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)));
-        assert(std::abs(distance - 1.0f) < 1e-6);
+	float distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f));
+	assert(!Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)));
+	assert(std::abs(distance - 1.0f) < 1e-6);
+	assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)) - distance * distance) < 1e-6);
 
-        distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
-        assert(Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)));
-        assert(std::abs(distance - -0.5f) < 1e-6);
+	distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
+	assert(Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)));
+	assert(std::abs(distance - -0.5f) < 1e-6);
+	assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)) - distance * distance) < 1e-6);
     }
 
     {
