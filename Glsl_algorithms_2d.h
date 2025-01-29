@@ -30,6 +30,8 @@
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_triangle.h"
 #include "Hash.h"
+#include "DiamondAngle.h"
+#include "Numerical_algorithms.h"
 #include <limits>
 #include <vector>
 #include <iterator>
@@ -43,6 +45,15 @@
 // collection of algorithms for 2D cloud points and shapes
 //
 namespace Algorithms2D {
+
+    /**
+    * winding order
+    **/
+    enum class Winding : std::uint8_t {
+        None             = 0,
+        ClockWise        = 1,
+        CounterClockWise = 2,
+    };
 
     //
     // utilities
@@ -506,14 +517,6 @@ namespace Algorithms2D {
     };
 
     /**
-    * winding order
-    **/
-    enum class Winding : bool {
-        ClockWise        = false,
-        CounterClockWise = true
-    };
-
-    /**
     * \brief calculate the convex hull of collection of 2D points (using Graham scan algorithm).
     *       
     * @param {forward_iterator,     in}  iterator to point cloud collection first point
@@ -933,19 +936,21 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
     constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
         using T = typename VEC::value_type;
-        using iter_size_t = std::iterator_traits<InputIt>::difference_type;
+
+        // lambda to check if 'point' intersect with segment given by its edges 'p0' and 'p1'
+        const auto intersects = [&point](const VEC& p0, const VEC& p1) -> bool {
+            return ((p0.y > point.y != p1.y > point.y) &&
+                    (point.x < ((p1.x - p0.x) * (point.y - p0.y)) / (p1.y - p0.y) + p0.x));
+        };
 
         // check that polygon is simple
         assert(Algorithms2D::Internals::is_simple(first, last));
 
         bool inside{ false };
-        for (iter_size_t len{ std::distance(first, last) }, i{}, j{ len - 2 }; i < len - 1; j = i++) {
-            const VEC pi{ *(first + i) };
-            const VEC pj{ *(first + j) };
-            const bool intersects{ pi.y > point.y != pj.y > point.y &&
-                                   point.x < ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y) + pi.x };
-            inside = intersects ? !inside : inside;
+        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
+            inside = intersects(*it, *nt) ? !inside : inside;
         }
+        inside = intersects(*(last - 1), *first) ? !inside : inside;
 
         return inside;
     }
@@ -962,15 +967,24 @@ namespace Algorithms2D {
         using T = typename VEC::value_type;
         using iter_size_t = std::iterator_traits<InputIt>::difference_type;
 
-        T sum{};
-        VEC v1{ *(last - 1) };
-        for (InputIt it{ first }; it != last; ++it) {
-            const VEC v2{ *it };
-            sum += (v2.x - v1.x) * (v2.y + v1.y);
-            v1 = v2;
+        VEC v1{ *first };
+        VEC v2{ *(last - 1) };
+        T sum{ Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x) };
+        for (InputIt it{ first }, nt{first + 1}; nt != last; ++it, ++nt) {
+            v1 = *it;
+            v2 = *nt;
+            sum += Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
         }
 
-        return sum > T{} ? Algorithms2D::Winding::CounterClockWise : Algorithms2D::Winding::ClockWise;
+        if (sum > T{}) {
+            return Algorithms2D::Winding::CounterClockWise;
+        }
+        else if (sum < T{}) {
+            return Algorithms2D::Winding::ClockWise;
+        }
+        else {
+            return Algorithms2D::Winding::None;
+        }
     }
 
     /**
@@ -1364,24 +1378,26 @@ namespace Algorithms2D {
     * \brief given a closed polygon (as a collection of points) return iterators to its reflex vertices (vertex whose angle is bigger than PI)
     * @param {forward_iterator,         in}  iterator to first point in polygon
     * @param {forward_iterator,         in}  iterator to last point in polygon
+    * @param {Algorithms2D::Winding,    in}  polygon winding
     * @param {vector<forward_iterator>, out} vector of iterators to reflex vertices
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr std::vector<InputIt> get_reflex_vertices(const InputIt first, const InputIt last) {
+    constexpr std::vector<InputIt> get_reflex_vertices(const InputIt first, const InputIt last, const Algorithms2D::Winding winding) {
         using T = typename VEC::value_type;
 
         // check that polygon is simple
         assert(Algorithms2D::Internals::is_simple(first, last));
 
         // housekeeping
-        const bool is_clockwise{ Algorithms2D::get_polygon_winding(first, last) == Algorithms2D::Winding::ClockWise };
+        assert(winding != Algorithms2D::Winding::None);
+        const bool is_clockwise{ winding == Algorithms2D::Winding::ClockWise };
 
         // lambda to check if vertex 'b' in a list of three consecutive vertices (a->b->c) is reflex vertex
         const auto is_reflex_vertex = [&is_clockwise](const InputIt a, const InputIt b, const InputIt c) -> bool {
             const vec2 A{ *b - *a };
-            const vec2 B{ *c - *b };
-            const float det{ A.x * B.y - A.y * B.x };
+            const vec2 B{ *c - *a };
+            const T det{ GLSL::cross(B, A) };
             return (is_clockwise && det < T{}) || (!is_clockwise && det > T{});
         };
 
@@ -1405,7 +1421,7 @@ namespace Algorithms2D {
     * @param {forward_iterator,         in}  iterator to first point in polygon
     * @param {forward_iterator,         in}  iterator to last point in polygon
     * @param {integral,                 in}  0 - look for cusps in X coordinate, 1 - look for cusps in Y coordinate (0/x by default)
-    * @param {vector<forward_iterator>, out} vector of iterators to reflex vertices
+    * @param {vector<forward_iterator>, out} vector of iterators to cusp vertices
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
@@ -1882,5 +1898,81 @@ namespace Algorithms2D {
         }
 
         return clipped;
+    }
+
+    /**
+    * \brief given a simple polygon (as a collection of ordered points) return points and junctions along its approximated medial axis.
+    *        notice that the medial axis is approximated and given as points, not lines.
+    *
+    * @param {forward_iterator,                   in}  iterator to polygon first point (polygon is ordered in counter clockwise manner)
+    * @param {forward_iterator,                   in}  iterator to polygon last point (polygon is ordered in counter clockwise manner)
+    * @param {value_type,                         in}  amount of distance "step" used when calculating medial axis points and merging medial axis points
+    * @param {vector<{IFixedVector, value_type}>, out} collection of points and junctions along polygon approximated medial axis.
+    *                                                  the information in collection index 'i' gives:
+    *                                                  { medial axis point, medial axis point squared distance from polygon vertex at index 'i'}
+    */
+    template<std::forward_iterator It,
+             class VEC = typename std::decay_t<decltype(*std::declval<It>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr auto get_approximated_medial_axis(const It first, const It last, const T step) {
+        using mat_t = struct { VEC point; T squared_distance; };
+
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
+        // housekeeping
+        T sign{ static_cast<T>(1.0) };
+        std::vector<mat_t> medial_axis_points;
+        medial_axis_points.reserve(static_cast<std::size_t>(std::distance(first, last)));
+
+        // lambda to calculate the normal of a vertex given its neighboring (previous and next) vertices, in clock wise ordered polygon
+        const auto get_normal_at_vertex = [](const VEC& prev, const VEC& vertex, const VEC& next) -> VEC {
+            // edges
+            const VEC p0{ vertex - prev };
+            const VEC p1{ next - vertex };
+
+            // edges normal (assume clock wise winding)
+            VEC n0(-p0.y, p0.x);
+            VEC n1(-p1.y, p1.x);
+
+            // vertex normal
+            return GLSL::normalize((n0 + n1) /  static_cast<T>(2.0) );
+        };
+
+        // lambda to approximate closest medial axis point to given polygon vertex ('vertex') given its neighbors ('prev' and 'next')
+        const auto approximate_closest_mat_point = [&first, &last, step, sign, &get_normal_at_vertex]
+                                                   (const VEC& prev, const VEC& vertex, const VEC& next) -> mat_t {
+            // direction of advance
+            const VEC normal{ get_normal_at_vertex(prev, vertex, next) };
+
+            // find largest inscribed circle along 'n' which is tangential to 'p'
+            VEC center(vertex);
+            T distance_squared{ std::numeric_limits<T>::min() };
+            T distance_squared_prev{};
+            while (distance_squared > distance_squared_prev) {
+                distance_squared_prev = distance_squared;
+                center += sign * step * normal;
+                distance_squared = PointDistance::squared_udf_to_polygon(first, last, center);
+            }
+
+            return mat_t{ center, distance_squared };
+        };
+
+        // determine normal direction to be inward
+        if (const VEC normal{ get_normal_at_vertex(*(last - 1), *first, *(first + 1)) }; 
+            !Algorithms2D::is_point_inside_polygon(first, last, *first + sign * step * normal)) {
+            sign *= static_cast<T>(-1.0);
+            assert(Algorithms2D::is_point_inside_polygon(first, last, *first + sign * step * normal));
+        }
+
+        // get medial axis points
+        medial_axis_points.emplace_back(approximate_closest_mat_point(*(last - 1), *first, *(first + 1)));
+        for (auto prev{ first }, curr{ first + 1 }, next{ first + 2 }; next != last; ++prev, ++curr, ++next) {
+            medial_axis_points.emplace_back(approximate_closest_mat_point(*prev, *curr, *next));
+        }
+        medial_axis_points.emplace_back(approximate_closest_mat_point(*(last - 2), *(last - 1), *first));
+
+        // output
+        return medial_axis_points;
     }
 }
