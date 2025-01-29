@@ -247,15 +247,13 @@ namespace Algorithms2D {
         template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
             requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
         constexpr bool is_simple(const InputIt first, const InputIt last) {
-            using T = typename VEC::value_type;
-
             // lambda to check if segment intersect any other segments in ordered polygon
-            const auto check_intersection = [first](const std::size_t i0, const std::size_t i1, const std::size_t max) -> bool {
-                const VEC a0{ *(first + i0) };
-                const VEC a1{ *(first + i1) };
+            const auto check_intersection = [&first, &last](const InputIt i0, const InputIt i1, const InputIt edge) -> bool {
+                const VEC a0{ *i0 };
+                const VEC a1{ *i1 };
 
-                for (std::size_t j0{ i1 + 1 }, j1{ i1 + 2 }; j1 < max; ++j0, ++j1) {
-                    if (Algorithms2D::Internals::do_segments_intersect(a0, a1, *(first + j0), *(first + j1))) {
+                for (InputIt j0{ i1 + 1 }, j1{ i1 + 2 }; j1 != edge; ++j0, ++j1) {
+                    if (Algorithms2D::Internals::do_segments_intersect(a0, a1, *j0, *j1)) {
                         return true;
                     }
                 }
@@ -263,17 +261,15 @@ namespace Algorithms2D {
                 return false;
             };
 
-            const std::size_t len{ static_cast<std::size_t>(std::distance(first, last)) };
-
             // check segments intersection
-            for (std::size_t i0{}, i1{1}; i1 < len - 2; ++i0, ++i1) {
-                if (check_intersection(i0, i1, len)) {
+            for (InputIt i0{ first }, i1{ first + 1 }; i1 != last - 2; ++i0, ++i1) {
+                if (check_intersection(i0, i1, last)) {
                     return false;
                 }
             }
 
             // check closing segment
-            return !check_intersection(len - 1, 0, len - 2);
+            return !check_intersection(last - 1, first, last - 2);
         }
 
         /**
@@ -937,14 +933,13 @@ namespace Algorithms2D {
     constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
         using T = typename VEC::value_type;
 
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
         // lambda to check if 'point' intersect with segment given by its edges 'p0' and 'p1'
         const auto intersects = [&point](const VEC& p0, const VEC& p1) -> bool {
             return ((p0.y > point.y != p1.y > point.y) &&
                     (point.x < ((p1.x - p0.x) * (point.y - p0.y)) / (p1.y - p0.y) + p0.x));
-        };
-
-        // check that polygon is simple
-        assert(Algorithms2D::Internals::is_simple(first, last));
+        };       
 
         bool inside{ false };
         for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
