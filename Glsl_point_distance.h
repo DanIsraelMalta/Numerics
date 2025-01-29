@@ -159,7 +159,7 @@ namespace PointDistance {
     }
 
     /**
-    * \brief return the signed distance of closed polygon
+    * \brief return the signed distance from a point to a closed polygon
     * @param {forward_iterator, in}  first point in polygon
     * @param {forward_iterator, in}  last point in polygon
     * @param {IFixedVector,     in}  point
@@ -199,6 +199,27 @@ namespace PointDistance {
 
         [[assume(d >= T{})]];
         return (s * std::sqrt(d));
+    }
+
+    /**
+    * \brief return the squared unsigned distance from a point to closed polygon
+    * @param {forward_iterator, in}  first point in polygon
+    * @param {forward_iterator, in}  last point in polygon
+    * @param {IFixedVector,     in}  point
+    * @param {value_type,       out} signed distance
+    **/
+    template<std::forward_iterator InputIt,
+             class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr T squared_udf_to_polygon(const InputIt first, const InputIt last, const VEC& p) {
+        T d2{ std::numeric_limits<T>::max()};
+        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
+            d2 = Numerics::min(d2, PointDistance::squared_udf_to_segment(p, *it, *nt));
+        }
+        d2 = Numerics::min(d2, PointDistance::squared_udf_to_segment(p, *(last - 1), *first));
+
+        return d2;
     }
 
     /**
