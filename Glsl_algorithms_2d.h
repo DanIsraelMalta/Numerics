@@ -269,7 +269,7 @@ namespace Algorithms2D {
             }
 
             // check closing segment
-            return !check_intersection(last - 1, first, last - 2);
+            return !check_intersection(last - 1, first, last - 1);
         }
 
         /**
@@ -326,7 +326,7 @@ namespace Algorithms2D {
                 return out_t{ VEC(), static_cast<T>(-1) };
             }
             const VEC center{ a + VEC(Numerics::diff_of_products(ca.y, B, ba.y, C),
-                                      Numerics::diff_of_products(ba.x, C, ca.x, B)) / (static_cast<T>(2) * D) };
+                                      Numerics::diff_of_products(ba.x, C, ca.x, B)) / (static_cast<T>(2.0) * D) };
             return out_t{ center, GLSL::dot(center - a) };
         }
         template<GLSL::IFixedVector VEC>
@@ -512,6 +512,36 @@ namespace Algorithms2D {
         }
     };
 
+    /**
+    * \brief given closed polygon and a point - check if point is inside polygon
+    *        (see: https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html)
+    *        should be faster than PointDistance::sdf_to_polygon function in "Glsl_point_distance.h"
+    * @param {forward_iterator, in}  iterator to polygon first point
+    * @param {forward_iterator, in}  iterator to polygon last point
+    * @param {IFixedVector,     in}  point
+    * @param {bool,             out} true if point is inside polygon, false otherwise
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
+        using T = typename VEC::value_type;
+
+        assert(Algorithms2D::Internals::is_simple(first, last));
+
+        // lambda to check if 'point' intersect with segment given by its edges 'p0' and 'p1'
+        const auto intersects = [&point](const VEC& p0, const VEC& p1) -> bool {
+            return ((p0.y > point.y != p1.y > point.y) &&
+                    (point.x < ((p1.x - p0.x) * (point.y - p0.y)) / (p1.y - p0.y) + p0.x));
+        };       
+
+        bool inside{ false };
+        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
+            inside = intersects(*it, *nt) ? !inside : inside;
+        }
+        inside = intersects(*(last - 1), *first) ? !inside : inside;
+
+        return inside;
+    }
 
     /**
     * \brief given a closed non intersecting polygon (as a collection of clockwise or counter clockwise ordered points), check if its convex
@@ -532,7 +562,7 @@ namespace Algorithms2D {
             const VEC v1{ b - a };
             const VEC v2{ c - a };
             return Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x);
-            };
+        };
 
         // check polygon last two triangles
         const T area0{ Numerics::sign(calculate_area(*(last - 1), *first, *(first + 1))) };
@@ -601,28 +631,80 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given convex hull, return its minimal area bounding rectangle
-    * @param {vector<IFixedVector>,                                     in}  convex hull
+    * \brief given collection of points, estimate main principle axis
+    * @param {forward_iterator, in}  iterator to first point in collection
+    * @param {forward_iterator, in}  iterator to last point in collection
+    * @param {IFixedVector,     in}  point cloud centroid
+    * @param {IFixedVector,     out} normalized axis estimating cloud point principle direction
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+    constexpr VEC get_principle_axis(const InputIt first, const InputIt last, const VEC& centroid) {
+        using T = typename VEC::value_type;
+
+        // housekeeping
+        const T N{ static_cast<T>(std::distance(first, last) - 1) };
+
+        // calculate covariance matrix elements
+        T cov_xx{};
+        T cov_yy{};
+        T cov_xy{};
+        for (auto it{ first }; it != last; ++it) {
+            const VEC d{ *it - centroid };
+            cov_xx += d.x * d.x;
+            cov_yy += d.y * d.y;
+            cov_xy += d.x * d.y;
+        }
+        cov_xx /= N;
+        cov_yy /= N;
+        cov_xy /= N;
+        
+        // find covariance matrix largest eigenvalue
+        // (see Decomposition::eigenvalues from 'Glsl_solvers.h' for reference)
+        const T diff{ cov_xx - cov_yy };
+        const T center{ cov_xx + cov_yy };
+        const T deltaSquared{ diff * diff + static_cast<T>(4.0) * cov_xy * cov_xy };
+        [[assume(deltaSquared >= T{})]];
+        const T delta{ std::sqrt(deltaSquared) };
+        const T eigenvalue{ (center + delta) / static_cast<T>(2.0) };
+
+        // principle component
+        return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
+    }
+
+    /**
+    * \brief given a convex polygon, return its minimal area bounding rectangle ("oriented bounding box")
+    * @param {vector<IFixedVector>,                                     in}  convex polygon
     * @param {{IFixedVector, IFixedVector, IFixedVector, IFixedVector}, out} vertices of minimal area bounding rectangle (ordered counter clock wise)
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
-    constexpr auto get_convex_hull_minimum_area_bounding_rectangle(const std::vector<VEC>& hull) {
+    constexpr auto get_bounding_rectangle(const std::vector<VEC>& hull) {
         using T = typename VEC::value_type;
         using out_t = struct { VEC p0; VEC p1; VEC p2; VEC p3; };
 
-        // iterate over all convex hull edges and find minimal area bounding rectangle
+        // housekeeping
         T area{ std::numeric_limits<T>::max() };
         VEC p0;
         VEC p1;
         VEC maxNormal;
-        for (std::size_t i{}; i < hull.size() - 2; ++i) {
+
+        // lambda to project point on plane (given by point and normal)
+        const auto project_point_plane = [](const VEC& point, const VEC& plane_point, const VEC& plane_normal) -> VEC {
+            const VEC d{ point - plane_point };
+            const T dist{ GLSL::dot(d, plane_normal) };
+            return point - dist * plane_normal;
+        };
+
+        // lambda which accepts polygon edge (i-j) and find minimal area bounding rectangle using this edge
+        const auto minimal_area_bounding_rectangle_per_edge = [&area, &p0, &p1, &maxNormal, &hull, &project_point_plane]
+                                                              (const std::size_t i, const std::size_t j) {
             // segment
             VEC v0{ hull[i] };
-            VEC v1{ hull[i + 1] };
+            VEC v1{ hull[j] };
 
             // segment distance to center
-            const VEC center{ (v0 + v1) / static_cast<T>(2) };
+            const VEC center{ (v0 + v1) / static_cast<T>(2.0) };
             T v0_dist{ GLSL::dot(v0 - center) };
             T v1_dist{ v0_dist };
             T vNormal_dist{};
@@ -632,54 +714,70 @@ namespace Algorithms2D {
             const VEC normal(-dir.y, dir.x);
 
             // point on orthogonal segment
-            const VEC v2_0{ v0 + normal };
-            const VEC v2_1{ v1 + normal };
             VEC vNormal(center);
             VEC ref;
-            
-            // project points on line connecting convex hull edge and find minimal/maximal points.
-            // project points on orthogonal line to edge (should be going inside the convex hull) and find maximal point.
-            for (const VEC point: hull) {
-                // project points on segment tangential and orthogonal directions (orthogonal towards inside hull)
-                const auto projOnDir{ Internals::project_point_on_segment(v0, v1, point) };
-                const auto projOnNormal_0{ Internals::project_point_on_segment(v0, v2_0, point) };
-                const auto projOnNormal_1{ Internals::project_point_on_segment(v1, v2_1, point) };
-                
-                // find furthest points along v0v1 segments which can constitute an extent to tight bounding box
-                if (const T projOnDir_dist{ GLSL::dot(projOnDir.point - center) }; projOnDir.t < T{} && projOnDir_dist > v0_dist) {
-                    v0_dist = projOnDir_dist;
-                    v0 = projOnDir.point;
-                } else if (projOnDir.t > T{} && projOnDir_dist > v1_dist) {
-                    v1_dist = projOnDir_dist;
-                    v1 = projOnDir.point;
+
+            // 1. project polygon points on line connecting edge and find minimal/maximal points.
+            // 2. project polygon points on orthogonal line to edge (should be going inside the polygon) and find maximal point.
+            for (std::size_t k{}; k < hull.size(); ++k) {
+                if (k == i || k == j) {
+                    continue;
                 }
-                
+
+                const VEC point{ hull[k] };
+
+                // project points on segment tangential and orthogonal directions (orthogonal towards inside hull)
+                const VEC projOnDir{ project_point_plane(point, center, normal) };
+                const VEC projOnNormal_0{ project_point_plane(point, v0, dir) };
+                const VEC projOnNormal_1{ project_point_plane(point, v1, -dir) };
+
+                // find furthest points along v0v1 segments which can constitute an extent to tight bounding box
+                const bool point_on_v0_side{GLSL::dot(point - v1) > GLSL::dot(point - v0) };
+                if (const T projOnDir_dist{ GLSL::dot(projOnDir - center) };
+                    point_on_v0_side && projOnDir_dist > v0_dist) {
+                    v0_dist = projOnDir_dist;
+                    v0 = projOnDir;
+                }
+                else if (!point_on_v0_side && projOnDir_dist > v1_dist) {
+                    v1_dist = projOnDir_dist;
+                    v1 = projOnDir;
+                }
+
                 // find furthest point from v0v1 segment along orthogonal direction to v0v1
-                if (const T dist{ GLSL::dot(projOnNormal_0.point - v2_0) }; dist > vNormal_dist) {
+                if (const T dist{ GLSL::dot(projOnNormal_0 - v0) };
+                    dist > vNormal_dist) {
                     vNormal_dist = dist;
-                    vNormal = projOnNormal_0.point;
+                    vNormal = projOnNormal_0;
                     ref = v0;
                 }
-                if (const T dist{ GLSL::dot(projOnNormal_1.point - v2_1) }; dist > vNormal_dist) {
+                if (const T dist{ GLSL::dot(projOnNormal_1 - v1) };
+                    dist > vNormal_dist) {
                     vNormal_dist = dist;
-                    vNormal = projOnNormal_1.point;
+                    vNormal = projOnNormal_1;
                     ref = v1;
                 }
             }
+            assert(!Extra::are_vectors_identical(v1, v0));
 
             // rectangle area
-            const T rectangle_area{ GLSL::dot(v1 - v0) * GLSL::dot(vNormal - ref) };
-            if (rectangle_area < area) {
+            if (const T rectangle_area{ GLSL::dot(v1 - v0) * GLSL::dot(vNormal - ref) };
+                rectangle_area < area) {
                 area = rectangle_area;
                 p0 = v0;
                 p1 = v1;
                 maxNormal = vNormal;
             }
+        };
+
+        // iterate over all polygon edges, rotating caliper style, and find edge on which minimal area bounding rectangle will be built
+        for (std::size_t i{}, j{i + 1}; j < hull.size(); ++i, ++j) {
+            minimal_area_bounding_rectangle_per_edge(i, j);
         }
+        minimal_area_bounding_rectangle_per_edge(hull.size() - 1, 0);
 
         // calculate bounding rectangle vertices
         const VEC dir{ GLSL::normalize(p1 - p0) };
-        const VEC normal{ -dir.y, dir.x };
+        const VEC normal(-dir.y, dir.x);
         const VEC p2{ Internals::get_rays_intersection_point(p1, normal, maxNormal,  dir) };
         const VEC p3{ Internals::get_rays_intersection_point(p0, normal, maxNormal, -dir) };
 
@@ -687,8 +785,8 @@ namespace Algorithms2D {
     }
     
     /**
-    * \brief given convex hull of collection of points, return its diameter
-    * @param {vector<IFixedVector>,           in}  points convex hull
+    * \brief given convex polygon, return its diameter
+    * @param {vector<IFixedVector>,           in}  convex polygon
     * @param {{value_type, array<size_t, 2>}, out} {squared diameter, <index of anti podal point #1, index of anti podal point #2>}
     **/
     template<GLSL::IFixedVector VEC>
@@ -737,9 +835,9 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given convex hull of collection of points, return the minimal bounding circle (circumcircle).
+    * \brief given convex polygon, return the minimal bounding circle (circumcircle).
     *        based on https://www.cise.ufl.edu/~sitharam/COURSES/CG/kreveldnbhd.pdf.
-    * @param {vector<IFixedVector>,       in}  points convex hull
+    * @param {vector<IFixedVector>,       in}  convex polygon
     * @param {{IFixedVector, value_type}, out} {minimal bounding circle center, minimal bounding circle squared radius}
     **/
     template<GLSL::IFixedVector VEC>
@@ -827,8 +925,8 @@ namespace Algorithms2D {
         };
 
         // iterate over remaining points and find minimal enclosing circle
-        out_t circle{ Internals::get_circumcircle(hull[0], hull[1], hull[2], hull[3]) };
-        for (std::size_t i{ 4 }; i < N; ++i) {
+        out_t circle{ Internals::get_circumcircle(hull[0], hull[1]) };
+        for (std::size_t i{ 2 }; i < N; ++i) {
             const VEC p{ hull[i] };
             if (!is_point_in_circle(circle, p)) {
                 circle = make_bounding_circle_one_points(Numerics::min(i + 1, N), p);
@@ -839,24 +937,28 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given two convex hulls, return true if they intersect and false otherwise.
+    * \brief given two convex polygons, return true if they intersect and false otherwise.
     *        this function uses Gilbert-Johnson-Keerthi algorithm (with Minkowski sum) for fast intersection calculation.
     * 
     * @param {MAX_ITER} maximal iteration for calculation to stop (default is 50)
-    * @param {vector<IFixedVector>, in}  convex hull #1
-    * @param {vector<IFixedVector>, in}  convex hull #1
+    * @param {vector<IFixedVector>, in}  convex polygon #1
+    * @param {IFixedVector        , in}  convex polygon #1 centroid
+    * @param {vector<IFixedVector>, in}  convex polygon #2
+    * @param {IFixedVector        , in}  convex polygon #2 centroid
     * @param {bool,                 out} true if convex hulls intersect each other, false otherwise
     **/
     template<std::size_t MAX_ITER = 50, GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
-    constexpr bool do_convex_hulls_intersect(const std::vector<VEC>& hull0, const std::vector<VEC>& hull1) {
+    constexpr bool do_convex_polygons_intersect(const std::vector<VEC>& hull0, const VEC& centroid0,
+                                                const std::vector<VEC>& hull1, const VEC& centroid1) {
         using T = typename VEC::value_type;
 
         // lambda to calculate triple product
         const auto triple_product = [](const VEC& a, const VEC& b, const VEC& c) -> VEC {
             const T ac{ GLSL::dot(a, c) };
             const T bc{ GLSL::dot(b, c) };
-            return VEC(b.x * ac - a.x * bc, b.y * ac - a.y * bc);
+            return VEC(Numerics::diff_of_products(b.x, ac, a.x, bc),
+                       Numerics::diff_of_products(b.y, ac, a.y, bc));
         };
 
         // lambda to return the index of the furthest point along a given direction from a point
@@ -883,11 +985,7 @@ namespace Algorithms2D {
         };
 
         // direction from the center of 'hull0' to 'hull1', if its zero - set it to be X axis (arbitrary)
-        VEC d{ Algorithms2D::Internals::get_centroid(hull0.begin(), hull0.end()) -
-               Algorithms2D::Internals::get_centroid(hull1.begin(), hull1.end()) };
-        if (Numerics::areEquals(d.x, T{}) && Numerics::areEquals(d.y, T{})) {
-            d.x = static_cast<T>(1.0);
-        }
+        VEC d{ !Extra::are_vectors_identical(centroid0, centroid1) ? centroid0 - centroid1 : VEC(static_cast<T>(1.0)) };
 
         // first support is identical to simplex initial point
         VEC a{ minkowski_support(d) };
@@ -960,37 +1058,6 @@ namespace Algorithms2D {
     }
 
     /**
-    * \brief given closed polygon and a point - check if point is inside polygon
-    *        (see: https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html)
-    *        should be faster than PointDistance::sdf_to_polygon function in "Glsl_point_distance.h"
-    * @param {forward_iterator, in}  iterator to polygon first point
-    * @param {forward_iterator, in}  iterator to polygon last point
-    * @param {IFixedVector,     in}  point
-    * @param {bool,             out} true if point is inside polygon, false otherwise
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-    constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
-        using T = typename VEC::value_type;
-
-        assert(Algorithms2D::Internals::is_simple(first, last));
-
-        // lambda to check if 'point' intersect with segment given by its edges 'p0' and 'p1'
-        const auto intersects = [&point](const VEC& p0, const VEC& p1) -> bool {
-            return ((p0.y > point.y != p1.y > point.y) &&
-                    (point.x < ((p1.x - p0.x) * (point.y - p0.y)) / (p1.y - p0.y) + p0.x));
-        };       
-
-        bool inside{ false };
-        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
-            inside = intersects(*it, *nt) ? !inside : inside;
-        }
-        inside = intersects(*(last - 1), *first) ? !inside : inside;
-
-        return inside;
-    }
-
-    /**
     * \brief given a polygon, determine its winding
     * @param {forward_iterator, in}  iterator to polygon first point
     * @param {forward_iterator, in}  iterator to polygon last point
@@ -1058,7 +1125,7 @@ namespace Algorithms2D {
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
-    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, T concave_threshold = T{}) {
+    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const T concave_threshold = T{}) {
         // get convex hull
         std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
         if (concave_threshold <= T{}) {
@@ -1191,48 +1258,6 @@ namespace Algorithms2D {
             bottom[i] = VEC(x[extrMinIndex[i]], extrMinValue[i]);
         }
         return out_t{ top, bottom };
-    }
-
-    /**
-    * \brief given collection of points, estimate main principle axis
-    * @param {forward_iterator, in}  iterator to first point in collection
-    * @param {forward_iterator, in}  iterator to last point in collection
-    * @param {IFixedVector,     out} normalized axis estimating cloud point principle direction
-    **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
-        requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr VEC get_principle_axis(const InputIt first, const InputIt last) {
-        using T = typename VEC::value_type;
-
-        // housekeeping
-        const VEC centroid{ Internals::get_centroid(first, last) };
-        const T N{ static_cast<T>(std::distance(first, last) - 1) };
-
-        // calculate covariance matrix elements
-        T cov_xx{};
-        T cov_yy{};
-        T cov_xy{};
-        for (auto it{ first }; it != last; ++it) {
-            const VEC d{ *it - centroid };
-            cov_xx += d.x * d.x;
-            cov_yy += d.y * d.y;
-            cov_xy += d.x * d.y;
-        }
-        cov_xx /= N;
-        cov_yy /= N;
-        cov_xy /= N;
-        
-        // find covariance matrix largest eigenvalue
-        // (see Decomposition::eigenvalues from 'Glsl_solvers.h' for reference)
-        const T diff{ cov_xx - cov_yy };
-        const T center{ cov_xx + cov_yy };
-        const T deltaSquared{ diff * diff + static_cast<T>(4) * cov_xy * cov_xy };
-        [[assume(deltaSquared >= T{})]];
-        const T delta{ std::sqrt(deltaSquared) };
-        const T eigenvalue{ (center + delta) / static_cast<T>(2) };
-
-        // principle component
-        return GLSL::normalize(VEC(cov_xy, eigenvalue - cov_xx));
     }
 
     /**
@@ -1610,14 +1635,15 @@ namespace Algorithms2D {
     * 
     * @param {forward_iterator,     in}  iterator to first point in collection
     * @param {forward_iterator,     in}  iterator to last point in collection
+    * @param {point_cloud_aabb,     in}  point cloud axis aligned bounding box (type signature is of AxisLignedBoundingBox::point_cloud_aabb)
     * @param {vector<IFixedVector>, out} vector of vertices of triangles, every three consecutive iterators define a triangle.
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb<InputIt>(std::declval<InputIt>(), std::declval<InputIt>()))>
         requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
-    constexpr std::vector<VEC> triangulate_points_delaunay(const InputIt first, const InputIt last) {
+    constexpr std::vector<VEC> triangulate_points_delaunay(const InputIt first, const InputIt last, const aabb_t aabb ) {
         using T = typename VEC::value_type;
         using edge_t = struct { VEC first; VEC second; };
-        using aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(first, last));
         using circle_t = decltype(Algorithms2D::Internals::get_circumcircle(*first, *first, *first));
         constexpr T super_triangle_margin{ static_cast<T>(20.0) };
 
@@ -1625,7 +1651,6 @@ namespace Algorithms2D {
         std::vector<VEC> tris;
 
         // super triangle (covers all polygon vertices)
-        const aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
         const T delta_max{ GLSL::max(aabb.max - aabb.min) };
         const VEC mid{ (aabb.max + aabb.min) / static_cast<T>(2.0) };
         const VEC p0(mid.x - super_triangle_margin * delta_max, mid.y - delta_max);
@@ -1709,6 +1734,43 @@ namespace Algorithms2D {
         // output
         assert(tris.size() % 3 == 0);
         return tris;
+    }
+
+    /**
+    * \brief given a polygon, triangulate it using "Delaunay" method.
+    *        notice that this function uses Bowyer-Watson algorithm, which means its O(n*long(n)) and might fail
+    *        in cases of polygons with degenerate segments.
+    *
+    * @param {forward_iterator,     in}  iterator to polygon first point
+    * @param {forward_iterator,     in}  iterator to polygon last point
+    * @param {point_cloud_aabb,     in}  point cloud axis aligned bounding box (type signature is of AxisLignedBoundingBox::point_cloud_aabb)
+    * @param {vector<IFixedVector>, out} vector of vertices of triangles, every three consecutive iterators define a triangle.
+    **/
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb<InputIt>(std::declval<InputIt>(), std::declval<InputIt>()))>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr std::vector<VEC> triangulate_polygon_delaunay(const InputIt first, const InputIt last, const aabb_t aabb) {
+        using T = typename VEC::value_type;
+
+        // triangulate vertices
+        std::vector<VEC> triangles{ Algorithms2D::triangulate_points_delaunay(FWD(first), FWD(last), FWD(aabb)) };
+
+        // remove out-of-polygon triangles
+        std::vector<std::size_t> outside;
+        outside.reserve(triangles.size());
+        for (std::size_t i{}; i < triangles.size(); i += 3) {
+            const VEC centroid{ (triangles[i] + triangles[i + 1] + triangles[i + 2]) / static_cast<T>(3.0) };
+            if (!Algorithms2D::is_point_inside_polygon(first, last, centroid)) {
+                outside.emplace_back(i);
+                outside.emplace_back(i + 1);
+                outside.emplace_back(i + 2);
+            }
+
+        }
+        Algoithms::remove(triangles, outside);
+
+        // output
+        return triangles;
     }
 
     /**
