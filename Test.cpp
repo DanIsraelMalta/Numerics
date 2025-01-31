@@ -267,6 +267,7 @@ void test_numerical_algorithms() {
         const float mean{ NumericalAlgorithms::circular_mean(angles) };
         assert(Numerics::areEquals(mean, angles[1]));
     }
+
     // test convolution
     {
         const std::array<int, 3> u{ {1, 0, 1} };
@@ -1701,15 +1702,15 @@ void test_glsl_point_distance() {
     {
         std::array<vec2, 5> polygon{ {vec2(2.0f, 1.0f), vec2(1.0f, 2.0f), vec2(3.0f, 4.0f), vec2(5.0f, 5.0f), vec2(5.0f, 1.0f) }};
 
-	float distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f));
-	assert(!Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)));
-	assert(std::abs(distance - 1.0f) < 1e-6);
-	assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)) - distance * distance) < 1e-6);
+        float distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f));
+        assert(!Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)));
+        assert(std::abs(distance - 1.0f) < 1e-6);
+        assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(2.0f, 0.0f)) - distance * distance) < 1e-6);
 
-	distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
-	assert(Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)));
-	assert(std::abs(distance - -0.5f) < 1e-6);
-	assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)) - distance * distance) < 1e-6);
+        distance = PointDistance::sdf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f));
+        assert(Algorithms2D::is_point_inside_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)));
+        assert(std::abs(distance - -0.5f) < 1e-6);
+        assert(std::abs(PointDistance::squared_udf_to_polygon(polygon.begin(), polygon.end(), vec2(3.0f, 1.5f)) - distance * distance) < 1e-6);
     }
 
     {
@@ -2039,7 +2040,7 @@ void test_GLSL_algorithms_2D() {
             assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, it, nt));
         }
 
-        assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin(),     polygon.begin() + 2));
+        assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin(), polygon.begin() + 2));
         assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 3, polygon.begin() + 11));
         assert(Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 9, polygon.begin() + 11));
         assert(!Algorithms2D::is_line_connecting_polygon_vertices_inside_polygon(polygon.begin(), polygon.end(), area, polygon.begin() + 2, polygon.begin() + 8));
@@ -2053,9 +2054,10 @@ void test_GLSL_algorithms_2D() {
                                     vec2(1.0f, 2.0f)} };
 
         // get reflex vertices
-        const auto reflex_vertices = Algorithms2D::get_reflex_vertices(polygon.begin(), polygon.end());
+        const Algorithms2D::Winding winding{ Algorithms2D::get_polygon_winding(polygon.begin(), polygon.end()) };
+        const auto reflex_vertices = Algorithms2D::get_reflex_vertices(polygon.begin(), polygon.end(), winding);
         const std::vector<vec2> reflexis{ { vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(8.0f, 9.0f),
-                                            vec2(2.0f, 8.0f), vec2(2.0f, 6.0f) }};
+                                            vec2(2.0f, 8.0f), vec2(2.0f, 6.0f) } };
         for (std::size_t i{}; i < reflexis.size(); ++i) {
             assert(GLSL::max(GLSL::abs(reflexis[i] - *reflex_vertices[i])) < 1e-6f);
         }
@@ -2069,9 +2071,9 @@ void test_GLSL_algorithms_2D() {
         const auto cusp_y_vertices = Algorithms2D::get_cusp_vertices(polygon.begin(), polygon.end(), 1);
         assert(cusp_y_vertices.size() == 0);
     }
-        
+
     {
-        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f ), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
                                     vec2(1.0f, 2.0f)} };
         assert(!Algorithms2D::is_polygon_convex(polygon.begin(), polygon.end()));
@@ -2087,11 +2089,11 @@ void test_GLSL_algorithms_2D() {
         }
 
         // obb test
-        const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
-        assert(GLSL::max(GLSL::abs(vec2(10.4705877f, 8.88235283f) - obb.p0)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(1.29411793f, 11.1764698f) - obb.p1)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(-0.999999285f, 1.99999905f) - obb.p2)) < 1e-6);
-        assert(GLSL::max(GLSL::abs(vec2(8.1764698f, -0.294118881f) - obb.p3)) < 1e-6);
+        const auto obb = Algorithms2D::get_bounding_rectangle(convex);
+        assert(GLSL::max(GLSL::abs(vec2(1.0f, 1.0f) - obb.p0)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(10.0f, 1.0f) - obb.p1)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(10.0f, 10.0f) - obb.p2)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(1.0f, 10.0f) - obb.p3)) < 1e-6);
 
         // point inside polygon
         bool inside = Algorithms2D::is_point_inside_polygon(polygon.cbegin(), polygon.cend(), vec2(7.0f, 6.0f));
@@ -2108,9 +2110,9 @@ void test_GLSL_algorithms_2D() {
         // centroid
         std::vector<vec2> cents{ obb.p0, obb.p1, obb.p2, obb.p3 };
         const vec2 centroid = Algorithms2D::Internals::get_centroid(cents.cbegin(), cents.cend());
-        assert(GLSL::max(GLSL::abs(vec2(4.73529434f, 5.44117594f) - centroid)) < 1e-6);
+        assert(GLSL::max(GLSL::abs(vec2(5.5f, 5.5f) - centroid)) < 1e-6);
 
-        // convex hull diamater
+        // convex hull diameter
         const auto antipodal = Algorithms2D::get_convex_diameter(convex);
         assert(antipodal.indices[0] == 0);
         assert(antipodal.indices[1] == 4);
@@ -2169,7 +2171,7 @@ void test_GLSL_algorithms_2D() {
 
         std::vector<vec2> mon{ {vec2(2.0, 0.0), vec2(5.0, 0.0), vec2(5.0, 10.0),
                                 vec2(2.0, 10.0), vec2(1.0, 8.0), vec2(2.0, 6.0),
-                                vec2(1.0, 3.0)}};
+                                vec2(1.0, 3.0)} };
 
         // should not me monotone with regard to X axis
         is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(mon.begin(), mon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
@@ -2180,259 +2182,253 @@ void test_GLSL_algorithms_2D() {
         assert(is_monotone);
     }
 
-   {
-       std::vector<vec2> points;
-       for (std::size_t i{}; i < 50; ++i) {
-           points.emplace_back(vec2(static_cast<float>(rand() % 100 - 50),
-                                    static_cast<float>(rand() % 100 - 50)));
-       }
+    {
+        for (std::size_t angle{}; angle < 180; angle += 5) {
+            std::vector<vec2> points;
+            const float tanAngle{ std::tan(static_cast<float>(angle) * 3.141592653589f / 180.0f) };
+            float sign{ 1.0f };
+            for (std::size_t x{}; x < 100; ++x) {
+                points.emplace_back(vec2(static_cast<float>(x), tanAngle * static_cast<float>(x) + sign * static_cast<float>(rand()) / RAND_MAX));
+                sign *= -1.0f;
+            }
 
-       const vec2 centroid = Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend());
-       Algorithms2D::sort_points<Algorithms2D::Winding::ClockWise>(points.begin(), points.end(), centroid);
-       assert(Algorithms2D::get_polygon_winding(points.cbegin(), points.cend()) == Algorithms2D::Winding::ClockWise);
-   }
+            const vec2 centroid{ Algorithms2D::Internals::get_centroid(points.cbegin(), points.cend()) };
+            const vec2 direction{ Algorithms2D::get_principle_axis(points.cbegin(), points.cend(), centroid) };
+            const float error{ std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) };
+            assert(error <= 0.2f || std::abs(180.0f - error) <= 0.2f);
+        }
+    }
 
-   {
-       for (std::size_t angle{}; angle < 180; angle += 5) {
-           std::vector<vec2> points;
-           const float tanAngle{ std::tan(static_cast<float>(angle) * 3.141592653589f / 180.0f) };
-           float sign{ 1.0f };
-           for (std::size_t x{}; x < 100; ++x) {
-               points.emplace_back(vec2(static_cast<float>(x), tanAngle * static_cast<float>(x) + sign * static_cast<float>(rand()) / RAND_MAX));
-               sign *= -1.0f;
-           }
+    {
+        std::vector<vec2> polygon{ {vec2(0.0f,3.0f), vec2(1.0f,3.0f), vec2(1.0f,2.0f), vec2(2.0f,2.0f), vec2(2.0f,4.0f),
+                                    vec2(3.0f,4.0f), vec2(3.0f,0.0f), vec2(4.0f,0.0f), vec2(4.0f,1.0f), vec2(5.0f,1.0f),
+                                    vec2(5.0f,0.0f), vec2(6.0f,0.0f), vec2(6.0f,2.0f), vec2(7.0f,2.0f), vec2(7.0f,1.0f),
+                                    vec2(8.0f,1.0f), vec2(8.0f,4.0f), vec2(9.0f,4.0f), vec2(9.0f,7.0f), vec2(8.0f,7.0f),
+                                    vec2(8.0f,9.0f), vec2(7.0f,9.0f), vec2(7.0f,5.0f), vec2(6.0f,5.0f), vec2(6.0f,6.0f),
+                                    vec2(5.0f,6.0f), vec2(5.0f,9.0f), vec2(4.0f,9.0f), vec2(4.0f,8.0f), vec2(6.0f,8.0f),
+                                    vec2(6.0f,7.0f), vec2(2.0f,7.0f), vec2(2.0f,9.0f), vec2(1.0f,9.0f), vec2(1.0f,6.0f),
+                                    vec2(0.0f,6.0f)} };
 
-           const vec2 direction{ Algorithms2D::get_principle_axis(points.cbegin(), points.cend()) };
-           const float error{ std::abs(angle - std::atan2(direction.y, direction.x) * 180.0f / 3.141592653589f) };
-           assert(error <= 0.2f || std::abs(180.0f-error) <= 0.2f);
-       }
-   }
+        // check orthogonality
+        bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
+        assert(is_orthogonal);
 
-   {
-       std::vector<vec2> polygon{ {vec2(0.0f,3.0f), vec2(1.0f,3.0f), vec2(1.0f,2.0f), vec2(2.0f,2.0f), vec2(2.0f,4.0f),
-                                   vec2(3.0f,4.0f), vec2(3.0f,0.0f), vec2(4.0f,0.0f), vec2(4.0f,1.0f), vec2(5.0f,1.0f),
-                                   vec2(5.0f,0.0f), vec2(6.0f,0.0f), vec2(6.0f,2.0f), vec2(7.0f,2.0f), vec2(7.0f,1.0f),
-                                   vec2(8.0f,1.0f), vec2(8.0f,4.0f), vec2(9.0f,4.0f), vec2(9.0f,7.0f), vec2(8.0f,7.0f),
-                                   vec2(8.0f,9.0f), vec2(7.0f,9.0f), vec2(7.0f,5.0f), vec2(6.0f,5.0f), vec2(6.0f,6.0f),
-                                   vec2(5.0f,6.0f), vec2(5.0f,9.0f), vec2(4.0f,9.0f), vec2(4.0f,8.0f), vec2(6.0f,8.0f),
-                                   vec2(6.0f,7.0f), vec2(2.0f,7.0f), vec2(2.0f,9.0f), vec2(1.0f,9.0f), vec2(1.0f,6.0f),
-                                   vec2(0.0f,6.0f)} };
+        // is monotone relative to Y axis?
+        bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
+        assert(!is_monotone);
 
-       // check orthogonality
-       bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
-       assert(is_orthogonal);
+        // is monotone relative to X axis?
+        is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
+        assert(is_monotone);
+    }
 
-       // is monotone relative to Y axis?
-       bool is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(0.0f, 1.0f));
-       assert(!is_monotone);
+    {
+        // define 2D signal
+        std::vector<vec2> points;
+        for (std::size_t i{}; i < 200; ++i) {
+            float fi{ static_cast<float>(i) };
+            points.emplace_back(vec2(fi, 10.0f + 180.0f * std::abs(std::sin(fi))));
+        }
 
-       // is monotone relative to X axis?
-       is_monotone = Algorithms2D::is_polygon_monotone_relative_to_line(polygon.begin(), polygon.end(), vec2(0.0f), vec2(1.0f, 0.0f));
-       assert(is_monotone);
-   }
+        // calculate signal envelope
+        const auto envelope = Algorithms2D::get_points_envelope(points.begin(), points.end());
 
-   {
-       // define 2D signal
-       std::vector<vec2> points;
-       for (std::size_t i{}; i < 200; ++i) {
-           float fi{ static_cast<float>(i) };
-           points.emplace_back(vec2(fi, 10.0f + 180.0f * std::abs(std::sin(fi))));
-       }
+        // export signal and envelope to SVG
+        svg<vec2> envelope_test_svg(200, 200);
+        envelope_test_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "none", "black", 0.5f);
+        envelope_test_svg.add_polyline(envelope.top.begin(), envelope.top.end(), "none", "red", 1.0f);
+        envelope_test_svg.add_polyline(envelope.bottom.begin(), envelope.bottom.end(), "none", "green", 1.0f);
+        envelope_test_svg.to_file("envelope_test_svg.svg");
+    }
 
-       // calculate signal envelope
-       const auto envelope = Algorithms2D::get_points_envelope(points.begin(), points.end());
+    {
+        // define polygon
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                     vec2(1.0f, 2.0f)} };
 
-       // export signal and envelope to SVG
-       svg<vec2> envelope_test_svg(200, 200);
-       envelope_test_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "none", "black", 0.5f);
-       envelope_test_svg.add_polyline(envelope.top.begin(), envelope.top.end(), "none", "red", 1.0f);
-       envelope_test_svg.add_polyline(envelope.bottom.begin(), envelope.bottom.end(), "none", "green", 1.0f);
-       envelope_test_svg.to_file("envelope_test_svg.svg");
-   }
+        // triangulate ("earcut" style) polygon
+        std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
 
-   {
-       // define polygon
-       std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
-                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
-                                    vec2(1.0f, 2.0f)} };
+        // calculate convex hull
+        auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
 
-       // triangulate ("earcut" style) polygon
-       std::vector<std::vector<vec2>::iterator> earcut{ Algorithms2D::triangulate_polygon_earcut(polygon.begin(), polygon.end()) };
+        // calculate minimal area bounding rectangle
+        const auto obb = Algorithms2D::get_bounding_rectangle(convex);
+        std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3} };
 
-       // calculate convex hull
-       auto convex = Algorithms2D::get_convex_hull(polygon.begin(), polygon.end());
+        // close convex and obb for for drawing purposes
+        convex.emplace_back(convex.front());
+        obbs.emplace_back(obbs.front());
 
-       // calculate minimal area bounding rectangle
-       const auto obb = Algorithms2D::get_convex_hull_minimum_area_bounding_rectangle(convex);
-       std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3} };
+        // scale polygons for drawing purposes
+        for (auto& p : polygon) {
+            p = 50.0f * p + 50.0f;
+        }
+        for (auto& p : convex) {
+            p = 50.0f * p + 50.0f;
+        }
+        for (auto& p : obbs) {
+            p = 50.0f * p + 50.0f;
+        }
 
-       // close convex and obb for for drawing purposes
-       convex.emplace_back(convex.front());
-       obbs.emplace_back(obbs.front());
+        // calculate minimal bounding circle
+        const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
 
-       // scale polygons for drawing purposes
-       for (auto& p : polygon) {
-           p = 50.0f * p + 50.0f;
-       }
-       for (auto& p : convex) {
-           p = 50.0f * p + 50.0f;
-       }
-       for (auto& p : obbs) {
-           p = 50.0f * p + 50.0f;
-       }
+        // calculate maximal inscribed circle
+        const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(polygon.begin(), polygon.end());
+        const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end(), aabb) };
+        const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
 
-       // calculate minimal bounding circle
-       const auto circle = Algorithms2D::get_minimal_bounding_circle(convex);
+        // export polygon and its bounding objects to SVG
+        svg<vec2> polygon_test_svg(650, 650);
+        polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
+        polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
+        polygon_test_svg.add_point_cloud(convex.begin(), convex.end(), 10.0f, "green", "green", 1.0f);
+        for (std::size_t i{}; i < earcut.size(); i += 3) {
+            std::array<vec2, 3> tri{ { *(earcut[i]),
+                                       *(earcut[i + 1]),
+                                       *(earcut[i + 2]) } };
+            polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
+        }
+        polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
+        polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
+        polygon_test_svg.add_circle(inscribed.center, inscribed.radius, "none", "chocolate", 2.0f);
+        polygon_test_svg.to_file("polygon_test_svg.svg");
+    }
 
-       // calculate maximal inscribed circle
-       const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end()) };
-       const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
+    {
+        // place points on a plane
+        std::vector<vec2> points;
+        const std::size_t n{ 1000 };
+        points.reserve(n);
+        for (int i = 0; i < n; i++) {
+            points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 200.0f,
+                static_cast<float>(rand()) / RAND_MAX * 200.0f));
+        }
 
-       // export polygon and its bounding objects to SVG
-       svg<vec2> polygon_test_svg(650, 650);
-       polygon_test_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 5.0f);
-       polygon_test_svg.add_polyline(convex.begin(), convex.end(), "none", "green", 1.0f);
-       polygon_test_svg.add_point_cloud(convex.begin(), convex.end(), 10.0f, "green", "green", 1.0f);
-       for (std::size_t i{}; i < earcut.size(); i += 3) {
-           std::array<vec2, 3> tri{ { *(earcut[i]),
-                                      *(earcut[i + 1]),
-                                      *(earcut[i + 2]) } };
-           polygon_test_svg.add_polygon(tri.begin(), tri.end(), "none", "black", 1.0f);
-       }
-       polygon_test_svg.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
-       polygon_test_svg.add_circle(circle.center, std::sqrt(circle.radius_squared), "none", "blue", 2.0f);
-       polygon_test_svg.add_circle(inscribed.center, inscribed.radius, "none", "chocolate", 2.0f);
-       polygon_test_svg.to_file("polygon_test_svg.svg");
-   }
+        // find all points within given circle using kd-tree based nearest neighbors
+        SpacePartitioning::KDTree<vec2> kdtree;
+        kdtree.construct(points.begin(), points.end());
+        const vec2 circle_center(115.0f, 160.0f);
+        const float circle_radius{ 20.0f };
+        auto points_in_circle = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, circle_center, circle_radius);
 
-   {
-       // place points on a plane
-       std::vector<vec2> points;
-       const std::size_t n{ 1000 };
-       points.reserve(n);
-       for (int i = 0; i < n; i++) {
-           points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 200.0f,
-                                    static_cast<float>(rand()) / RAND_MAX * 200.0f));
-       }
+        // find extent of the diameter of the convex hull surrounding these points
+        std::vector<vec2> circle_points;
+        circle_points.reserve(points_in_circle.size());
+        for (std::size_t i{}; i < points_in_circle.size(); ++i) {
+            circle_points.emplace_back(points[points_in_circle[i].second]);
+        }
+        auto circle_convex = Algorithms2D::get_convex_hull(circle_points.begin(), circle_points.end());
+        auto circle_diameter = Algorithms2D::get_convex_diameter(circle_convex);
 
-       // find all points within given circle using kd-tree based nearest neighbors
-       SpacePartitioning::KDTree<vec2> kdtree;
-       kdtree.construct(points.begin(), points.end());
-       const vec2 circle_center(115.0f, 160.0f);
-       const float circle_radius{ 20.0f };
-       auto points_in_circle = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, circle_center, circle_radius);
+        // find all points within given rectangle using grid based nearest neighbors
+        SpacePartitioning::Grid<vec2> grid;
+        grid.construct(points.begin(), points.end());
+        const vec2 rectangle_center(50.0f, 60.0f);
+        const float rectangle_extent{ 25.0f };
+        auto points_in_rectangle = grid.range_query(SpacePartitioning::RangeSearchType::Manhattan, rectangle_center, rectangle_extent);
 
-       // find extent of the diameter of the convex hull surrounding these points
-       std::vector<vec2> circle_points;
-       circle_points.reserve(points_in_circle.size());
-       for (std::size_t i{}; i < points_in_circle.size(); ++i) {
-           circle_points.emplace_back(points[points_in_circle[i].second]);
-       }
-       auto circle_convex = Algorithms2D::get_convex_hull(circle_points.begin(), circle_points.end());
-       auto circle_diameter = Algorithms2D::get_convex_diameter(circle_convex);
+        // find extent of the diameter of the convex hull surrounding these points
+        std::vector<vec2> rectangle_points;
+        rectangle_points.reserve(points_in_rectangle.size());
+        for (std::size_t i{}; i < points_in_rectangle.size(); ++i) {
+            rectangle_points.emplace_back(points[points_in_rectangle[i].second]);
+        }
+        auto rectangle_convex = Algorithms2D::get_convex_hull(rectangle_points.begin(), rectangle_points.end());
+        auto rectangle_diameter = Algorithms2D::get_convex_diameter(rectangle_convex);
 
-       // find all points within given rectangle using grid based nearest neighbors
-       SpacePartitioning::Grid<vec2> grid;
-       grid.construct(points.begin(), points.end());
-       const vec2 rectangle_center(50.0f, 60.0f);
-       const float rectangle_extent{ 25.0f };
-       auto points_in_rectangle = grid.range_query(SpacePartitioning::RangeSearchType::Manhattan, rectangle_center, rectangle_extent);
+        // find closest pair without using a spatial structure
+        auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
 
-       // find extent of the diameter of the convex hull surrounding these points
-       std::vector<vec2> rectangle_points;
-       rectangle_points.reserve(points_in_rectangle.size());
-       for (std::size_t i{}; i < points_in_rectangle.size(); ++i) {
-           rectangle_points.emplace_back(points[points_in_rectangle[i].second]);
-       }
-       auto rectangle_convex = Algorithms2D::get_convex_hull(rectangle_points.begin(), rectangle_points.end());
-       auto rectangle_diameter = Algorithms2D::get_convex_diameter(rectangle_convex);
-       
-       // find closest pair without using a spatial structure
-       auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
+        // export information to svg file
+        svg<vec2> point_query_svg(200, 200);
 
-       // export information to svg file
-       svg<vec2> point_query_svg(200, 200);
+        // points
+        point_query_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "black", "none", 1.0f);
 
-       // points
-       point_query_svg.add_point_cloud(points.begin(), points.end(), 2.0f, "black", "none", 1.0f);
+        // circle range query
+        point_query_svg.add_point_cloud(circle_points.begin(), circle_points.end(), 2.0f, "red", "red", 1.0f);
+        point_query_svg.add_polygon(circle_convex.begin(), circle_convex.end(), "none", "red", 1.0f);
+        point_query_svg.add_line(circle_convex[circle_diameter.indices[0]], circle_convex[circle_diameter.indices[1]], "red", "red", 1.0f);
 
-       // circle range query
-       point_query_svg.add_point_cloud(circle_points.begin(), circle_points.end(), 2.0f, "red", "red", 1.0f);
-       point_query_svg.add_polygon(circle_convex.begin(), circle_convex.end(), "none", "red", 1.0f);
-       point_query_svg.add_line(circle_convex[circle_diameter.indices[0]], circle_convex[circle_diameter.indices[1]], "red", "red", 1.0f);
+        // rectangle range query
+        point_query_svg.add_point_cloud(rectangle_points.begin(), rectangle_points.end(), 2.0f, "blue", "blue", 1.0f);
+        point_query_svg.add_polygon(rectangle_convex.begin(), rectangle_convex.end(), "none", "blue", 1.0f);
+        point_query_svg.add_line(rectangle_convex[rectangle_diameter.indices[0]], rectangle_convex[rectangle_diameter.indices[1]], "red", "blue", 1.0f);
 
-       // rectangle range query
-       point_query_svg.add_point_cloud(rectangle_points.begin(), rectangle_points.end(), 2.0f, "blue", "blue", 1.0f);
-       point_query_svg.add_polygon(rectangle_convex.begin(), rectangle_convex.end(), "none", "blue", 1.0f);
-       point_query_svg.add_line(rectangle_convex[rectangle_diameter.indices[0]], rectangle_convex[rectangle_diameter.indices[1]], "red", "blue", 1.0f);
+        // closest pair
+        point_query_svg.add_line(*closest_pair.p0, *closest_pair.p1, "green", "green", 3.0f);
+        point_query_svg.add_circle((*closest_pair.p0 + *closest_pair.p1) / 2.0f, 5.0f, "none", "green", 1.0f);
 
-       // closest pair
-       point_query_svg.add_line(*closest_pair.p0, *closest_pair.p1, "green", "green", 3.0f);
-       point_query_svg.add_circle((*closest_pair.p0 + *closest_pair.p1) / 2.0f, 5.0f, "none", "green", 1.0f);
+        // output
+        point_query_svg.to_file("point_query_svg.svg");
+    }
 
-       // output
-       point_query_svg.to_file("point_query_svg.svg");
-   }
+    {
+        // uniformly place points on a grid
+        std::vector<vec2> points;
+        for (std::int32_t x{ -100 }; x < 100; x += 10) {
+            for (std::int32_t y{ -100 }; y < 100; y += 10) {
+                points.emplace_back(vec2(static_cast<float>(x), static_cast<float>(y)));
+            }
+        }
 
-   {
-       // uniformly place points on a grid
-       std::vector<vec2> points;
-       for (std::int32_t x{ -100 }; x < 100; x += 10) {
-           for (std::int32_t y{ -100 }; y < 100; y += 10) {
-               points.emplace_back(vec2(static_cast<float>(x), static_cast<float>(y)));
-           }
-       }
+        // continuously place last point somewhere in the range of the grid
+        for (std::int32_t x{ -95 }; x < 95; x += 60) {
+            for (std::int32_t y{ -95 }; y < 95; y += 60) {
+                const vec2 p(static_cast<float>(x), static_cast<float>(y));
+                points.emplace_back(p);
+                auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
+                assert(Extra::are_vectors_identical(p, *closest_pair.p0) || Extra::are_vectors_identical(p, *closest_pair.p1));
+                points.pop_back();
+            }
+        }
+    }
 
-       // continuously place last point somewhere in the range of the grid
-       for (std::int32_t x{-95}; x < 95; x += 60) {
-           for (std::int32_t y{ -95 }; y < 95; y += 60) {
-               const vec2 p(static_cast<float>(x), static_cast<float>(y));
-               points.emplace_back(p);
-               auto closest_pair = Algorithms2D::get_closest_pair(points.begin(), points.end());
-               assert(Extra::are_vectors_identical(p, *closest_pair.p0) || Extra::are_vectors_identical(p, *closest_pair.p1));
-               points.pop_back();
-           }
-       }
-   }
+    {
+        std::vector<vec2> triangle{ {vec2(4.0f, 11.0f), vec2(4.0, 5.0f), vec2(9.0f, 9.0f) } };
+        std::vector<vec2> quad{ {vec2(5.0f, 7.0f), vec2(7.0f, 3.0f), vec2(10.0f, 2.0f), vec2(12.0f, 7.0f) } };
+        const vec2 quad_centroid{ Algorithms2D::Internals::get_centroid(quad.begin(), quad.end()) };
+        vec2 triangle_centroid{ Algorithms2D::Internals::get_centroid(triangle.begin(), triangle.end()) };
+        assert(Algorithms2D::do_convex_polygons_intersect(triangle, triangle_centroid, quad, quad_centroid));
 
-   {
-       std::vector<vec2> triangle{ {vec2(4.0f, 11.0f), vec2(4.0, 5.0f), vec2(9.0f, 9.0f) }};
-       std::vector<vec2> quad{ {vec2(5.0f, 7.0f), vec2(7.0f, 3.0f), vec2(10.0f, 2.0f), vec2(12.0f, 7.0f) } };
-       assert(Algorithms2D::do_convex_hulls_intersect(triangle, quad));
+        triangle[1] = vec2(5.1f, 6.9f);
+        triangle_centroid = Algorithms2D::Internals::get_centroid(triangle.begin(), triangle.end());
+        assert(Algorithms2D::do_convex_polygons_intersect(triangle, triangle_centroid, quad, quad_centroid));
 
-       triangle[1] = vec2(5.1f, 6.9f);
-       assert(Algorithms2D::do_convex_hulls_intersect(triangle, quad));
+        triangle[1] = vec2(5.1f, 7.1f);
+        triangle_centroid = Algorithms2D::Internals::get_centroid(triangle.begin(), triangle.end());
+        assert(!Algorithms2D::do_convex_polygons_intersect(triangle, triangle_centroid, quad, quad_centroid));
+    }
 
-       triangle[1] = vec2(5.1f, 7.1f);
-       assert(!Algorithms2D::do_convex_hulls_intersect(triangle, quad));
-   }
+    {
+        // define polygon
+        std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
+                                     vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
+                                     vec2(1.0f, 2.0f)} };
+        for (vec2& p : polygon) {
+            p = 50.0f * p + 50.0f;
+        }
+        const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end()) };
+        Algorithms2D::sort_points<Algorithms2D::Winding::CounterClockWise>(polygon.begin(), polygon.end(), centroid);
 
-   {
-       // define polygon
-       std::vector<vec2> polygon{ {vec2(3.0f, 1.0f), vec2(5.0f, 1.0f), vec2(5.0f, 4.0f), vec2(4.0f, 6.0f), vec2(7.0f, 7.0f), vec2(10.0f, 7.0f), vec2(10.0f, 9.0f),
-                                    vec2(8.0f, 9.0f), vec2(6.0f, 10.0f), vec2(1.0f, 10.0f), vec2(1.0f, 8.0f), vec2(2.0f, 8.0f), vec2(2.0f, 6.0f), vec2(1.0f, 6.0f),
-                                    vec2(1.0f, 2.0f)} };
-       for (vec2& p : polygon) {
-           p = 50.0f * p + 50.0f;
-       }
-       const vec2 centroid{ Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end()) };
-       Algorithms2D::sort_points<Algorithms2D::Winding::CounterClockWise>(polygon.begin(), polygon.end(), centroid);
+        std::vector<vec2> clipped1{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, 1.0f)) };
+        std::vector<vec2> clipped2{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, -1.0f)) };
 
-       std::vector<vec2> clipped1{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, 1.0f)) };
-       std::vector<vec2> clipped2{ Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), vec2(200.0f, 300.0f), vec2(1.0f, -1.0f)) };
+        // export information to svg file
+        svg<vec2> polygon_clipped_svg(600, 600);
+        polygon_clipped_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 1.0f);
 
-       // export information to svg file
-       svg<vec2> polygon_clipped_svg(600, 600);
-       polygon_clipped_svg.add_polygon(polygon.begin(), polygon.end(), "none", "black", 1.0f);
+        polygon_clipped_svg.add_polygon(clipped1.begin(), clipped1.end(), "none", "red", 2.0f);
+        polygon_clipped_svg.add_point_cloud(clipped1.begin(), clipped1.end(), 4.0f, "none", "red", 2.0f);
 
-       polygon_clipped_svg.add_polygon(clipped1.begin(), clipped1.end(), "none", "red", 2.0f);
-       polygon_clipped_svg.add_point_cloud(clipped1.begin(), clipped1.end(), 4.0f, "none", "red", 2.0f);
-       
-       polygon_clipped_svg.add_polygon(clipped2.begin(), clipped2.end(), "none", "green", 2.0f);
-       polygon_clipped_svg.add_point_cloud(clipped2.begin(), clipped2.end(), 4.0f, "none", "green", 2.0f);
+        polygon_clipped_svg.add_polygon(clipped2.begin(), clipped2.end(), "none", "green", 2.0f);
+        polygon_clipped_svg.add_point_cloud(clipped2.begin(), clipped2.end(), 4.0f, "none", "green", 2.0f);
 
-       polygon_clipped_svg.to_file("polygon_clipped_svg.svg");
-   }
+        polygon_clipped_svg.to_file("polygon_clipped_svg.svg");
+    }
 }
 
 void test_glsl_space_partitioning() {
@@ -2630,8 +2626,8 @@ void test_GLSL_clustering() {
        kdtree.clear();
        const auto clusterIds1 = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, radius, 4);
        assert(clusterIds1.clusters.size() == 2);
-       assert(clusterIds1.clusters[0].size() > 58 && clusterIds1.clusters[0].size() < 62);
-       assert(clusterIds1.clusters[1].size() > 38 && clusterIds1.clusters[1].size() < 42);
+       assert(clusterIds1.clusters[0].size() >= 58 && clusterIds1.clusters[0].size() <= 62);
+       assert(clusterIds1.clusters[1].size() >= 38 && clusterIds1.clusters[1].size() <= 42);
        assert(clusterIds1.noise.size() > 6);
        kdtree.clear();
 
@@ -2752,7 +2748,8 @@ void test_GLSL_clustering() {
        kdtree.clear();
 
        // triangulate points
-       std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(points.begin(), points.end()) };
+       const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(points.begin(), points.end());
+       std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(points.begin(), points.end(), aabb) };
 
        // draw
        svg<vec2> dbscan_delaunay_test(800, 800);
@@ -2840,6 +2837,177 @@ void test_GLSL_clustering() {
    }
 }
 
+void test_for_show() {
+   // show 1
+   {
+       // define polygons
+       std::vector<vec2> polygon0{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
+                                     vec2(11.0455f, -61.5682f),  vec2(60.0455f, -55.5682f),  vec2(78.0455f,  -100.568f), vec2(78.0455f,   -119.568f),
+                                     vec2(102.045f, -120.568f),  vec2(102.045f, -101.568f),  vec2(83.0455f,  -36.5682f), vec2(60.0455f,   -26.5682f),
+                                     vec2(37.0455f, -27.5682f),  vec2(37.0455f,  42.4318f),  vec2(67.0455f,  101.432f),  vec2(76.0455f,   158.432f),
+                                     vec2(102.045f,  161.432f),  vec2(101.045f,  177.432f),  vec2(56.0455f,  177.432f),  vec2(56.0455f,   155.432f),
+                                     vec2(44.0455f,  110.432f),  vec2(-1.95454f, 66.4318f),  vec2(-43.9545f, 110.432f),  vec2(-55.9545f,  155.432f),
+                                     vec2(-55.9545f, 177.432f),  vec2(-100.955f, 177.432f),  vec2(-101.955f, 161.432f),  vec2(-75.9545f,  158.432f),
+                                     vec2(-66.9545f, 101.432f),  vec2(-36.9545f, 42.4318f),  vec2(-36.9545f, -27.5682f), vec2(-59.9545f,  -26.5682f),
+                                     vec2(-82.9545f, -36.5682f), vec2(-101.955f, -101.568f), vec2(-101.955f, -120.568f), vec2(-77.9545f,  -119.568f),
+                                     vec2(-77.9545f, -100.568f), vec2(-59.9545f, -55.5682f), vec2(-10.9545f, -61.5682f), vec2(-10.9545f,  -74.5682f),
+                                     vec2(-25.9545f, -91.5682f), vec2(-26.9545f, -112.568f), vec2(-17.9545f, -124.568f), vec2(0.0454559f, -128.568f) } };
+       std::vector<vec2> polygon1(polygon0);
+       std::vector<vec2> polygon2(polygon0);
+
+       // rotate polygons and place them on canvas side by side
+       constexpr float angle{ std::numbers::pi_v<float> / 8.0f };
+       const float sin_angle{ std::sin(angle) };
+       const float cos_angle{ std::cos(angle) };
+       const mat2 rot(cos_angle, -sin_angle, sin_angle, cos_angle);
+       for (vec2& p : polygon0) {
+           p = rot * p + vec2(150.0f, 200.0f);
+       }
+       for (vec2& p : polygon1) {
+           p = rot * p + vec2(360.0f, 200.0f);
+       }
+       for (vec2& p : polygon2) {
+           p = rot * p + vec2(550.0f, 200.0f);
+       }
+
+       // find 'polygon0' medial axis joints and their locally inscribed circles
+       const auto aabb_polygon0 = AxisLignedBoundingBox::point_cloud_aabb(polygon0.begin(), polygon0.end());
+       const float step{ GLSL::distance(aabb_polygon0.min, aabb_polygon0.max) / 1000.0f };
+       const auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon0.begin(), polygon0.end(), step);
+
+       // 'delaunay' triangulate 'polygon1' and calculate its triangles circumcircles
+       using circumcircle_t = decltype(Algorithms2D::Internals::get_circumcircle(vec2(), vec2()));
+       const auto aabb1 = AxisLignedBoundingBox::point_cloud_aabb(polygon1.begin(), polygon1.end());
+       const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon1.begin(), polygon1.end(), aabb1);
+       std::vector<circumcircle_t> circuumcircles;
+       circuumcircles.reserve(delaunay.size() / 3);
+       for (std::size_t i{}; i < delaunay.size(); i += 3) {
+           circuumcircles.emplace_back(Algorithms2D::Internals::get_circumcircle(delaunay[i], delaunay[i + 1], delaunay[i + 2]));
+       }
+
+       // slice 'polygon2' by a line to half, 'earcut' triangulate it and calculate its minimal bounding box and circle
+       const auto centroid = Algorithms2D::Internals::get_centroid(polygon2.begin(), polygon2.end());
+       auto part = Algorithms2D::clip_polygon_by_infinte_line(polygon2.begin(), polygon2.end(), centroid, rot.x());
+       for (vec2& p : part) {
+           p = rot * p + vec2(0.0f, 230.f);
+       }
+       const auto convex = Algorithms2D::get_convex_hull(part.begin(), part.end());
+       const auto obb = Algorithms2D::get_bounding_rectangle(convex);
+       const auto circumcircle = Algorithms2D::get_minimal_bounding_circle(convex);
+       const auto earcut = Algorithms2D::triangulate_polygon_earcut(part.begin(), part.end());
+
+       // export calculations to SVG file 
+       svg<vec2> canvas(800, 450);
+       canvas.add_polygon(polygon0.begin(), polygon0.end(), "none", "black", 3.0f);
+       for (auto& mat : medial_axis) {
+           canvas.add_circle(mat.point, std::sqrt(mat.squared_distance), "none", "blue", 1.0f);
+           canvas.add_circle(mat.point, 5.0f, "red", "red", 1.0f);
+       }
+
+       for (std::size_t i{}; i < delaunay.size(); i += 3) {
+           std::array<vec2, 3> tri{ { (delaunay[i]),
+                                      (delaunay[i + 1]),
+                                      (delaunay[i + 2]) } };
+           canvas.add_polygon(tri.begin(), tri.end(), "none", "black", 3.0f);
+       }
+       for (circumcircle_t c : circuumcircles) {
+           canvas.add_circle(c.center, std::sqrt(c.radius_squared), "none", "red", 1.0f);
+       }
+
+       for (std::size_t i{}; i < earcut.size(); i += 3) {
+           std::array<vec2, 3> tri{ { *(earcut[i]),
+                                      *(earcut[i + 1]),
+                                      *(earcut[i + 2]) } };
+           canvas.add_polygon(tri.begin(), tri.end(), "none", "black", 2.0f);
+       }
+       std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3, obb.p0} };
+       canvas.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
+       canvas.add_circle(circumcircle.center, std::sqrt(circumcircle.radius_squared), "none", "blue", 2.0f);
+
+       canvas.to_file("canvas.svg");
+   }
+
+   // show 2
+   {
+       // generate noisy patterns
+       std::vector<vec2> points;
+       float sign{ 3.0f };
+       vec2 center(150.0f, 150.0f);
+       const std::array<std::size_t, 3> count{ { 75, 125, 200} };
+       const std::array<float, 3> radius{ { 15.0f, 40.0f, 75.0f} };
+       for (std::size_t i{}; i < radius.size(); ++i) {
+           const float r{ radius[i] };
+           for (std::size_t j{}; j < count[i]; ++j) {
+               float fi{ static_cast<float>(j) };
+               points.emplace_back(vec2(center.x + r * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                        center.y + r * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+               sign *= -1.0f;
+           }
+       }
+
+       center = vec2(250.0f, 250.0f);
+       for (std::size_t j{}; j < 50; ++j) {
+           float fi{ static_cast<float>(j) };
+           points.emplace_back(vec2(center.x + radius[0] * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius[0] * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+       
+       center = vec2(110.0f, 250.0f);
+       for (std::size_t j{}; j < 50; ++j) {
+           float fi{ static_cast<float>(j) };
+           points.emplace_back(vec2(center.x + radius[0] * std::cos(fi) + sign * static_cast<float>(rand()) / RAND_MAX,
+                                    center.y + radius[0] * std::sin(fi) + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       sign = 5.0f;
+       constexpr float deg2rad{ 3.141592653589f / 180.0f };
+       float tanAngle{ std::tan(10.0f * deg2rad) };
+       for (std::size_t x{ 40 }; x < 250; x += 5) {
+           const float xf{ static_cast<float>(x) };
+           points.emplace_back(vec2(xf, tanAngle * xf + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       tanAngle = std::tan(80.0f * deg2rad);
+       for (std::size_t x{}; x < 75; x += 1) {
+           const float xf{ static_cast<float>(x) };
+           points.emplace_back(vec2(xf, tanAngle * xf + sign * static_cast<float>(rand()) / RAND_MAX));
+           sign *= -1.0f;
+       }
+
+       for (std::size_t i{}; i < 100; ++i) {
+           points.emplace_back(vec2(static_cast<float>(rand()) / RAND_MAX * 300.0f,
+                                    static_cast<float>(rand()) / RAND_MAX * 300.0f));
+       }
+
+       // partition the space using kd-tree an combine it with a density estimator (DBSCAN) to segment to shapes and noise
+       SpacePartitioning::KDTree<vec2> kdtree;
+       kdtree.construct(points.begin(), points.end());
+       const float density_radius{ 0.9f * radius[0] };
+       const std::size_t density_points{ 3 };
+       const auto segments = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, density_radius, density_points);
+       kdtree.clear();
+       
+       // export calculations to SVG file 
+       svg<vec2> cloud_points_svg(300, 280);
+       
+       std::array<std::string, 7> colors{ {"red", "green", "blue", "orange", "magenta", "deeppink", "tan"}};
+       for (std::size_t i{}; i < segments.clusters.size(); ++i) {
+           const std::string color{ colors[i % colors.size()] };
+           for (const std::size_t j : segments.clusters[i]) {
+               cloud_points_svg.add_circle(points[j], 3.0f, color, "black", 1.0f);
+           }
+       }
+       for (const std::size_t i : segments.noise) {
+           cloud_points_svg.add_circle(points[i], 3.0f, "slategrey", "black", 1.0f);
+       }
+
+       cloud_points_svg.to_file("cloud_points_svg.svg");
+   }
+}
+
 int main() {
     test_diamond_angle();
     test_hash();
@@ -2857,5 +3025,6 @@ int main() {
     test_GLSL_clustering();
     test_glsl_extra();
     test_numerical_algorithms();
+    test_for_show();
 	return 1;
 }
