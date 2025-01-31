@@ -122,7 +122,14 @@ namespace Clustering {
         }
 
         // remove possible empty clusters
-        Algoithms::remove_if(clusterIndices.begin(), clusterIndices.end(), [](const indices_t& e) { return e.size() == 0; });
+        std::vector<std::size_t> to_remove;
+        to_remove.reserve(clusterIndices.size());
+        for (std::size_t i{}; i < clusterIndices.size(); ++i) {
+            if (clusterIndices[i].empty()) {
+                to_remove.emplace_back(i);
+            }
+        }
+        Algoithms::remove(clusterIndices, to_remove);
 
         // output
         return out_t{ clusterIndices, notClusters };
