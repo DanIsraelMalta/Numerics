@@ -183,4 +183,4 @@ for (const std::size_t i : segments.noise) {
 
 cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
-![Image](https://github.com/user-attachments/assets/d548e818-46b3-4d1b-95a8-ba00c8439e08)
+![Image](https://github.com/user-attachments/assets/8b742fd2-3224-4e7b-8e0c-b5c29701e8e9)
