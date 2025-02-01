@@ -2277,7 +2277,7 @@ void test_GLSL_algorithms_2D() {
 
         // calculate maximal inscribed circle
         const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(polygon.begin(), polygon.end());
-        const std::vector<vec2> delaunay{ Algorithms2D::triangulate_points_delaunay(polygon.begin(), polygon.end(), aabb) };
+        const std::vector<vec2> delaunay{ Algorithms2D::triangulate_polygon_delaunay(polygon.begin(), polygon.end(), aabb) };
         const auto inscribed{ Algorithms2D::get_maximal_inscribed_circle(polygon.begin(), polygon.end(), delaunay) };
 
         // export polygon and its bounding objects to SVG
