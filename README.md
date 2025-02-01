@@ -7,7 +7,7 @@ Features include:
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of computational geometry.
 + A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations for polygons and point clouds.
 
-**Sample #1 - create polygon, calculate its medial axis joints (and appropriate inscribed circles), triangulate it "delaunay" style (and draw triangles circumcircles), and then cut it in half, triangulate it "earcut" style and calculated its minimal bounding circle and oriened bounding box:**
+**Sample #1 - calculate its medial axis joints (and appropriate inscribed circles), triangulate it "delaunay" style (and draw triangles circumcircles), and then cut it in half, triangulate it "earcut" style and calculate its minimal bounding circle and oriented bounding box:**
 ```cpp
 // define polygons
 std::vector<vec2> polygon0{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -101,7 +101,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/b758e995-807b-4c26-88da-f4f7f4978f8a)
 
 
-**Sample #2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (gray is noise):**
+**Sample #2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (each segemtn in different color, gray is noise):**
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
