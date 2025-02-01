@@ -23,6 +23,7 @@
 #include "GLSL_algorithms_2D.h"
 #include "Glsl_space_partitioning.h"
 #include "GLSL_clustering.h"
+#include "Glsl_sampling.h"
 #include "Glsl_svg.h"
 
 void test_diamond_angle() {
@@ -1062,7 +1063,6 @@ void test_glsl_extra() {
         assert(Extra::are_vectors_identical(vec3(0.0f, 1.0f, 1.0f), p_from_c));
 
         const auto c1 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, vec3(0.0f, 14.0f, 14.0f));
-        std::cout << "c1 = " << c1 << '\n';
         assert(Numerics::areEquals(GLSL::sum(c1), -4.0f));
 
         const auto c2 = Extra::quad_barycentric_coordinate(v0, v1, v2, v3, v0);
@@ -2837,6 +2837,51 @@ void test_GLSL_clustering() {
    }
 }
 
+void test_samples() {
+    // show 3
+   {
+       // how many points to sample
+       constexpr std::size_t count{ 1000 };
+
+       // create a circle and uniformly sample 1000 points within it
+       const vec2 center(130.0f, 130.0f);
+       const float radius{ 50.0f };
+       std::vector<vec2> sampled_circle_points;
+       sampled_circle_points.reserve(count);
+       for (std::size_t i{}; i < count; ++i) {
+           sampled_circle_points.emplace_back(Sample::sample_circle(center, radius));
+       }
+
+       // creat a triangle and uniformly sample 1000 points within it
+       const vec2 v0(20.0f, 220.0f);
+       const vec2 v1(20.0f, 520.0f);
+       const vec2 v2(500.0f, 400.0f);
+       std::vector<vec2> sampled_triangle_points;
+       sampled_triangle_points.reserve(count);
+       for (std::size_t i{}; i < count; ++i) {
+           sampled_triangle_points.emplace_back(Sample::sample_triangle(v0, v1, v2));
+       }
+
+       // create a parallelogram and uniformly sample 2000 points within it
+       const vec2 p0(230.0f, 250.0f);
+       const vec2 p1(500.0f, 400.0f);
+       const vec2 p2(700.0f, 200.0);
+       const vec2 p3(300.0f, 100.0f);
+       std::vector<vec2> sampled_parallelogram_points;
+       sampled_parallelogram_points.reserve(2 * count);
+       for (std::size_t i{}; i < 2 * count; ++i) {
+           sampled_parallelogram_points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
+       }
+
+       // export to svg
+       svg<vec2> sample_test(800, 800);
+       sample_test.add_point_cloud(sampled_circle_points.begin(), sampled_circle_points.end(), 1.0, "red", "none", 0.0f);
+       sample_test.add_point_cloud(sampled_triangle_points.begin(), sampled_triangle_points.end(), 1.0, "green", "none", 0.0f);
+       sample_test.add_point_cloud(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), 1.0, "blue", "none", 0.0f);
+       sample_test.to_file("sample_test.svg");
+   }
+}
+
 void test_for_show() {
    // show 1
    {
@@ -3026,5 +3071,6 @@ int main() {
     test_glsl_extra();
     test_numerical_algorithms();
     test_for_show();
+    test_samples();
 	return 1;
 }
