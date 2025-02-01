@@ -382,6 +382,28 @@ namespace Algorithms2D {
         }
 
         /**
+        * \brief given a polygon (as a collection of points), return twice its area
+        * @param {forward_iterator, in}  iterator to first point in polygon
+        * @param {forward_iterator, in}  iterator to last point in polygon
+        * @param {value_type,       out} twice the polygon area
+        **/
+        template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+                 class T = typename VEC::value_type>
+            requires(GLSL::is_fixed_vector_v<VEC>&& VEC::length() == 2)
+        constexpr T get_area(const InputIt first, const InputIt last) {
+            const T dist{ static_cast<T>(std::distance(first, last)) };
+            assert(dist > T{});
+
+            T area{};
+            for (auto it{ first }, nt{first + 1}; nt != last; ++it, ++nt) {
+                area += GLSL::cross(*it, *nt);
+            }
+            area += GLSL::cross(*(last - 1), *first);
+
+            return std::abs(area);
+        }
+
+        /**
         * \brief given a polygon, return its area
         * @param {forward_iterator, in}  iterator to polygon first point
         * @param {forward_iterator, in}  iterator to polygon last point
