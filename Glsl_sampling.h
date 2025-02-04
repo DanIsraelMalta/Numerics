@@ -112,54 +112,37 @@ namespace Sample {
     * @param {vector<IFixedVector>, in}  vector of vertices of polygon triangles.
     *                                    every three consecutive iterators define a triangle.
     *                                    see 'Algorithms2D::triangulate_polygon_delaunay' or "Algorithms2D::triangulate_polygon_earcut"
+    * @param {value_type,           in}  twice polygon/triangulation area (can use 'Algorithms2D::Internals::get_area')
     * @param {size_t,               in}  amount of points to sample inside polygon
     * @param {vector<IFixedVector>, out} point, uniformly sampled, inside a given polygon
     **/
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(VEC::length() == 2)
-    constexpr std::vector<VEC> sample_polygon(const std::vector<VEC>& triangulaion, const std::size_t count) {
-        // calculate triangle area percentage
-        std::vector<T> triangles;
-        triangles.reserve(triangulaion.size());
-        T total_area{};
+    constexpr std::vector<VEC> sample_polygon(const std::vector<VEC>& triangulaion, const T total_area, const std::size_t count) {
+        // housekeeping
+        const T area_count{ static_cast<T>(count) / total_area };
+
+        // sample each triangle according to its percentage of total polygon area
+        std::vector<VEC> samples;
+        samples.reserve(count);
         for (std::size_t i{}; i < triangulaion.size(); i += 3) {
-            const VEC p0{ triangulaion[i] };
+            const VEC p0{ triangulaion[i]     };
             const VEC p1{ triangulaion[i + 1] };
             const VEC p2{ triangulaion[i + 2] };
 
             const VEC v1{ p0 - p2 };
             const VEC v2{ p1 - p2 };
-            const T area{ std::abs(Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x)) };
-            total_area += area;
+            const T local_area{ std::abs(Numerics::diff_of_products(v1.x, v2.y, v1.y, v2.x)) };
 
-            triangles.emplace_back(area);
-        }
-
-        // sample the polygon
-        std::vector<VEC> samples;
-        samples.reserve(count);
-        for (std::size_t i{}; i < count; ++i) {
-            const T u{ total_area * static_cast<T>(rand()) / static_cast<T>(RAND_MAX) };
-
-            // find triangle whose relative area is closest to uniform random value
-            T max_area_diff{std::numeric_limits<T>::max() };
-            std::size_t closest_index{};
-            for (std::size_t j{}; j < triangles.size(); ++j) {
-                if (const T area_diff{ std::abs(triangles[j] - u) }; 
-                    area_diff < max_area_diff) {
-                    max_area_diff = area_diff;
-                    closest_index = j;
-                }
+            for (std::size_t j{}, len{ static_cast<std::size_t>(std::ceil(local_area * area_count)) }; j < len; ++j) {
+                samples.emplace_back(Sample::sample_triangle(p0, p1, p2));
             }
-
-            // sample triangle
-            const std::size_t index{ 3 * closest_index };
-            samples.emplace_back(Sample::sample_triangle(triangulaion[index],
-                                                         triangulaion[index + 1],
-                                                         triangulaion[index + 2]));
         }
 
         // output
+        if (samples.size() > count) {
+            samples.resize(count);
+        }
         return samples;
     }
 }
