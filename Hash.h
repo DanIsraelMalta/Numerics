@@ -208,10 +208,10 @@ namespace Hash {
     **/
     std::float_t rand32() {
         // eps = 1.0f - 0.99999994f (0.99999994f is closest value to 1.0f from below)
-        constexpr ::double_t eps{ 5.9604645E-8 };
+        constexpr std::double_t eps{ 5.9604645E-8 };
         const std::uint_least32_t r{ static_cast<std::uint_least32_t>(rand() & 0xffff) +
                                      static_cast<std::uint_least32_t>((rand() & 0x00ff) << 16) };
-        return static_cast<std::float_t>(static_cast<double>(r) * 5.9604645E-8);
+        return static_cast<std::float_t>(static_cast<double>(r) * eps);
     }
 
     /**
