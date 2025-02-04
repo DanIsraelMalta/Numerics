@@ -203,11 +203,23 @@ namespace Hash {
     }
 
     /**
+    * \brief generate a 32bit uniformly distributed random number with 24bit linear distance in range [0, 1]
+    * @param {float, out} uniformly distributed random number in range [0, 1]
+    **/
+    std::float_t rand32() {
+        // eps = 1.0f - 0.99999994f (0.99999994f is closest value to 1.0f from below)
+        constexpr ::double_t eps{ 5.9604645E-8 };
+        const std::uint_least32_t r{ static_cast<std::uint_least32_t>(rand() & 0xffff) +
+                                     static_cast<std::uint_least32_t>((rand() & 0x00ff) << 16) };
+        return static_cast<std::float_t>(static_cast<double>(r) * 5.9604645E-8);
+    }
+
+    /**
     * \brief generate a 64bit uniformly distributed random number (can be positive or negative).
     * @param {double, out} uniformly distributed random numbers
     **/
-    double rand64() {
-        using double_t = union { std::uint64_t u; double d; };
+    std::double_t rand64() {
+        using double_union_t = union { std::uint64_t u; std::double_t d; };
         constexpr std::array<std::int32_t, 14> possible_exponents{ { 2046, 2045, 1994, 1995, 1993, 0, 1, 2,
                                                                      1021, 1022, 1023, 1024, 1025, 1026 } };
         constexpr std::array<std::uint64_t, 8> possible_significands{ { 0b1111111111111111111111111111111111111111111111111111,
@@ -248,7 +260,7 @@ namespace Hash {
         assert(significand < (1ULL << 52));
 
         // construct double by its components (sign, exponent, significand) and return
-        double_t dbl{};
+        double_union_t dbl{};
         dbl.u = (static_cast<std::uint64_t>(sign) << 63) | (static_cast<std::uint64_t>(exponent) << 52) | significand;
         return dbl.d;
     }
