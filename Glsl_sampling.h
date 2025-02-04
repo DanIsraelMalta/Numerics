@@ -144,11 +144,11 @@ namespace Sample {
             // find triangle whose relative area is closest to uniform random value
             T max_area_diff{std::numeric_limits<T>::max() };
             std::size_t closest_index{};
-            for (std::size_t i{}; i < triangles.size(); ++i) {
-                if (const T area_diff{ std::abs(triangles[i] - u) }; 
+            for (std::size_t j{}; j < triangles.size(); ++j) {
+                if (const T area_diff{ std::abs(triangles[j] - u) }; 
                     area_diff < max_area_diff) {
                     max_area_diff = area_diff;
-                    closest_index = i;
+                    closest_index = j;
                 }
             }
 
