@@ -615,6 +615,7 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
     constexpr std::vector<VEC> get_convex_hull(const InputIt first, const InputIt last) {
         using T = typename VEC::value_type;
+        using vec_it = typename std::vector<VEC>::iterator;
 
         // lambda to check if points are ordered clockwise
         const auto are_points_ordered_counter_clock_wise = [](const VEC & a, const VEC & b, const VEC & c) -> T {
@@ -625,7 +626,7 @@ namespace Algorithms2D {
         std::vector<VEC> points(first, last);
 
         // place left most point at start of point cloud
-        const InputIt minElementIterator{ Algoithms::min_element(points.begin(), points.end(),
+        const vec_it minElementIterator{ Algoithms::min_element(points.begin(), points.end(),
                                                 [](const VEC& a, const VEC& b) noexcept -> bool {
             return (a.x < b.x || (a.x == b.x && a.y < b.y));
         }) };
@@ -633,12 +634,12 @@ namespace Algorithms2D {
 
         // lexicographically sort all points using the smallest point as pivot
         const VEC v0( points[0] );
-        Algoithms::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
+        std::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
             return Numerics::diff_of_products(b.y - v0.y, c.x - b.x, b.x - v0.x, c.y - b.y) < T{};
         });
 
         // build hull
-        auto it = points.begin();
+        vec_it it = points.begin();
         std::vector<VEC> hull{ {*it++, *it++, *it++} };
         while (it != points.end()) {
             while (are_points_ordered_counter_clock_wise(*(hull.rbegin() + 1), *(hull.rbegin()), *it) >= T{}) {
@@ -1142,52 +1143,83 @@ namespace Algorithms2D {
     * @param {value_type,           in}  concave threshold. the minimal ratio between segment length with added point and original segment length.
     *                                    if the value is smaller than the threshold - the point is part of the concave.
     *                                    the larger the threshold - the more points will be part of the concave.
-    *                                    default is 0, i.e - convex hull
+    *                                    default is 0, i.e - convex hull.
+    *                                    value of 1.3 means that if the new segment is smaller than 130% current segment - it will be added to concave hull.
     * @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
     constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const T concave_threshold = T{}) {
+        using closest_t = decltype(Algorithms2D::Internals::get_index_of_closest_segment(std::vector<VEC>{}, VEC()));
+
         // get convex hull
         std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
         if (concave_threshold <= T{}) {
             return hull;
         }
 
+        // Euclidean distance approximation
+        // (https://en.wikibooks.org/wiki/Algorithms/Distance_approximations)
+        const auto distance = [](const VEC& a, const VEC& b) -> T {
+            constexpr T c1{ static_cast<T>(1007.0) / static_cast<T>(1024) };
+            constexpr T c2{ static_cast<T>(441.0) / static_cast<T>(1024) };
+            constexpr T c3{ static_cast<T>(40.0) / static_cast<T>(1024) };
+            constexpr T c4{ static_cast<T>(16.0) };
+
+            const T x{ Numerics::max(std::abs(a.x), std::abs(b.x)) };
+            const T y{ Numerics::max(std::abs(a.y), std::abs(b.y)) };
+            const T _max{ Numerics::max(x, y) };
+            const T _min{ Numerics::min(x, y) };
+
+            return (_max < c4 * _min) ? ((c1 - c3) * _max + c2 * _min) : (c1 * _max + c2 * _min);
+        };
+
         // remove convex hull points from cloud
         std::vector<VEC> cloud(first, last);
+        std::vector<std::size_t> to_remove;
+        to_remove.reserve(hull.size());
         for (const VEC h : hull) {
             for (std::size_t i{}; i < cloud.size(); ++i) {
                 if (Extra::are_vectors_identical(h, cloud[i])) {
-                    Utilities::swap(cloud[i], cloud.back());
-                    cloud.pop_back();
+                    to_remove.emplace_back(i);
+                    break;
                 }
             }
         }
-
+        Algoithms::remove(cloud, to_remove);
+        
         // "dig" into convex hull to create concave hull
-        std::size_t i{};
-        while(i < cloud.size()) {
+#ifdef _DEBUG
+        std::size_t restarts{};
+#endif
+        for (std::size_t i{}; i < cloud.size(); ++i) {
             // find hull segment which cloud point is closest to
             const VEC p{ cloud[i] };
-            const auto closest = Algorithms2D::Internals::get_index_of_closest_segment(hull, p);
+            const closest_t closest{ Algorithms2D::Internals::get_index_of_closest_segment(hull, p) };
 
             // should point be part of concave hull?
             const std::size_t segment_index_start{ closest.index };
             const std::size_t segment_index_end{ (segment_index_start + 1) % hull.size() };
-            const T segment_length{ GLSL::distance(hull[segment_index_start], hull[segment_index_end]) };
-            const T new_segment_length{ GLSL::distance(p, hull[segment_index_end]) +
-                                        GLSL::distance(hull[segment_index_start], p) };
+            const T segment_length{ distance(hull[segment_index_start], hull[segment_index_end]) };
+            const T new_segment_length{ distance(p, hull[segment_index_end]) +
+                                        distance(hull[segment_index_start], p) };
             [[assume(segment_length > T{})]];
             [[assume(new_segment_length > T{})]];
-            const T segment_length_ratio{ new_segment_length / segment_length };
-            if (Numerics::areEquals(segment_length, new_segment_length, Numerics::equality_precision<T>()) || segment_length_ratio <= concave_threshold) {
+            if (new_segment_length <= segment_length * concave_threshold ||
+                Numerics::areEquals(segment_length, new_segment_length, Numerics::equality_precision<T>())) {
+                // update hull
+                assert(segment_index_start + 1 <= hull.size());
                 hull.insert(hull.begin() + segment_index_start + 1, p);
-                cloud.erase(cloud.begin() + i);
+
+                // remove point from cloud
+                Utilities::swap(cloud[i], cloud.back());
+                cloud.pop_back();
+
+                // restart search
                 i = 0;
-            }
-            else {
-                ++i;
+#ifdef _DEBUG
+                ++restarts;
+#endif
             }
         }
 
