@@ -110,7 +110,7 @@ namespace Hash {
     **/
     template<typename T>
         requires(std::is_integral_v<T>)
-    constexpr T hash_coordinate_to_integral(std::size_t N, T x, T y, T z) {
+    constexpr T hash_coordinate_to_grid(std::size_t N, T x, T y, T z) {
         constexpr T A{ 73856093 };
         constexpr T B{ 19349663 };
         constexpr T C{ 83492791 };
@@ -119,8 +119,37 @@ namespace Hash {
     }
     template<typename T>
         requires(std::is_integral_v<T>)
-    constexpr T hash_coordinate_to_integral(std::size_t N, T x, T y) {
+    constexpr T hash_coordinate_to_grid(std::size_t N, T x, T y) {
         assert(N > 0 && N < static_cast<std::size_t>(std::numeric_limits<T>::digits) - 1);
+        return hash_coordinate_to_integral(N, x, y, x ^ y);
+    }
+
+    /**
+    * \brief hash 2D/3D coordinate into 1D integral value.
+    *        hash is based on "hash_coordinate_to_integral"
+    * @param {integral, in}  x coordinate
+    * @param {integral, in}  y coordinate
+    * @param {integral, in}  z coordinate (optional)
+    * @param {integral, out} hash value
+    **/
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T hash_coordinate_to_integral(T x, T y, T z) {
+        constexpr T A{ 73856093 };
+        constexpr T B{ 19349663 };
+        constexpr T C{ 83492791 };
+
+        // scramble bits to make sure that integer coordinates have entropy in lower bits
+        const T _x{ _x ^ (_x >> 17) };
+        const T _y{ _y ^ (_y >> 17) };
+        const T _z{ _z ^ (_z >> 17) };
+
+        // output
+        return (_x * A ^ _y * B ^ _z * C);
+    }
+    template<typename T>
+        requires(std::is_integral_v<T>)
+    constexpr T hash_coordinate_to_integral(T x, T y) {
         return hash_coordinate_to_integral(N, x, y, x ^ y);
     }
 
