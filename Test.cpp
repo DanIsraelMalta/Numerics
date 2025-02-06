@@ -5,6 +5,7 @@
 #include <list>
 #include <chrono>
 #include <string>
+#include <unordered_map>
 #include <fstream>
 #include "Algorithms.h"
 #include "DiamondAngle.h"
@@ -2412,6 +2413,28 @@ void test_GLSL_algorithms_2D() {
 
         polygon_clipped_svg.to_file("polygon_clipped_svg.svg");
     }
+
+    {
+        std::vector<vec2> polygon{ {vec2(90.0f, 60.0f), vec2(40.0f, 80.0f), vec2(0.0f,  50.0f),
+                                    vec2(20.0f, 40.0f), vec2(60.0f, 40.0f), vec2(30.0f, 20.0f),
+                                    vec2(10.0f, 10.0f), vec2(50.0f,  0.0f), vec2(90.0f, 30.0f) }};
+        float min_area{ std::numeric_limits<float>::max() };
+        for (std::size_t i{}; i < polygon.size(); ++i) {
+            const std::size_t p{ (i - 1) % polygon.size() };
+            const std::size_t n{ (i + 1) % polygon.size() };
+            const float area{ Algorithms2D::Internals::triangle_twice_area(polygon[p], polygon[i], polygon[n]) / 2.0f };
+            if (area < min_area) {
+                min_area = area;
+            }            
+        }
+        const auto simplified{ Algorithms2D::simplify_polygon(polygon.begin(), polygon.end(), 0.1f, min_area + 1.0f) };
+        assert(simplified.size() == polygon.size() - 1);
+
+        svg<vec2> polygon_simplification_svg(100, 100);
+        polygon_simplification_svg.add_polygon(polygon.begin(),    polygon.end(), "none", "black", 2.0f);
+        polygon_simplification_svg.add_polygon(simplified.begin(), simplified.end(), "none", "red", 2.0f);
+        polygon_simplification_svg.to_file("polygon_simplification_svg.svg");
+    }
 }
 
 void test_glsl_space_partitioning() {
@@ -3055,5 +3078,5 @@ int main() {
     test_numerical_algorithms();
     test_for_show();
     test_samples();
-	return 1;
+    return 1;
 }
