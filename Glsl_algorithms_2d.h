@@ -181,7 +181,7 @@ namespace Algorithms2D {
         }
 
         /**
-        * \brief test if two segments intersect
+        * \brief test if two segments intersect (or even touch in their edge points)
         * @param {IFixedVector, in}  segment #1 point #1
         * @param {IFixedVector, in}  segment #1 point #2
         * @param {IFixedVector, in}  segment #1 point #1
@@ -2086,5 +2086,98 @@ namespace Algorithms2D {
 
         // output
         return medial_axis_points;
+    }
+
+    /**
+    * \brief given a polygon (as a collection of ordered points) simplify it by cluster close vertices and
+    *        decimate sides using Visvalingam–Whyatt algorithm.
+    *
+    * @param {forward_iterator,     in}  iterator to polygon first point (polygon is ordered in counter clockwise manner)
+    * @param {forward_iterator,     in}  iterator to polygon last point (polygon is ordered in counter clockwise manner)
+    * @param {value_type,           in}  minimal squared distance between two consecutive vertices for them to be merged
+    * @param {value_type,           in}  minimal area created by three consecutive vertices for the middle vertex to be removed
+    * @param {vector<IFixedVector>, out} simplified polygon
+    */
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr std::vector<VEC> simplify_polygon(const InputIt first, const InputIt last,
+                                               const T min_square_distance, const T min_area) {
+
+        // housekeeping
+        std::vector<VEC> polygon;
+        polygon.reserve(static_cast<std::size_t>(std::distance(first, last)));
+        polygon.emplace_back(*first);
+
+        // vertex clustering
+        const auto merge_vertex = [&polygon, min_square_distance](const VEC& a, const VEC& b) {
+            if (GLSL::dot(a, b) > min_square_distance) {
+                polygon.emplace_back(b);
+            }
+        };
+        for (InputIt it{ first }, nt{ it + 1 }; nt != last; ++it, ++nt) {
+            merge_vertex(*it, *nt);
+        }
+        merge_vertex(*first, *(last - 1));
+
+        // Visvalingam–Whyatt algorithm decimation
+        const std::size_t len{ polygon.size() };
+        const T twice_area_min{ static_cast<T>(2.0) * min_area };
+
+        std::vector<std::size_t> to_remove;
+        to_remove.reserve(len);
+
+        const auto do_segments_only_intersect = [](const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) -> bool {
+            const VEC s1{ a1 - a0 };
+            const VEC s2{ b1 - b0 };
+            const T denom{ Numerics::diff_of_products(s1.x, s2.y, s2.x, s1.y) };
+            if (Numerics::areEquals(denom, T{})) {
+                return false;
+            }
+
+            [[assume(denom != T{})]];
+            const VEC ab{ a0 - b0 };
+            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
+            const T t{ Numerics::diff_of_products(s2.x, ab.y, s2.y, ab.x) / denom };
+
+            return (s > T{} && s < static_cast<T>(1.0) &&
+                    t > T{} && t < static_cast<T>(1.0));
+        };
+
+        const auto erase_vertex = [&polygon, &to_remove, &do_segments_only_intersect, len, twice_area_min]
+                                  (const std::size_t index) -> void {
+            const std::size_t prev_index{ (index - 1) % len };
+            const std::size_t next_index{ (index + 1) % len };
+
+            const VEC prev{ polygon[prev_index] };
+            const VEC next{ polygon[next_index] };
+
+            if (const T twice_area{ Algorithms2D::Internals::triangle_twice_area(prev, polygon[index], next) }; 
+                twice_area > twice_area_min) {
+                return;
+            }
+
+            for (std::size_t i{}, j{ 1 }; j < len; ++i, ++j) {
+                if (i == prev_index && j == next_index) {
+                    continue;
+                }
+                if (do_segments_only_intersect(prev, next, polygon[i], polygon[j])) {
+                    return;
+                }
+            }
+            if (do_segments_only_intersect(prev, next, polygon[len - 1], polygon[0])) {
+                return;
+            }
+
+            to_remove.emplace_back(index);
+        };
+
+        for (std::size_t i{}; i < len - 1; ++i) {
+            erase_vertex(i);
+        }
+        Algoithms::remove(polygon, to_remove);
+
+        // output
+        return polygon;
     }
 }
