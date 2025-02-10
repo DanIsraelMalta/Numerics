@@ -7,7 +7,9 @@ Features include:
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of computational geometry.
 + A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations for polygons and point clouds.
 
-**Sample #1 - calculate its medial axis joints (and appropriate inscribed circles), triangulate it "delaunay" style (and draw triangles circumcircles), and then cut it in half, triangulate it "earcut" style and calculate its minimal bounding circle and oriented bounding box:**
+## Examples:
+
+**Example #1 - calculate its medial axis joints (and appropriate inscribed circles), triangulate it "delaunay" style (and draw triangles circumcircles), and then cut it in half, triangulate it "earcut" style and calculate its minimal bounding circle and oriented bounding box:**
 ```cpp
 // define polygons
 std::vector<vec2> polygon0{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -101,7 +103,70 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/b758e995-807b-4c26-88da-f4f7f4978f8a)
 
 
-**Sample #2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (each segemtn in different color, gray is noise):**
+**How would it look if we sampled the polygon and used the medial axis joints as centroids for k-mean clustering?**
+
+
+```cpp
+// sample polygon (3000 points)
+const float area{ Algorithms2D::Internals::get_area(polygon.begin(), polygon.end()) };
+const auto polygon_samples = Sample::sample_polygon(delaunay, area, 3000);
+
+// merge close medial axis joints
+for (std::size_t i{}; i < medial_axis.size(); ++i) {
+    for (std::size_t j{}; j < medial_axis.size(); ++j) {
+        if (GLSL::distance(medial_axis[i].point, medial_axis[j].point) < 10.0f) {
+            Utilities::swap(medial_axis[j], medial_axis.back());
+            medial_axis.pop_back();
+        }
+    }
+}
+
+// cluster sampled points, with medial axis joints as initial centers, using k-means
+std::vector<vec2> intial_centers;
+intial_centers.reserve(medial_axis.size());
+for (const auto& ma : medial_axis) {
+    intial_centers.emplace_back(ma.point);
+}
+const auto clusterIds = Clustering::k_means(polygon_samples.cbegin(), polygon_samples.cend(), medial_axis.size(), 20, 0.01f, intial_centers);
+
+// extract clusters
+std::vector<std::vector<vec2>> clusters(medial_axis.size(), std::vector<vec2>{});
+for (std::size_t j{}; j < medial_axis.size(); ++j) {
+    clusters[j].reserve(clusterIds[j].size());
+    for (const std::size_t i : clusterIds[j]) {
+        clusters[j].emplace_back(polygon_samples[i]);
+    }
+}
+
+// calculate clusters convex hulls
+std::vector<std::vector<vec2>> hulls;
+hulls.reserve(medial_axis.size());
+for (std::size_t j{}; j < medial_axis.size(); ++j) {
+    hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
+}
+
+// draw clustered samples
+svg<vec2> clustered_samples_svg(400, 450);
+std::vector<std::string> colors{ {"red", "green", "blue", "orange", "darkmagenta", "deeppink", "tan", "darkred",
+                                  "darkolivegreen", "fuchsia", "plum", "tomato", "yellowgreen", "silver"}};
+for (std::size_t j{}; j < clusters.size(); ++j) {
+    clustered_samples_svg.add_point_cloud(clusters[j].begin(), clusters[j].end(), 1.0f, colors[j % colors.size()], colors[j % colors.size()], 1.0f);
+}
+
+// draw clusters convex hulls
+for (auto& h : hulls) {
+    h.emplace_back(h.front());
+}
+for (std::size_t j{}; j < hulls.size(); ++j) {
+    clustered_samples_svg.add_polygon(hulls[j].begin(), hulls[j].end(), "none", "black", 1.0f);
+}
+
+clustered_samples_svg.to_file("clustered_samples.svg");
+```
+![Image](https://github.com/user-attachments/assets/a3410607-e4c6-4d84-bcac-5521e5f5c03e)
+
+
+**Example #2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (each segemtn in different color, gray is noise):**
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
