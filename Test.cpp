@@ -3057,6 +3057,93 @@ void test_for_show() {
 
        cloud_points_svg.to_file("cloud_points_svg.svg");
    }
+
+   // show 3
+   {
+       // define polygons
+       std::vector<vec2> polygon{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
+                                    vec2(11.0455f, -61.5682f),  vec2(60.0455f, -55.5682f),  vec2(78.0455f,  -100.568f), vec2(78.0455f,   -119.568f),
+                                    vec2(102.045f, -120.568f),  vec2(102.045f, -101.568f),  vec2(83.0455f,  -36.5682f), vec2(60.0455f,   -26.5682f),
+                                    vec2(37.0455f, -27.5682f),  vec2(37.0455f,  42.4318f),  vec2(67.0455f,  101.432f),  vec2(76.0455f,   158.432f),
+                                    vec2(102.045f,  161.432f),  vec2(101.045f,  177.432f),  vec2(56.0455f,  177.432f),  vec2(56.0455f,   155.432f),
+                                    vec2(44.0455f,  110.432f),  vec2(-1.95454f, 66.4318f),  vec2(-43.9545f, 110.432f),  vec2(-55.9545f,  155.432f),
+                                    vec2(-55.9545f, 177.432f),  vec2(-100.955f, 177.432f),  vec2(-101.955f, 161.432f),  vec2(-75.9545f,  158.432f),
+                                    vec2(-66.9545f, 101.432f),  vec2(-36.9545f, 42.4318f),  vec2(-36.9545f, -27.5682f), vec2(-59.9545f,  -26.5682f),
+                                    vec2(-82.9545f, -36.5682f), vec2(-101.955f, -101.568f), vec2(-101.955f, -120.568f), vec2(-77.9545f,  -119.568f),
+                                    vec2(-77.9545f, -100.568f), vec2(-59.9545f, -55.5682f), vec2(-10.9545f, -61.5682f), vec2(-10.9545f,  -74.5682f),
+                                    vec2(-25.9545f, -91.5682f), vec2(-26.9545f, -112.568f), vec2(-17.9545f, -124.568f), vec2(0.0454559f, -128.568f) } };
+
+       // rotate polygons and place them on canvas side by side
+       constexpr float angle{ std::numbers::pi_v<float> / 8.0f };
+       const float sin_angle{ std::sin(angle) };
+       const float cos_angle{ std::cos(angle) };
+       const mat2 rot(cos_angle, -sin_angle, sin_angle, cos_angle);
+       for (vec2& p : polygon) {
+           p = rot * p + vec2(150.0f, 200.0f);
+       }
+
+       // get polygon medial axis
+       const auto aabb_polygon = AxisLignedBoundingBox::point_cloud_aabb(polygon.begin(), polygon.end());
+       const float step{ GLSL::distance(aabb_polygon.min, aabb_polygon.max) / 1000.0f };
+       auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon.begin(), polygon.end(), step);
+
+       // sample polygon (3000 points)
+       const float area{ Algorithms2D::Internals::get_area(polygon.begin(), polygon.end()) };
+       const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon.begin(), polygon.end(), aabb_polygon);
+       const auto polygon_samples = Sample::sample_polygon(delaunay, area, 3000);
+
+       // merge close medial axis joints
+       for (std::size_t i{}; i < medial_axis.size(); ++i) {
+           for (std::size_t j{}; j < medial_axis.size(); ++j) {
+               if (GLSL::distance(medial_axis[i].point, medial_axis[j].point) < 10.0f) {
+                   Utilities::swap(medial_axis[j], medial_axis.back());
+                   medial_axis.pop_back();
+               }
+           }
+       }
+
+       // cluster sampled points, with medial axis joints as initial centers, using k-means
+       std::vector<vec2> intial_centers;
+       intial_centers.reserve(medial_axis.size());
+       for (const auto& ma : medial_axis) {
+           intial_centers.emplace_back(ma.point);
+       }
+       const auto clusterIds = Clustering::k_means(polygon_samples.cbegin(), polygon_samples.cend(), medial_axis.size(), 20, 0.01f, intial_centers);
+
+       // extract clusters
+       std::vector<std::vector<vec2>> clusters(medial_axis.size(), std::vector<vec2>{});
+       for (std::size_t j{}; j < medial_axis.size(); ++j) {
+           clusters[j].reserve(clusterIds[j].size());
+           for (const std::size_t i : clusterIds[j]) {
+               clusters[j].emplace_back(polygon_samples[i]);
+           }
+       }
+
+       // calculate clusters convex hulls
+       std::vector<std::vector<vec2>> hulls;
+       hulls.reserve(medial_axis.size());
+       for (std::size_t j{}; j < medial_axis.size(); ++j) {
+           hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
+       }
+
+       // draw clustered samples
+       svg<vec2> clustered_samples_svg(400, 450);
+       std::vector<std::string> colors{ {"red", "green", "blue", "orange", "darkmagenta", "deeppink", "tan", "darkred",
+                                         "darkolivegreen", "fuchsia", "plum", "tomato", "yellowgreen", "silver"}};
+       for (std::size_t j{}; j < clusters.size(); ++j) {
+           clustered_samples_svg.add_point_cloud(clusters[j].begin(), clusters[j].end(), 1.0f, colors[j % colors.size()], colors[j % colors.size()], 1.0f);
+       }
+
+       // draw clusters convex hulls
+       for (auto& h : hulls) {
+           h.emplace_back(h.front());
+       }
+       for (std::size_t j{}; j < hulls.size(); ++j) {
+           clustered_samples_svg.add_polygon(hulls[j].begin(), hulls[j].end(), "none", "black", 1.0f);
+       }
+
+       clustered_samples_svg.to_file("clustered_samples.svg");
+   }
 }
 
 int main() {
@@ -3078,5 +3165,5 @@ int main() {
     test_numerical_algorithms();
     test_for_show();
     test_samples();
-    return 1;
+	return 1;
 }
