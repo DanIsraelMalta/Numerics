@@ -142,21 +142,27 @@ namespace Clustering {
     * @param {size_t,                    in}  number of clusters
     * @param {size_t,                    in}  maximal number of iterations
     * @param {size_t,                    in}  convergence tolerance for operation stoppage (minimal movement of each cluster center in two consecutive iterations)
+    * @param {vector<IFixedVector>,      in}  initial cluster centers, if empty - will be calculated by function (default is empty)
     * @param {vector<vector<integral>>}, out} vector of vectors of cluster id's. id at index 'i' marks cluster id of point at *(first + i)
     **/
     template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC>)
     constexpr std::vector<std::vector<std::size_t>> k_means(const InputIt first, const InputIt last, const std::size_t k,
-                                                            const std::size_t max_iterations, const T tol) {
+                                                            const std::size_t max_iterations, const T tol,
+                                                            std::vector<VEC> centers = std::vector<VEC>{}) {
         using point_cloud_aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(first, last));
 
         // place centers in random manner
-        std::vector<VEC> centers(k);
-        const point_cloud_aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
-        for (std::size_t i{}; i < k; ++i) {
-            Utilities::static_for<0, 1, VEC::length()>([&centers, &aabb, i](std::size_t j) {
-                centers[i][j] = aabb.min[j] + std::fmod(static_cast<T>(rand()), aabb.max[j] - aabb.min[j] + static_cast<T>(1));
-            });
+        if (centers.empty()) {
+            centers.reserve(k);
+            const point_cloud_aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(first, last) };
+            for (std::size_t i{}; i < k; ++i) {
+                VEC center;
+                Utilities::static_for<0, 1, VEC::length()>([&center, &aabb, i](std::size_t j) {
+                    center[j] = aabb.min[j] + std::fmod(static_cast<T>(rand()), aabb.max[j] - aabb.min[j] + static_cast<T>(1));
+                });
+                centers.emplace_back(center);
+            }
         }
   
         // k-means
