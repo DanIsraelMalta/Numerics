@@ -33,6 +33,7 @@
 // collection of Euclidean space partitioning data structure
 //
 namespace SpacePartitioning {
+
     /**
     * type of range search
     **/
@@ -78,7 +79,7 @@ namespace SpacePartitioning {
             * @param {size_t,                          in} amount of closest points
             * @param {vector<{coordinate_t, size_t}>, out} collection of pairs of {squared Euclidean distance from 'point' to point in this pair,
             *                                                                      index of this point in the collection from which ISpacePartitioning was built}
-            *                                              if  we queries something relative to point 'P' then the following holds: GLSL::dot(P - *(it + second)) = first
+            *                                              if we query something relative to point 'P' then the following holds: GLSL::dot(P - *(it + second)) = first
             **/
             { sp.nearest_neighbors_query(point, i) } -> std::same_as<std::vector<std::pair<typename VEC::value_type, std::size_t>>>;
     };
@@ -203,12 +204,14 @@ namespace SpacePartitioning {
             nearest_neighbors_query_recursive(this->root.get(), minDistance, nearest_neighbors_query_recursive);
 
             // output
-            vector_queries_t out(k);
-            std::size_t i{ k-1 };
-            for (; !kMaxHeap.empty(); kMaxHeap.pop()) {
-                out[i] = kMaxHeap.top();
-                --i;
+            vector_queries_t out;
+            out.reserve(k);
+            while (!kMaxHeap.empty()) {
+                out.emplace_back(kMaxHeap.top());
+                kMaxHeap.pop();
             }
+            Algoithms::reverse(out.begin(), out.end());
+            out.shrink_to_fit();
             return out;
         }
         
