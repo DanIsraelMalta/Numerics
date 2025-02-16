@@ -146,10 +146,23 @@ const auto convex = Algorithms2D::get_convex_hull(part.begin(), part.end());
 const auto obb = Algorithms2D::get_bounding_rectangle(convex);
 const auto circumcircle = Algorithms2D::get_minimal_bounding_circle(convex);
 const auto earcut = Algorithms2D::triangulate_polygon_earcut(part.begin(), part.end());
+
+export as SVG for visualization
+svg<vec2> canvas(400, 450);
+for (std::size_t i{}; i < earcut.size(); i += 3) {
+    std::array<vec2, 3> tri{ { *(earcut[i]),
+                               *(earcut[i + 1]),
+                               *(earcut[i + 2]) } };
+    canvas.add_polygon(tri.begin(), tri.end(), "none", "black", 2.0f);
+}
+std::vector<vec2> obbs{ {obb.p0, obb.p1, obb.p2, obb.p3, obb.p0} };
+canvas.add_polyline(obbs.begin(), obbs.end(), "none", "red", 2.0f);
+canvas.add_circle(circumcircle.center, std::sqrt(circumcircle.radius_squared), "none", "blue", 2.0f);
+canvas.to_file("canvas.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
-## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator and kd-tree (color each segemtn in different color, gray is noise):**
+## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator and kd-tree (color each segemtn in different color, gray is noise):
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
@@ -212,12 +225,8 @@ const std::size_t density_points{ 3 };
 const auto segments = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, density_radius, density_points);
 kdtree.clear();
 
-//
-// export calculations to SVG file
-//
-
+// export as SVG for visualization
 svg<vec2> cloud_points_svg(300, 280);
-
 std::array<std::string, 7> colors{ {"red", "green", "blue", "orange", "magenta", "deeppink", "tan"}};
 for (std::size_t i{}; i < segments.clusters.size(); ++i) {
     const std::string color{ colors[i % colors.size()] };
