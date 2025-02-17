@@ -9,7 +9,7 @@ Features include:
 
 ## Example 1 - messing around with polygons and point clouds:
 
-### define a polygon, triangulate it (delaunay) and calculate its circumcircles:
+### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle the polygon:
 ```cpp
 // define polygons
 std::vector<vec2> polygon{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -62,7 +62,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/ddd44817-87da-4c12-8360-52b722aff354)
 
 
-### calculate its medial axis joints (and their locally inscribed circles):
+### calculate its medial axis joints and use it to find a set of locally largest inscribed circles:
 ```cpp
 // find 'polygon' medial axis joints and their locally inscribed circles
 const float step{ GLSL::distance(aabb.min, aabb.max) / 1000.0f };
@@ -138,7 +138,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/5c7e2b17-e305-4e78-98d3-2585ef5e59cf)
 
 
-### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle"
+### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle:"
 ```cpp
 const auto centroid = Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end());
 auto part = Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), centroid, rot.x());
@@ -162,7 +162,7 @@ canvas.to_file("canvas.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
-## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator and kd-tree (color each segemtn in different color, gray is noise):
+## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (DBSCAN) and spatial quuery acceleration structure (kd-tree). color each segemtn in different color, and use gray for noise:
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
