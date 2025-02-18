@@ -3134,8 +3134,7 @@ void test_for_show() {
        std::vector<std::vector<vec2>> hulls;
        hulls.reserve(medial_axis.size());
        for (std::size_t j{}; j < medial_axis.size(); ++j) {
-           const std::size_t N{ clusters[j].size() };
-           hulls.emplace_back(Algorithms2D::get_concave_hull(clusters[j].begin(), clusters[j].end(), N));
+	   hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
        }
        
        // draw clustered samples
