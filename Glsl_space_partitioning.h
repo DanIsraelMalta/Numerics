@@ -136,6 +136,9 @@ namespace SpacePartitioning {
             vector_queries_t out{};
 
             // search kd-tree
+#ifdef _DEBUG
+            std::size_t count{};
+#endif
             std::vector<Node*> stack;
             stack.push_back(this->root.get());
             while (!stack.empty()) {
@@ -159,6 +162,9 @@ namespace SpacePartitioning {
                 if (nodes[!inside] && std::abs(dist_per_split) < distance) {
                     stack.push_back(nodes[!inside]);
                 }
+#ifdef _DEBUG
+                ++count;
+#endif
             }
 
             return out;
@@ -176,32 +182,52 @@ namespace SpacePartitioning {
             coordinate_t minDistance{ GLSL::dot(*(this->first + this->root->index) - point) };
 
             // lambda implementing nearest neighbors query logic for one node
-            const auto nearest_neighbors_query_recursive = [this, &kMaxHeap, point, k](const Node* node, coordinate_t& mindistance, auto&& recursive_driver) -> void {
+#ifdef _DEBUG
+            std::size_t depth{};
+            const auto nearest_neighbors_query_recursive = [this, &kMaxHeap, point, k, &minDistance, &depth]
+                                                           (const Node* node, auto&& recursive_driver) -> void {
+#else
+            const auto nearest_neighbors_query_recursive = [this, &kMaxHeap, point, k, &minDistance]
+                                                           (const Node* node, auto&& recursive_driver) -> void {
+#endif
                 const point_t nodePoint(*(this->first + node->index));
                 const point_t diff{ point - nodePoint };
-                if (const coordinate_t distance{ GLSL::dot(diff) }; distance < mindistance) {
+                if (const coordinate_t distance{ GLSL::dot(diff) };
+                    distance < minDistance) {
                     while (kMaxHeap.size() >= k) {
                         kMaxHeap.pop();
                     }
                     kMaxHeap.emplace(std::make_pair(distance, node->index));
-                    mindistance = kMaxHeap.top().first;
+                    minDistance = kMaxHeap.top().first;
                 }
 
                 const std::size_t split{ node->splitAxis };
                 const coordinate_t dist_per_split{ diff[split] };
                 const std::size_t inside{ dist_per_split <= coordinate_t{} };
 
+#ifdef _DEBUG
                 std::array<Node*, 2> nodes{ {node->right.get(), node->left.get()} };
                 if (nodes[inside]) {
-                    recursive_driver(nodes[inside], mindistance, recursive_driver);
+                    ++depth;
+                    recursive_driver(nodes[inside], recursive_driver);
                 }
-                if (nodes[!inside] && std::abs(dist_per_split) <= mindistance) {
-                    recursive_driver(nodes[!inside], mindistance, recursive_driver);
+                if (nodes[!inside] && std::abs(dist_per_split) <= minDistance) {
+                    ++depth;
+                    recursive_driver(nodes[!inside], recursive_driver);
                 }
+#else
+                std::array<Node*, 2> nodes{ {node->right.get(), node->left.get()} };
+                if (nodes[inside]) {
+                    recursive_driver(nodes[inside], recursive_driver);
+                }
+                if (nodes[!inside] && std::abs(dist_per_split) <= minDistance) {
+                    recursive_driver(nodes[!inside], recursive_driver);
+                }
+#endif
             };
 
-            // find k nearest neighbors
-            nearest_neighbors_query_recursive(this->root.get(), minDistance, nearest_neighbors_query_recursive);
+            // find k nearest neighbors using depth search
+            nearest_neighbors_query_recursive(this->root.get(), nearest_neighbors_query_recursive);
 
             // output
             vector_queries_t out;
@@ -458,10 +484,16 @@ namespace SpacePartitioning {
             coordinate_t cellSize{ static_cast<coordinate_t>(1 << _k) };
 
             // search
+#ifdef _DEBUG
+            std::size_t iter{};
+#endif
             vector_queries_t out;
             while ((out.size() < k) && (cellSize < maxExtent)) {
                 out = range_query(RangeSearchType::Manhattan, point, cellSize);
-                cellSize *= static_cast<coordinate_t>(2);
+                cellSize *= static_cast<coordinate_t>(2.0);
+#ifdef _DEBUG
+                ++iter;
+#endif
             }
 
             Algoithms::sort(out.begin(), out.end(), [](const pair_t& a, const pair_t& b) {
