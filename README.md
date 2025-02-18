@@ -162,7 +162,10 @@ canvas.to_file("canvas.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
-## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (DBSCAN) and spatial quuery acceleration structure (kd-tree). color each segemtn in different color, use gray for noise:
+
+## Example 2 - messing around with 2D patterns, noise and spatial queries:
+
+### generate two dimensional noisy patterns:
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
@@ -217,9 +220,20 @@ for (std::size_t i{}; i < 100; ++i) {
                              static_cast<float>(rand()) / RAND_MAX * 300.0f));
 }
 
-// partition the space using kd-tree an combine it with a density estimator (DBSCAN) to segment to shapes and noise
+// export as SVG for visualization
+svg<vec2> cloud_points_svg(300, 280);
+cloud_points_svg.add_point_cloud(points.cbegin(), points.cend(), 0.5f, "black", "black", 1.0f);
+cloud_points_svg.to_file("cloud_points_svg.svg");
+```
+![Image](https://github.com/user-attachments/assets/0b4df27a-f394-484f-bccd-55487c274d8f)
+
+## cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (kd-tree). mark different segments with different colors, use gray for noise:
+```cpp
+// partition space using kd-tree
 SpacePartitioning::KDTree<vec2> kdtree;
 kdtree.construct(points.begin(), points.end());
+
+// use density estimator (DBSCAN) to segment/cluster the point cloud and identify "noise" 
 const float density_radius{ 0.9f * radius[0] };
 const std::size_t density_points{ 3 };
 const auto segments = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, density_radius, density_points);
@@ -227,17 +241,19 @@ kdtree.clear();
 
 // export as SVG for visualization
 svg<vec2> cloud_points_svg(300, 280);
+cloud_points_svg.add_point_cloud(points.cbegin(), points.cend(), 0.5f, "black", "black", 1.0f);
+
 std::array<std::string, 7> colors{ {"red", "green", "blue", "orange", "magenta", "deeppink", "tan"}};
 for (std::size_t i{}; i < segments.clusters.size(); ++i) {
     const std::string color{ colors[i % colors.size()] };
     for (const std::size_t j : segments.clusters[i]) {
-        cloud_points_svg.add_circle(points[j], 3.0f, color, "black", 1.0f);
+        cloud_points_svg.add_circle(points[j], 3.0f, "none", color, 1.0f);
     }
 }
 for (const std::size_t i : segments.noise) {
-    cloud_points_svg.add_circle(points[i], 3.0f, "slategrey", "black", 1.0f);
+    cloud_points_svg.add_circle(points[i], 3.0f, "none", "slategrey", 1.0f);
 }
 
 cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
-![Image](https://github.com/user-attachments/assets/8b742fd2-3224-4e7b-8e0c-b5c29701e8e9)
+![Image](https://github.com/user-attachments/assets/0e44e285-d21e-441a-be36-3d1343be036a)
