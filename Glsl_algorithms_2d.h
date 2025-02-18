@@ -40,9 +40,6 @@
 #include <set>    // delaunay triangulation
 #include <map>    // |
 #include <chrono> //  \ closest pair
-#ifdef _DEBUG
-#include <iostream>
-#endif
 
 
 //
