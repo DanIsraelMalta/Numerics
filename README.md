@@ -138,7 +138,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/5c7e2b17-e305-4e78-98d3-2585ef5e59cf)
 
 
-### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle:"
+### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle:
 ```cpp
 const auto centroid = Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end());
 auto part = Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), centroid, rot.x());
@@ -162,7 +162,7 @@ canvas.to_file("canvas.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
-## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (DBSCAN) and spatial quuery acceleration structure (kd-tree). color each segemtn in different color, and use gray for noise:
+## Example 2 - generate two dimensional noisy patterns and cluster/segment them using density estimator (DBSCAN) and spatial quuery acceleration structure (kd-tree). color each segemtn in different color, use gray for noise:
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
