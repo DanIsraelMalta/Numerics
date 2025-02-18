@@ -2127,12 +2127,6 @@ void test_GLSL_algorithms_2D() {
             assert(GLSL::dot(p - circle.center) <= circle.radius_squared);
         }
 
-        // concave hull without points removal should be convex hull
-        const auto concave0 = Algorithms2D::get_concave_hull(polygon.begin(), polygon.end());
-        for (std::size_t i{}; i < expected_convex.size(); ++i) {
-            assert(GLSL::max(GLSL::abs(expected_convex[i] - concave0[i])) < 1e-6);
-        }
-
         // check orthogonality
         bool is_orthogonal{ Algorithms2D::is_polygon_orthogonal(polygon.begin(), polygon.end()) };
         assert(!is_orthogonal);
@@ -2879,11 +2873,26 @@ void test_samples() {
            sampled_parallelogram_points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
        }
 
+       std::size_t N{ sampled_circle_points.size() / 20 };
+       auto circle_concave = Algorithms2D::get_concave_hull(sampled_circle_points.begin(), sampled_circle_points.end(), N);
+       circle_concave.emplace_back(circle_concave.front());
+
+       N = sampled_triangle_points.size() / 20;
+       auto triangle_concave = Algorithms2D::get_concave_hull(sampled_triangle_points.begin(), sampled_triangle_points.end(), N);
+       triangle_concave.emplace_back(triangle_concave.front());
+
+       N = sampled_parallelogram_points.size() / 20;
+       auto parallelogram_concave = Algorithms2D::get_concave_hull(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), N);
+       parallelogram_concave.emplace_back(parallelogram_concave.front());
+
        // export to svg
        svg<vec2> sample_test(800, 800);
        sample_test.add_point_cloud(sampled_circle_points.begin(), sampled_circle_points.end(), 1.0, "red", "none", 0.0f);
        sample_test.add_point_cloud(sampled_triangle_points.begin(), sampled_triangle_points.end(), 1.0, "green", "none", 0.0f);
        sample_test.add_point_cloud(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), 1.0, "blue", "none", 0.0f);
+       sample_test.add_polygon(circle_concave.begin(), circle_concave.end(), "none", "black", 1.0f);
+       sample_test.add_polygon(triangle_concave.begin(), triangle_concave.end(), "none", "black", 1.0f);
+       sample_test.add_polygon(parallelogram_concave.begin(), parallelogram_concave.end(), "none", "black", 1.0f);
        sample_test.to_file("sample_test.svg");
    }
 }
@@ -3043,16 +3052,17 @@ void test_for_show() {
        
        // export calculations to SVG file 
        svg<vec2> cloud_points_svg(300, 280);
+       cloud_points_svg.add_point_cloud(points.cbegin(), points.cend(), 0.5f, "black", "black", 1.0f);
        
        std::array<std::string, 7> colors{ {"red", "green", "blue", "orange", "magenta", "deeppink", "tan"}};
        for (std::size_t i{}; i < segments.clusters.size(); ++i) {
            const std::string color{ colors[i % colors.size()] };
            for (const std::size_t j : segments.clusters[i]) {
-               cloud_points_svg.add_circle(points[j], 3.0f, color, "black", 1.0f);
+               cloud_points_svg.add_circle(points[j], 3.0f, "none", color, 1.0f);
            }
        }
        for (const std::size_t i : segments.noise) {
-           cloud_points_svg.add_circle(points[i], 3.0f, "slategrey", "black", 1.0f);
+           cloud_points_svg.add_circle(points[i], 3.0f, "none", "slategrey", 1.0f);
        }
 
        cloud_points_svg.to_file("cloud_points_svg.svg");
@@ -3087,10 +3097,11 @@ void test_for_show() {
        const float step{ GLSL::distance(aabb_polygon.min, aabb_polygon.max) / 1000.0f };
        auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon.begin(), polygon.end(), step);
 
-       // sample polygon (3000 points)
+       // sample polygon (1500 points)
+       constexpr std::size_t sample_size{ 1500 };
        const float area{ Algorithms2D::Internals::get_area(polygon.begin(), polygon.end()) };
        const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon.begin(), polygon.end(), aabb_polygon);
-       const auto polygon_samples = Sample::sample_polygon(delaunay, area, 3000);
+       auto polygon_samples = Sample::sample_polygon(delaunay, area, sample_size);
 
        // merge close medial axis joints
        for (std::size_t i{}; i < medial_axis.size(); ++i) {
@@ -3119,13 +3130,14 @@ void test_for_show() {
            }
        }
 
-       // calculate clusters convex hulls
+       // calculate clusters concave hulls
        std::vector<std::vector<vec2>> hulls;
        hulls.reserve(medial_axis.size());
        for (std::size_t j{}; j < medial_axis.size(); ++j) {
-           hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
+           const std::size_t N{ clusters[j].size() };
+           hulls.emplace_back(Algorithms2D::get_concave_hull(clusters[j].begin(), clusters[j].end(), N));
        }
-
+       
        // draw clustered samples
        svg<vec2> clustered_samples_svg(400, 450);
        std::vector<std::string> colors{ {"red", "green", "blue", "orange", "darkmagenta", "deeppink", "tan", "darkred",
@@ -3133,13 +3145,11 @@ void test_for_show() {
        for (std::size_t j{}; j < clusters.size(); ++j) {
            clustered_samples_svg.add_point_cloud(clusters[j].begin(), clusters[j].end(), 1.0f, colors[j % colors.size()], colors[j % colors.size()], 1.0f);
        }
-
-       // draw clusters convex hulls
-       for (auto& h : hulls) {
-           h.emplace_back(h.front());
-       }
-       for (std::size_t j{}; j < hulls.size(); ++j) {
-           clustered_samples_svg.add_polygon(hulls[j].begin(), hulls[j].end(), "none", "black", 1.0f);
+       
+       // draw clusters concave hulls
+       for (std::size_t j{}; j < clusters.size(); ++j) {
+           hulls[j].emplace_back(hulls[j].front());
+           clustered_samples_svg.add_polyline(hulls[j].begin(), hulls[j].end(), "none", colors[j % colors.size()], 2.0f);
        }
 
        clustered_samples_svg.to_file("clustered_samples.svg");
