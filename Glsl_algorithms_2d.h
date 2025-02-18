@@ -40,6 +40,10 @@
 #include <set>    // delaunay triangulation
 #include <map>    // |
 #include <chrono> //  \ closest pair
+#ifdef _DEBUG
+#include <iostream>
+#endif
+
 
 //
 // collection of algorithms for 2D cloud points and shapes
@@ -61,7 +65,7 @@ namespace Algorithms2D {
     namespace Internals {
 
         /**
-        * \brief check if point 'a' is left to point 'b' in relation to point 'x', i.e. - 
+        * \brief check if point 'a' is left to point 'b' in relation to point 'c', i.e. - 
         *        "is point 'a' less than point 'b' relative to 'c'".
         * @param {IFixedVector, in}  point a
         * @param {IFixedVector, in}  point b
@@ -73,26 +77,24 @@ namespace Algorithms2D {
         constexpr bool is_point_less(const VEC& a, const VEC& b, const VEC& c) noexcept {
             using T = typename VEC::value_type;
 
-            if (a.x - c.x >= T{} &&
-                b.x - c.x < T{}) {
+            const VEC ac{ a - c };
+            const VEC bc{ b - c };
+            if (ac.x >= T{} && bc.x < T{}) {
                 return true;
             }
-            if (a.x - c.x < T{} &&
-                b.x - c.x >= T{}) {
+            if (ac.x < T{} && bc.x >= T{}) {
                 return false;
             }
-            if (Numerics::areEquals(a.x - c.x, T{}) &&
-                Numerics::areEquals(b.x - c.x, T{})) {
-                if (a.y - c.y >= T{} ||
-                    b.y - c.y >= T{}) {
+            if (Numerics::areEquals(ac.x, T{}) &&
+                Numerics::areEquals(bc.x, T{})) {
+                if (ac.y >= T{} ||
+                    bc.y >= T{}) {
                     return a.y > b.y;
                 }
                 return b.y > a.y;
             }
 
             // compute the cross product of vectors (c -> a) x (c -> b)
-            const VEC ac{ a - c };
-            const VEC bc{ b - c };
             const T det{ Numerics::diff_of_products(ac.x, bc.y, bc.x, ac.y) };
             if (det < T{}) {
                 return true;
@@ -181,7 +183,7 @@ namespace Algorithms2D {
         }
 
         /**
-        * \brief test if two segments intersect (or even touch in their edge points)
+        * \brief test if two segments intersect, but not touch their edge points
         * @param {IFixedVector, in}  segment #1 point #1
         * @param {IFixedVector, in}  segment #1 point #2
         * @param {IFixedVector, in}  segment #1 point #1
@@ -191,6 +193,33 @@ namespace Algorithms2D {
         template<GLSL::IFixedVector VEC>
             requires(VEC::length() == 2)
         constexpr bool do_segments_intersect(const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) noexcept {
+            using T = typename VEC::value_type;
+            const VEC s1{ a1 - a0 };
+            const VEC s2{ b1 - b0 };
+            const T denom{ Numerics::diff_of_products(s1.x, s2.y, s2.x, s1.y) };
+            if (Numerics::areEquals(denom, T{})) {
+                return false;
+            }
+
+            [[assume(denom != T{})]];
+            const VEC ab{ a0 - b0 };
+            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
+            const T t{ Numerics::diff_of_products(s2.x, ab.y, s2.y, ab.x) / denom };
+            return (s > T{} && s < static_cast<T>(1.0) &&
+                    t > T{} && t < static_cast<T>(1.0));
+        }
+
+        /**
+        * \brief test if two segments intersect or even touch in their edge points
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {IFixedVector, in}  segment #1 point #1
+        * @param {IFixedVector, in}  segment #1 point #2
+        * @param {bool,         out} true if two segments intersect, false otherwise
+        **/
+        template<GLSL::IFixedVector VEC>
+            requires(VEC::length() == 2)
+        constexpr bool do_segments_intersect_or_touch(const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) noexcept {
             using T = typename VEC::value_type;
             const VEC s1{ a1 - a0 };
             const VEC s2{ b1 - b0 };
@@ -253,7 +282,7 @@ namespace Algorithms2D {
                 const VEC a1{ *i1 };
 
                 for (InputIt j0{ i1 + 1 }, j1{ i1 + 2 }; j1 != edge; ++j0, ++j1) {
-                    if (Algorithms2D::Internals::do_segments_intersect(a0, a1, *j0, *j1)) {
+                    if (Algorithms2D::Internals::do_segments_intersect_or_touch(a0, a1, *j0, *j1)) {
                         return true;
                     }
                 }
@@ -535,7 +564,7 @@ namespace Algorithms2D {
     };
 
     /**
-    * \brief given closed polygon and a point - check if point is inside polygon
+    * \brief given closed simple polygon and a point - check if point is inside polygon
     *        (see: https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html)
     *        should be faster than PointDistance::sdf_to_polygon function in "Glsl_point_distance.h"
     * @param {forward_iterator, in}  iterator to polygon first point
@@ -547,8 +576,6 @@ namespace Algorithms2D {
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
     constexpr bool is_point_inside_polygon(const InputIt first, const InputIt last, const VEC& point) {
         using T = typename VEC::value_type;
-
-        assert(Algorithms2D::Internals::is_simple(first, last));
 
         // lambda to check if 'point' intersect with segment given by its edges 'p0' and 'p1'
         const auto intersects = [&point](const VEC& p0, const VEC& p1) -> bool {
@@ -634,7 +661,7 @@ namespace Algorithms2D {
 
         // lexicographically sort all points using the smallest point as pivot
         const VEC v0( points[0] );
-        std::sort(points.begin() + 1, points.end(), [v0](const VEC& b, const VEC& c) noexcept -> bool {
+        std::sort(points.begin() + 1, points.end(), [&v0](const VEC& b, const VEC& c) noexcept -> bool {
             return Numerics::diff_of_products(b.y - v0.y, c.x - b.x, b.x - v0.x, c.y - b.y) < T{};
         });
 
@@ -1122,109 +1149,142 @@ namespace Algorithms2D {
     template<Algorithms2D::Winding WINDING, std::forward_iterator InputIt,
              class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
-    constexpr void sort_points(InputIt first, InputIt last, const VEC centroid) {
+    constexpr void sort_points(InputIt first, InputIt last, const VEC& centroid) {
         if constexpr (WINDING == Algorithms2D::Winding::ClockWise) {
-            Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+            Algoithms::sort(first, last, [&centroid](const VEC& a, const VEC& b) noexcept -> bool {
                 return !Algorithms2D::Internals::is_point_less(a, b, centroid);
             });
         }
         else if constexpr (WINDING == Algorithms2D::Winding::CounterClockWise) {
-            Algoithms::sort(first, last, [centroid](const VEC& a, const VEC& b) noexcept -> bool {
+            Algoithms::sort(first, last, [&centroid](const VEC& a, const VEC& b) noexcept -> bool {
                 return Algorithms2D::Internals::is_point_less(a, b, centroid);
             });
         }
     }
 
     /**
-    * \brief calculate the concave hull of collection of 2D points (using Graham scan algorithm).
+    * \brief calculate the concave hull of collection of 2D points.
+    *        remarks:
+    *        1. function assumes there are no duplicate points, i.e. - all points are unique.
+    *        2. different spatial distributions may require different amount of neighbors.
+    *           the more "sparse" the data set - the larger 'N' needs to be.
+    *           outside function caller can increase 'N' iteratively until success.
+    *           a good initial guess is fifth the amount of points in point cloud.
     *
-    * @param {forward_iterator,     in}  iterator to point cloud collection first point
-    * @param {forward_iterator,     in}  iterator to point cloud collection last point
-    * @param {value_type,           in}  concave threshold. the minimal ratio between segment length with added point and original segment length.
-    *                                    if the value is smaller than the threshold - the point is part of the concave.
-    *                                    the larger the threshold - the more points will be part of the concave.
-    *                                    default is 0, i.e - convex hull.
-    *                                    value of 1.3 means that if the new segment is smaller than 130% current segment - it will be added to concave hull.
-    * @param {vector<IFixedVector>, out} collection of points which define point cloud concave hull
+    * @param {forward_iterator,       in} iterator to point cloud collection first point
+    * @param {forward_iterator,       in} iterator to point cloud collection last point
+    * @param {size_t,                 in} amount of neighbors for "nearest neighbors search"
+    *                                     this value is related to spatial distribution of the points and can be 
+    *                                     internally modified by the program.
+    * @param {vector<IFixedVector>}, out} collection of points which define point cloud concave hull
     **/
-    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>, class T = typename VEC::value_type>
+    template<std::forward_iterator InputIt, class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(GLSL::is_fixed_vector_v<VEC> && (VEC::length() == 2))
-    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const T concave_threshold = T{}) {
-        using closest_t = decltype(Algorithms2D::Internals::get_index_of_closest_segment(std::vector<VEC>{}, VEC()));
+    constexpr std::vector<VEC> get_concave_hull(const InputIt first, const InputIt last, const std::size_t N) {
+        using T = typename VEC::value_type;
+        using candidate_t = struct { VEC point; std::size_t index; bool add; };
+        using vec_it = typename std::vector<VEC>::iterator;
 
-        // get convex hull
-        std::vector<VEC> hull{ Algorithms2D::get_convex_hull(first, last) };
-        if (concave_threshold <= T{}) {
-            return hull;
+        // housekeeping
+        std::vector<VEC> points(first, last);
+        if (points.size() < 4) {
+            points;
         }
+        const std::size_t len{ points.size() };
+        std::vector<VEC> concave_hull;
+        concave_hull.reserve(len);
 
-        // Euclidean distance approximation
-        // (https://en.wikibooks.org/wiki/Algorithms/Distance_approximations)
-        const auto distance = [](const VEC& a, const VEC& b) -> T {
-            constexpr T c1{ static_cast<T>(1007.0) / static_cast<T>(1024) };
-            constexpr T c2{ static_cast<T>(441.0) / static_cast<T>(1024) };
-            constexpr T c3{ static_cast<T>(40.0) / static_cast<T>(1024) };
-            constexpr T c4{ static_cast<T>(16.0) };
+        // lambda to check if line connecting last hull vertex to given point 'p' intersects the hull.
+        const auto does_segment_intersect_polygon = [&concave_hull](const VEC& p) -> bool {
+            if (concave_hull.size() <= 3) {
+                return false;
+            }
 
-            const T x{ Numerics::max(std::abs(a.x), std::abs(b.x)) };
-            const T y{ Numerics::max(std::abs(a.y), std::abs(b.y)) };
-            const T _max{ Numerics::max(x, y) };
-            const T _min{ Numerics::min(x, y) };
-
-            return (_max < c4 * _min) ? ((c1 - c3) * _max + c2 * _min) : (c1 * _max + c2 * _min);
-        };
-
-        // remove convex hull points from cloud
-        std::vector<VEC> cloud(first, last);
-        std::vector<std::size_t> to_remove;
-        to_remove.reserve(hull.size());
-        for (const VEC h : hull) {
-            for (std::size_t i{}; i < cloud.size(); ++i) {
-                if (Extra::are_vectors_identical(h, cloud[i])) {
-                    to_remove.emplace_back(i);
-                    break;
+            const VEC p0{ concave_hull.back() };
+            for (std::size_t i{}; i < concave_hull.size() - 2; ++i) {
+                if (Algorithms2D::Internals::do_segments_intersect(p0, p, concave_hull[i], concave_hull[i + 1])) {
+                    return true;
                 }
             }
-        }
-        Algoithms::remove(cloud, to_remove);
-        
-        // "dig" into convex hull to create concave hull
-#ifdef _DEBUG
-        std::size_t restarts{};
-#endif
-        for (std::size_t i{}; i < cloud.size(); ++i) {
-            // find hull segment which cloud point is closest to
-            const VEC p{ cloud[i] };
-            const closest_t closest{ Algorithms2D::Internals::get_index_of_closest_segment(hull, p) };
+            return false;
+        };
 
-            // should point be part of concave hull?
-            const std::size_t segment_index_start{ closest.index };
-            const std::size_t segment_index_end{ (segment_index_start + 1) % hull.size() };
-            const T segment_length{ distance(hull[segment_index_start], hull[segment_index_end]) };
-            const T new_segment_length{ distance(p, hull[segment_index_end]) +
-                                        distance(hull[segment_index_start], p) };
-            [[assume(segment_length > T{})]];
-            [[assume(new_segment_length > T{})]];
-            if (new_segment_length <= segment_length * concave_threshold ||
-                Numerics::areEquals(segment_length, new_segment_length, Numerics::equality_precision<T>())) {
-                // update hull
-                assert(segment_index_start + 1 <= hull.size());
-                hull.insert(hull.begin() + segment_index_start + 1, p);
+        // lambda that finds candidates for next concave hull point
+        const auto find_next_candidate = [&does_segment_intersect_polygon, &points]
+                                         (const VEC& p, const std::size_t K) -> candidate_t {
+            const std::size_t k_min{ Numerics::min(K, points.size() - 1) };
 
-                // remove point from cloud
-                Utilities::swap(cloud[i], cloud.back());
-                cloud.pop_back();
+            // update 'points' so its first K points are K nearest neighbors in 'points' to point 'p'
+            std::nth_element(points.begin(), points.begin() + k_min, points.end(),
+                             [&p](const VEC& a, const VEC& b) noexcept -> bool {
+                const T distance_squared_to_a{ GLSL::dot(a - p) };
+                const T distance_squared_to_b{ GLSL::dot(b - p) };
+                return distance_squared_to_a < distance_squared_to_b;
+            });
 
-                // restart search
-                i = 0;
-#ifdef _DEBUG
-                ++restarts;
-#endif
+            // sort first K points in 'points' for largest right - hand turn
+            std::sort(points.begin(), points.begin() + k_min, [&p](const VEC& p0, const VEC& p1) noexcept -> bool {
+                return Numerics::diff_of_products(p0.y - p.y, p1.x - p0.x, p0.x - p.x, p1.y - p0.y) > T{};
+            });
+
+            // find next concave hull point
+            std::size_t i{};
+            VEC candidate{ points[i] };
+            for (; i < k_min && does_segment_intersect_polygon(candidate); ++i) {
+                candidate = points[i];
             }
+
+            // output
+            return candidate_t{ candidate, i, i < k_min };
+        };
+
+        // lambda to get next concave hull point (return true if point was found, false otherwise)
+        const auto get_concave_hull_candidate = [&find_next_candidate, &points, &concave_hull, N]() -> bool {
+            // search for a candidate for next concave hull point
+            const candidate_t candidate{ find_next_candidate(concave_hull.back(), N) };
+            if (!candidate.add) {
+                return false;
+            }
+            
+            // add candidate to hull
+            const VEC prev(concave_hull.back());
+            concave_hull.emplace_back(candidate.point);
+
+            // remove point from points
+            Utilities::swap(points[candidate.index], points.back());
+            points.pop_back();
+
+            // output
+            return true;
+        };
+
+        // initialize concave hull with lowest leftmost point
+        const vec_it minElementIterator{ Algoithms::min_element(points.begin(), points.end(),
+                                                [](const VEC& a, const VEC& b) noexcept -> bool {
+            return (a.y < b.y ||
+                    (a.y == b.y && a.x < b.x));
+        }) };
+        const VEC first_point(*minElementIterator);
+        concave_hull.emplace_back(first_point);
+        Utilities::swap(*minElementIterator, points.back());
+        points.pop_back();
+
+        // get next 3 points and then reintroduce the first point
+        bool found_candidate{ get_concave_hull_candidate() };
+        found_candidate = get_concave_hull_candidate();
+        found_candidate = get_concave_hull_candidate();
+        points.emplace_back(first_point);
+
+        // find rest of concave hull points
+        while (found_candidate &&
+               concave_hull.size() != len &&
+               !Extra::are_vectors_identical(first_point, concave_hull.back())) {
+            found_candidate = get_concave_hull_candidate();
         }
 
         // output
-        return hull;
+        concave_hull.shrink_to_fit();
+        return concave_hull;
     }
 
     /**
@@ -1424,7 +1484,7 @@ namespace Algorithms2D {
                 if (is_any_identical(*it, *nt, p0, p1)) {
                     continue;
                 }
-                if (Algorithms2D::Internals::do_segments_intersect(p0, p1, *it, *nt)) {
+                if (Algorithms2D::Internals::do_segments_intersect_or_touch(p0, p1, *it, *nt)) {
                     return true;
                 }
             }
@@ -1432,7 +1492,7 @@ namespace Algorithms2D {
             if (is_any_identical(*first, *(last - 1), p0, p1)) {
                 return false;
             }
-            return Algorithms2D::Internals::do_segments_intersect(p0, p1, *first, *(last - 1));
+            return Algorithms2D::Internals::do_segments_intersect_or_touch(p0, p1, *first, *(last - 1));
         };
 
         // lambda to check if line connecting two polygon vertices (i0, i1) is inside or outside the polygon
@@ -2127,24 +2187,7 @@ namespace Algorithms2D {
         std::vector<std::size_t> to_remove;
         to_remove.reserve(len);
 
-        const auto do_segments_only_intersect = [](const VEC& a0, const VEC& a1, const VEC& b0, const VEC& b1) -> bool {
-            const VEC s1{ a1 - a0 };
-            const VEC s2{ b1 - b0 };
-            const T denom{ Numerics::diff_of_products(s1.x, s2.y, s2.x, s1.y) };
-            if (Numerics::areEquals(denom, T{})) {
-                return false;
-            }
-
-            [[assume(denom != T{})]];
-            const VEC ab{ a0 - b0 };
-            const T s{ Numerics::diff_of_products(s1.x, ab.y, s1.y, ab.x) / denom };
-            const T t{ Numerics::diff_of_products(s2.x, ab.y, s2.y, ab.x) / denom };
-
-            return (s > T{} && s < static_cast<T>(1.0) &&
-                    t > T{} && t < static_cast<T>(1.0));
-        };
-
-        const auto erase_vertex = [&polygon, &to_remove, &do_segments_only_intersect, len, twice_area_min]
+        const auto erase_vertex = [&polygon, &to_remove, len, twice_area_min]
                                   (const std::size_t index) -> void {
             const std::size_t prev_index{ (index - 1) % len };
             const std::size_t next_index{ (index + 1) % len };
@@ -2161,11 +2204,11 @@ namespace Algorithms2D {
                 if (i == prev_index && j == next_index) {
                     continue;
                 }
-                if (do_segments_only_intersect(prev, next, polygon[i], polygon[j])) {
+                if (Algorithms2D::Internals::do_segments_intersect(prev, next, polygon[i], polygon[j])) {
                     return;
                 }
             }
-            if (do_segments_only_intersect(prev, next, polygon[len - 1], polygon[0])) {
+            if (Algorithms2D::Internals::do_segments_intersect(prev, next, polygon[len - 1], polygon[0])) {
                 return;
             }
 
