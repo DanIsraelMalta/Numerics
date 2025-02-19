@@ -23,7 +23,6 @@
 // 
 //-------------------------------------------------------------------------------
 #pragma once
-#include "Hash.h" // for sample_circle
 #include "Glsl.h"
 #include "Algorithms.h"
 #include <vector>
@@ -43,10 +42,54 @@ namespace Sample {
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(VEC::length() == 2)
     constexpr VEC sample_circle(const VEC& center, const T radius) {
-        const VEC uv(Hash::normal_distribution(), Hash::normal_distribution());
+        const VEC uv(static_cast<T>(2.0) * static_cast<T>(rand()) / static_cast<T>(RAND_MAX) - static_cast<T>(1.0),
+                     static_cast<T>(2.0) * static_cast<T>(rand()) / static_cast<T>(RAND_MAX) - static_cast<T>(1.0));
         const T e{ static_cast<T>(-2.0) * std::log(static_cast<T>(rand()) / static_cast<T>(RAND_MAX)) };
         const T norm{ GLSL::dot(uv) + e };
         return !Numerics::areEquals(norm, T{}) ? (center + radius * uv / std::sqrt(norm)) : center;
+    }
+
+    /**
+    * \brief uniformly sample inside an ellipse (non rotated).
+    * @param {VEC,             in}  ellipse center
+    * @param {VEC::value_type, in}  ellipse radius along X axis
+    * @param {VEC::value_type, in}  ellipse radius along Y axis
+    * @param {VEC,             out} point, uniformly sampled, inside a given ellipse
+    **/
+    template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
+        requires(VEC::length() == 2)
+    constexpr VEC sample_ellipse(const VEC& center, const T a, const T b) {
+        constexpr T pi{ static_cast<T>(3.1415926535897932384626433832795) };
+
+        assert(!Numerics::areEquals(a, T{}));
+        assert(!Numerics::areEquals(b, T{}));
+
+        // angle [-pi/2, 3*pi/2]
+        const T u{ static_cast<T>(rand()) / static_cast<T>(RAND_MAX) / static_cast<T>(4.0) };
+        const T ratio{ b / a };
+        const T angle{ std::tan(static_cast<T>(2.0) * pi * u) };
+        T theta{ std::atan(ratio * angle) };
+        if (const T v{ static_cast<T>(rand()) / static_cast<T>(RAND_MAX) };
+            v > static_cast<T>(0.25)) {
+            if (v < static_cast<T>(0.5)) {
+                theta = pi - theta;
+            }
+            else if (v < static_cast<T>(0.75)) {
+                theta += pi;
+            }
+            else {
+                theta = -theta;
+            }
+    }
+
+        // radius
+        const T sin_angle{ std::sin(theta) };
+        const T cos_angle{ std::cos(theta) };
+        const T max_radius{ a * b / std::sqrt(b * b * cos_angle * cos_angle + a * a * sin_angle * sin_angle) };
+        const T radius{ max_radius * std::sqrt(static_cast<T>(rand()) / static_cast<T>(RAND_MAX)) };
+
+        // output
+        return !Numerics::areEquals(radius, T{}) ? (center + VEC(radius * cos_angle, radius * sin_angle)) : center;
     }
 
     /**
