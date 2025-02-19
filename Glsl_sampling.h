@@ -23,6 +23,7 @@
 // 
 //-------------------------------------------------------------------------------
 #pragma once
+#include "Hash.h" // for sample_circle
 #include "Glsl.h"
 #include "Algorithms.h"
 #include <vector>
@@ -42,8 +43,7 @@ namespace Sample {
     template<GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(VEC::length() == 2)
     constexpr VEC sample_circle(const VEC& center, const T radius) {
-        const VEC uv(static_cast<T>(2.0) * static_cast<T>(rand()) / static_cast<T>(RAND_MAX) - static_cast<T>(1.0),
-                     static_cast<T>(2.0) * static_cast<T>(rand()) / static_cast<T>(RAND_MAX) - static_cast<T>(1.0));
+        const VEC uv(Hash::normal_distribution(), Hash::normal_distribution());
         const T e{ static_cast<T>(-2.0) * std::log(static_cast<T>(rand()) / static_cast<T>(RAND_MAX)) };
         const T norm{ GLSL::dot(uv) + e };
         return !Numerics::areEquals(norm, T{}) ? (center + radius * uv / std::sqrt(norm)) : center;
