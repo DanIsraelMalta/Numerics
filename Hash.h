@@ -232,6 +232,44 @@ namespace Hash {
     }
 
     /**
+    * \brief generate a 32bit uniformly distributed random number, without using rand(),
+    *        using the KISS method (see Greg Rose version of "KISS: A Bit Too Simple" - https://eprint.iacr.org/2011/007).
+    *        notice that this generator uses static variables.
+    * @param {float, out} uniformly distributed random number in range [0, 1]
+    **/
+    std::float_t rand_kiss() {
+        using float_union_t = union { std::uint32_t i; std::float_t f; };
+
+        static std::uint32_t z{ 362436069 };
+        static std::uint32_t w{ 521288629 };
+        static std::uint32_t jsr{ 362436069 };
+        static std::uint32_t jcong{ 123456789 };
+
+        // generate KISS style random number
+        float_union_t cvt;
+        do {
+            // update z & w
+            z = 36969 * (z & 0xffff) + (z >> 16);
+            w = 18000 * (w & 0xffff) + (w >> 16);
+
+            // update jsr (2^32-1)
+            jsr ^= (jsr << 13);
+            jsr ^= (jsr >> 17);
+            jsr ^= (jsr << 5);
+
+            // update jcong (2^32)
+            jcong = 69069 * jcong + 13579;
+
+            // KISS random number
+            cvt.i = ((z << 16) + w) ^ jcong + jsr;
+        } while (std::isnan(cvt.f) || std::isinf(cvt.f) ||
+                 std::abs(cvt.f) < std::pow(2.0f, -126));
+
+        // output
+        return cvt.f;
+    }
+
+    /**
     * \brief generate a 32bit uniformly distributed random number with 24bit linear distance in range [0, 1]
     * @param {float, out} uniformly distributed random number in range [0, 1]
     **/
