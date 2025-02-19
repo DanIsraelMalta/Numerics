@@ -7,7 +7,7 @@ Features include:
 + Mandatory collection of coherent set of operations related to spatial transformations, sign distance fields, ray intersections and solution to general numerical/geometrical problems often encountered in the realms of computational geometry.
 + A suite of computational geometry tools ranging from acceleration structures used for fast nearest neighbours queries, clustering algorithms and 2D tailored operations for polygons and point clouds.
 
-## Example 1 - messing around with polygons and point clouds:
+## Example 1 - messing around with polygons:
 
 ### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle the polygon:
 ```cpp
@@ -163,7 +163,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
 
-## Example 2 - messing around with 2D patterns, noise and spatial queries:
+## Example 2 - messing around with 2D patterns and noise:
 
 ### generate two dimensional noisy patterns:
 ```cpp
