@@ -9,7 +9,7 @@ Features include:
 
 ## Example 1 - messing around with polygons:
 
-### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle the polygon:
+### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle all polygon vertices and segments:
 ```cpp
 // define polygons
 std::vector<vec2> polygon{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -163,7 +163,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/bd580bf3-c794-4f7c-84e1-194ecf77fb7e)
 
 
-## Example 2 - messing around with 2D patterns and noise:
+## Example 2 - messing around with patterns and noise:
 
 ### generate two dimensional noisy patterns:
 ```cpp
@@ -257,3 +257,124 @@ for (const std::size_t i : segments.noise) {
 cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/0e44e285-d21e-441a-be36-3d1343be036a)
+
+
+## Example 3 - messing around with samples and shape characteristics:
+
+### uniformly sample different shapes:
+```cpp
+// how many points to sample
+constexpr std::size_t count{ 1000 };
+std::vector<vec2> points;
+points.reserve(5 * count);
+
+// create a circle and uniformly sample 1000 points within it
+const vec2 center(130.0f, 130.0f);
+const float radius{ 50.0f };
+for (std::size_t i{}; i < count; ++i) {
+    points.emplace_back(Sample::sample_circle(center, radius));
+}
+
+// creat a triangle and uniformly sample 1000 points within it
+const vec2 v0(20.0f, 220.0f);
+const vec2 v1(20.0f, 520.0f);
+const vec2 v2(500.0f, 400.0f);
+for (std::size_t i{}; i < count; ++i) {
+    points.emplace_back(Sample::sample_triangle(v0, v1, v2));
+}
+
+// create a parallelogram and uniformly sample 2000 points within it
+const vec2 p0(240.0f, 240.0f);
+const vec2 p1(510.0f, 390.0f);
+const vec2 p2(710.0f, 190.0);
+const vec2 p3(310.0f, 90.0f);
+for (std::size_t i{}; i < 2 * count; ++i) {
+    points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
+}
+
+// create an ellipse and uniformly sample 1000 points within it
+const vec2 ellipse_center(160.0f, 220.0f);
+const float xAxis{ 70.0f };
+const float yAxis{ 30.0f };
+std::vector<vec2> sampled_ellipse_points;
+sampled_ellipse_points.reserve(count);
+for (std::size_t i{}; i < count; ++i) {
+    points.emplace_back(Sample::sample_ellipse(ellipse_center, xAxis, yAxis));
+}
+
+// export as SVG for visualization
+svg<vec2> sample_test(800, 800);
+sample_test.add_point_cloud(points.begin(), points.end(), 1.0f, "black", "none", 0.0f);
+sample_test.to_file("sample_test.svg");
+```
+![Image](https://github.com/user-attachments/assets/1ab6885f-c1ee-43ba-ad43-7055d4cd6a70)
+
+
+### cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (bin-lattice grid):
+```cpp
+// partition space using bin-lattice grid
+SpacePartitioning::Grid<vec2> grid;
+grid.construct(points.begin(), points.end());
+
+// use density estimator (DBSCAN) to segment/cluster the point cloud
+const float density_radius{ 0.3f * radius };
+const std::size_t density_points{ 4 };
+const auto segments = Clustering::get_density_based_clusters(points.begin(), points.end(), grid, density_radius, density_points);
+grid.clear();
+
+// export as SVG for visualization
+svg<vec2> sample_test(800, 800);
+std::array<std::string, 4> colors{ {"red", "green", "blue", "orange"} };
+const std::size_t cluster_count{ segments.clusters.size() };
+for (std::size_t i{}; i < cluster_count; ++i) {
+    // get cluster points
+    std::vector<vec2> cluster_points;
+    cluster_points.reserve(segments.clusters[i].size());
+    for (const std::size_t j : segments.clusters[i]) {
+        cluster_points.emplace_back(points[j]);
+    }
+
+    // draw points
+    sample_test.add_point_cloud(cluster_points.begin(), cluster_points.end(), 1.0f, colors[i % 4], "none", 0.0f);
+}
+sample_test.to_file("sample_test.svg");
+```
+![Image](https://github.com/user-attachments/assets/99cc53bf-eb86-4937-b12b-906551cff7b0)
+
+
+### find shapes characteristics (concave hull, principle axis) and check if it matches the sampled shapes:
+```cpp
+// prepare drawing canvas
+std::array<std::string, 4> colors{ {"red", "green", "blue", "orange"} };
+svg<vec2> sample_test(800, 800);
+
+// calculate clusters characteristics (concave hull, principle axis)
+const std::size_t cluster_count{ segments.clusters.size() };
+for (std::size_t i{}; i < cluster_count; ++i) {
+    // get cluster points
+    std::vector<vec2> cluster_points;
+    cluster_points.reserve(segments.clusters[i].size());
+    for (const std::size_t j : segments.clusters[i]) {
+        cluster_points.emplace_back(points[j]);
+    }
+
+    // calculate points concave hull
+    const std::size_t N{ cluster_points.size() / 20 };
+    auto cluster_concave = Algorithms2D::get_concave_hull(cluster_points.begin(), cluster_points.end(), N);
+
+    // calculate points principle axis
+    const vec2 centroid{ Algorithms2D::Internals::get_centroid(cluster_points.begin(), cluster_points.end()) };
+    const vec2 axis{ Algorithms2D::get_principle_axis(cluster_points.begin(), cluster_points.end(), centroid) };
+    const std::array<vec2, 2> principle_axis_segments{ {centroid, centroid + 70.0f * axis} };
+
+    // draw it all
+    sample_test.add_point_cloud(cluster_points.begin(), cluster_points.end(), 1.0f, colors[i % 4], "none", 0.0f);
+    cluster_concave.emplace_back(cluster_concave.front());
+    sample_test.add_polygon(cluster_concave.begin(), cluster_concave.end(), "none", colors[i % 4], 2.0f);
+    sample_test.add_circle(centroid, 4.0, "black", "black", 0.0);
+    sample_test.add_polyline(principle_axis_segments.begin(), principle_axis_segments.end(), "black", "black", 2.0f);
+}
+
+sample_test.to_file("sample_test.svg");
+```
+![Image](https://github.com/user-attachments/assets/6a9d22ee-f257-4001-89e3-ea8b80a81090)
