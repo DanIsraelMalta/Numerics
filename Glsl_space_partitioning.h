@@ -357,25 +357,24 @@ namespace SpacePartitioning {
         template<std::forward_iterator InputIt>
             requires(std::is_same_v<point_t, typename std::decay_t<decltype(*std::declval<InputIt>())>>)
         constexpr void construct(const InputIt begin, const InputIt end) {
-            constexpr std::size_t k{ point_t::length() };
-            constexpr coordinate_t cellSize{ static_cast<coordinate_t>(1 << k) };
+            using aabb_t = decltype(AxisLignedBoundingBox::point_cloud_aabb(begin, end));
 
             // build grid
-            const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(begin, end);
+            const aabb_t aabb{ AxisLignedBoundingBox::point_cloud_aabb(begin, end) };
             this->min = aabb.min;
             this->max = aabb.max;
-            this->offset = GLSL::ceil(aabb.min);
+            this->offset = GLSL::ceil(-aabb.min);
             this->gridMin = this->to_grid_position(aabb.min);
             this->gridMax = this->to_grid_position(aabb.max);
             if constexpr (k == 2) {
-                this->numCells = { {static_cast<std::size_t>(std::ceil((aabb.max[0] - aabb.min[0] + static_cast<coordinate_t>(1)) / cellSize)),
-                                    static_cast<std::size_t>(std::ceil((aabb.max[1] - aabb.min[1] + static_cast<coordinate_t>(1)) / cellSize))} };
+                this->numCells = { {static_cast<std::size_t>(std::ceil((std::abs(aabb.max[0] - aabb.min[0]) + one) / this->cellSize)),
+                                    static_cast<std::size_t>(std::ceil((std::abs(aabb.max[1] - aabb.min[1]) + one) / this->cellSize))} };
                 this->bins.resize(this->numCells[0] * this->numCells[1]);
             }
             else {
-                this->numCells = { {static_cast<std::size_t>(std::ceil((aabb.max[0] - aabb.min[0] + static_cast<coordinate_t>(1)) / cellSize)),
-                                    static_cast<std::size_t>(std::ceil((aabb.max[1] - aabb.min[1] + static_cast<coordinate_t>(1)) / cellSize)),
-                                    static_cast<std::size_t>(std::ceil((aabb.max[2] - aabb.min[2] + static_cast<coordinate_t>(1)) / cellSize))} };
+                this->numCells = { {static_cast<std::size_t>(std::ceil((std::abs(aabb.max[0] - aabb.min[0]) + one) / this->cellSize)),
+                                    static_cast<std::size_t>(std::ceil((std::abs(aabb.max[1] - aabb.min[1]) + one) / this->cellSize)),
+                                    static_cast<std::size_t>(std::ceil((std::abs(aabb.max[2] - aabb.min[2]) + one) / this->cellSize))} };
                 this->bins.resize(this->numCells[0] * this->numCells[1] * this->numCells[2]);
             }
 
@@ -413,7 +412,6 @@ namespace SpacePartitioning {
         **/
         constexpr vector_queries_t range_query(const RangeSearchType type, const point_t point, const coordinate_t distance) const {
             // housekeeping
-            constexpr std::size_t k{ point_t::length() };
             const coordinate_t distance_criteria{ type == RangeSearchType::Manhattan ? distance : distance * distance };
             auto metric_function = (type == RangeSearchType::Manhattan) ?
                                    this->distance_metric<RangeSearchType::Manhattan>() :
@@ -424,8 +422,7 @@ namespace SpacePartitioning {
             const auto query_point = [this, METRIC_FUNC = FWD(metric_function), point, distance_criteria, &out]
                                      (index_array_t cellPosition) {
                 const std::size_t cellIndex{ this->to_index(cellPosition) };
-                const std::vector<std::size_t> cell{ this->bins[cellIndex] };
-                for (const std::size_t i : cell) {
+                for (const std::size_t i : this->bins[cellIndex]) {
                     const point_t pos{ *(this->first + i) };
                     const point_t diff{ point - pos };
                     if (METRIC_FUNC(diff) <= distance_criteria) {
@@ -436,7 +433,7 @@ namespace SpacePartitioning {
 
             // world bounds for search
             const point_t radiusVec(distance);
-            const point_t max1{ this->max + point_t(static_cast<coordinate_t>(1)) };
+            const point_t max1{ this->max + point_t(one) };
             const point_t _min{ GLSL::clamp(point - radiusVec, this->min, max1) };
             const point_t _max{ GLSL::clamp(point + radiusVec, this->min, max1) };
 
@@ -449,8 +446,8 @@ namespace SpacePartitioning {
             });
 
             // search
-            index_array_t cellpos;
-            if constexpr (k == 2) {
+            index_array_t cellpos{ {0} };
+            if constexpr (this->k == 2) {
                 for (cellpos[1] = minCell[1]; cellpos[1] < maxCell[1]; ++cellpos[1]) {
                     for (cellpos[0] = minCell[0]; cellpos[0] < maxCell[0]; ++cellpos[0]) {
                         query_point(cellpos);
@@ -477,20 +474,19 @@ namespace SpacePartitioning {
         * @param {size_t,                       in}  amount of closest points
         * @param {vector<coordinate_t, size_t>, out} collection of query nodes holding point squared distance and index in point cloud
         **/
-        constexpr vector_queries_t nearest_neighbors_query(const point_t point, const std::size_t k) const {
+        constexpr vector_queries_t nearest_neighbors_query(const point_t point, const std::size_t N) const {
             // housekeeping
-            constexpr std::size_t _k{ point_t::length() };
             const coordinate_t maxExtent{ GLSL::max(this->max - this->min) };
-            coordinate_t cellSize{ static_cast<coordinate_t>(1 << _k) };
+            coordinate_t cellSizeSearch{ this->cellSize };
 
             // search
 #ifdef _DEBUG
             std::size_t iter{};
 #endif
             vector_queries_t out;
-            while ((out.size() < k) && (cellSize < maxExtent)) {
-                out = range_query(RangeSearchType::Manhattan, point, cellSize);
-                cellSize *= static_cast<coordinate_t>(2.0);
+            while ((out.size() < N) && (cellSizeSearch < maxExtent)) {
+                out = range_query(RangeSearchType::Manhattan, point, cellSizeSearch);
+                cellSizeSearch *= static_cast<coordinate_t>(2.0);
 #ifdef _DEBUG
                 ++iter;
 #endif
@@ -500,7 +496,7 @@ namespace SpacePartitioning {
                 return a.first < b.first;
             });
 
-            while (out.size() > k) {
+            while (out.size() > N) {
                 out.pop_back();
             }
 
@@ -509,6 +505,11 @@ namespace SpacePartitioning {
         
         // internals
         private:
+            // constants
+            static const std::size_t k{ point_t::length() };
+            inline static const coordinate_t one{ static_cast<coordinate_t>(1.0) };
+            inline static const coordinate_t cellSize{ static_cast<coordinate_t>(1 << k) };
+
             // properties
             std::vector<std::vector<std::size_t>> bins;
             index_array_t numCells{ {0} };           // number of cells in each dimension
@@ -525,16 +526,14 @@ namespace SpacePartitioning {
             * @param {numCells, out} position in grid
             **/
             constexpr index_array_t to_grid_position(const point_t pos) const {
-                constexpr std::size_t k{ point_t::length() };
-
-                if constexpr (k == 2) {
-                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> k,
-                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> k }};
+                if constexpr (this->k == 2) {
+                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> this->k,
+                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> this->k }};
                 }
                 else {
-                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> k,
-                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> k,
-                                           static_cast<std::size_t>(pos[2] + this->offset[2]) >> k }};
+                    return index_array_t{{ static_cast<std::size_t>(pos[0] + this->offset[0]) >> this->k,
+                                           static_cast<std::size_t>(pos[1] + this->offset[1]) >> this->k,
+                                           static_cast<std::size_t>(pos[2] + this->offset[2]) >> this->k }};
                 }
             }
 
@@ -553,9 +552,7 @@ namespace SpacePartitioning {
             * @param {size_t,        out} index of cell holding point in grid
             **/
             constexpr std::size_t to_index(const index_array_t cell) const {
-                constexpr std::size_t k{ point_t::length() };
-
-                if constexpr (k == 2) {
+                if constexpr (this->k == 2) {
                     return cell[0] + this->numCells[0] * cell[1];
                 }
                 else {
