@@ -2838,63 +2838,202 @@ void test_GLSL_clustering() {
 }
 
 void test_samples() {
-    // show 3
+   // show 3
    {
        // how many points to sample
        constexpr std::size_t count{ 1000 };
+       std::vector<vec2> points;
+       points.reserve(5 * count);
 
        // create a circle and uniformly sample 1000 points within it
        const vec2 center(130.0f, 130.0f);
        const float radius{ 50.0f };
-       std::vector<vec2> sampled_circle_points;
-       sampled_circle_points.reserve(count);
        for (std::size_t i{}; i < count; ++i) {
-           sampled_circle_points.emplace_back(Sample::sample_circle(center, radius));
+           points.emplace_back(Sample::sample_circle(center, radius));
        }
 
        // creat a triangle and uniformly sample 1000 points within it
        const vec2 v0(20.0f, 220.0f);
        const vec2 v1(20.0f, 520.0f);
        const vec2 v2(500.0f, 400.0f);
-       std::vector<vec2> sampled_triangle_points;
-       sampled_triangle_points.reserve(count);
        for (std::size_t i{}; i < count; ++i) {
-           sampled_triangle_points.emplace_back(Sample::sample_triangle(v0, v1, v2));
+           points.emplace_back(Sample::sample_triangle(v0, v1, v2));
        }
 
        // create a parallelogram and uniformly sample 2000 points within it
-       const vec2 p0(230.0f, 250.0f);
-       const vec2 p1(500.0f, 400.0f);
-       const vec2 p2(700.0f, 200.0);
-       const vec2 p3(300.0f, 100.0f);
-       std::vector<vec2> sampled_parallelogram_points;
-       sampled_parallelogram_points.reserve(2 * count);
+       const vec2 p0(240.0f, 240.0f);
+       const vec2 p1(510.0f, 390.0f);
+       const vec2 p2(710.0f, 190.0);
+       const vec2 p3(310.0f, 90.0f);
        for (std::size_t i{}; i < 2 * count; ++i) {
-           sampled_parallelogram_points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
+           points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
        }
 
-       std::size_t N{ sampled_circle_points.size() / 20 };
-       auto circle_concave = Algorithms2D::get_concave_hull(sampled_circle_points.begin(), sampled_circle_points.end(), N);
-       circle_concave.emplace_back(circle_concave.front());
+       // create an ellipse and uniformly sample 1000 points within it
+       const vec2 ellipse_center(160.0f, 220.0f);
+       const float xAxis{ 70.0f };
+       const float yAxis{ 30.0f };
+       std::vector<vec2> sampled_ellipse_points;
+       sampled_ellipse_points.reserve(count);
+       for (std::size_t i{}; i < count; ++i) {
+           points.emplace_back(Sample::sample_ellipse(ellipse_center, xAxis, yAxis));
+       }
+       
+       // partition space using bin-lattice grid
+       SpacePartitioning::Grid<vec2> grid;
+       grid.construct(points.begin(), points.end());
 
-       N = sampled_triangle_points.size() / 20;
-       auto triangle_concave = Algorithms2D::get_concave_hull(sampled_triangle_points.begin(), sampled_triangle_points.end(), N);
-       triangle_concave.emplace_back(triangle_concave.front());
+       // use density estimator (DBSCAN) to segment/cluster the point cloud and identify "noise" 
+       const float density_radius{ 0.3f * radius };
+       const std::size_t density_points{ 4 };
+       const auto segments = Clustering::get_density_based_clusters(points.begin(), points.end(), grid, density_radius, density_points);
+       grid.clear();
 
-       N = sampled_parallelogram_points.size() / 20;
-       auto parallelogram_concave = Algorithms2D::get_concave_hull(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), N);
-       parallelogram_concave.emplace_back(parallelogram_concave.front());
-
-       // export to svg
+       // prepare drawing canvas
+       std::array<std::string, 4> colors{ {"red", "green", "blue", "orange"} };
        svg<vec2> sample_test(800, 800);
-       sample_test.add_point_cloud(sampled_circle_points.begin(), sampled_circle_points.end(), 1.0, "red", "none", 0.0f);
-       sample_test.add_point_cloud(sampled_triangle_points.begin(), sampled_triangle_points.end(), 1.0, "green", "none", 0.0f);
-       sample_test.add_point_cloud(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), 1.0, "blue", "none", 0.0f);
-       sample_test.add_polygon(circle_concave.begin(), circle_concave.end(), "none", "black", 1.0f);
-       sample_test.add_polygon(triangle_concave.begin(), triangle_concave.end(), "none", "black", 1.0f);
-       sample_test.add_polygon(parallelogram_concave.begin(), parallelogram_concave.end(), "none", "black", 1.0f);
+
+       // calculate clusters characteristics (concave hull, principle axis)
+       const std::size_t cluster_count{ segments.clusters.size() };
+       for (std::size_t i{}; i < cluster_count; ++i) {
+           // get cluster points
+           std::vector<vec2> cluster_points;
+           cluster_points.reserve(segments.clusters[i].size());
+           for (const std::size_t j : segments.clusters[i]) {
+               cluster_points.emplace_back(points[j]);
+           }
+
+           // calculate points concave hull
+           const std::size_t N{ cluster_points.size() / 20 };
+           auto cluster_concave = Algorithms2D::get_concave_hull(cluster_points.begin(), cluster_points.end(), N);
+
+           // calculate points principle axis
+           const vec2 centroid{ Algorithms2D::Internals::get_centroid(cluster_points.begin(), cluster_points.end()) };
+           const vec2 axis{ Algorithms2D::get_principle_axis(cluster_points.begin(), cluster_points.end(), centroid) };
+           const std::array<vec2, 2> principle_axis_segments{ {centroid, centroid + 70.0f * axis} };
+
+           // draw it all
+           sample_test.add_point_cloud(cluster_points.begin(), cluster_points.end(), 1.0f, colors[i % 4], "none", 0.0f);
+           cluster_concave.emplace_back(cluster_concave.front());
+           sample_test.add_polygon(cluster_concave.begin(), cluster_concave.end(), "none", colors[i % 4], 2.0f);
+           sample_test.add_circle(centroid, 4.0, "black", "black", 0.0);
+           sample_test.add_polyline(principle_axis_segments.begin(), principle_axis_segments.end(), "black", "black", 2.0f);
+       }
+
        sample_test.to_file("sample_test.svg");
    }
+
+   //// show 3
+   //{
+   //    // how many points to sample
+   //    constexpr std::size_t count{ 1000 };
+   //
+   //    // create a circle and uniformly sample 1000 points within it
+   //    const vec2 center(130.0f, 130.0f);
+   //    const float radius{ 50.0f };
+   //    std::vector<vec2> sampled_circle_points;
+   //    sampled_circle_points.reserve(count);
+   //    for (std::size_t i{}; i < count; ++i) {
+   //        sampled_circle_points.emplace_back(Sample::sample_circle(center, radius));
+   //    }
+   //
+   //    // creat a triangle and uniformly sample 1000 points within it
+   //    const vec2 v0(20.0f, 220.0f);
+   //    const vec2 v1(20.0f, 520.0f);
+   //    const vec2 v2(500.0f, 400.0f);
+   //    std::vector<vec2> sampled_triangle_points;
+   //    sampled_triangle_points.reserve(count);
+   //    for (std::size_t i{}; i < count; ++i) {
+   //        sampled_triangle_points.emplace_back(Sample::sample_triangle(v0, v1, v2));
+   //    }
+   //
+   //    // create a parallelogram and uniformly sample 2000 points within it
+   //    const vec2 p0(230.0f, 250.0f);
+   //    const vec2 p1(500.0f, 400.0f);
+   //    const vec2 p2(700.0f, 200.0);
+   //    const vec2 p3(300.0f, 100.0f);
+   //    std::vector<vec2> sampled_parallelogram_points;
+   //    sampled_parallelogram_points.reserve(2 * count);
+   //    for (std::size_t i{}; i < 2 * count; ++i) {
+   //        sampled_parallelogram_points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
+   //    }
+   //
+   //    // create an ellipse and uniformly sample 1000 points within it
+   //    const vec2 ellipse_center(160.0f, 220.0f);
+   //    const float xAxis{ 70.0f };
+   //    const float yAxis{ 30.0f };
+   //    std::vector<vec2> sampled_ellipse_points;
+   //    sampled_ellipse_points.reserve(count);
+   //    for (std::size_t i{}; i < count; ++i) {
+   //        sampled_ellipse_points.emplace_back(Sample::sample_ellipse(ellipse_center, xAxis, yAxis));
+   //    }
+   //    
+   //    // calculate circle samples concave hull
+   //    std::size_t N{ sampled_circle_points.size() / 20 };
+   //    auto circle_concave = Algorithms2D::get_concave_hull(sampled_circle_points.begin(), sampled_circle_points.end(), N);
+   //
+   //    // calculate triangle samples concave hull
+   //    N = sampled_triangle_points.size() / 20;
+   //    auto triangle_concave = Algorithms2D::get_concave_hull(sampled_triangle_points.begin(), sampled_triangle_points.end(), N);
+   //
+   //    // calculate parallelogram samples concave hull
+   //    N = sampled_parallelogram_points.size() / 20;
+   //    auto parallelogram_concave = Algorithms2D::get_concave_hull(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), N);
+   //
+   //    // calculate ellipse samples concave hull
+   //    N = sampled_ellipse_points.size() / 20;
+   //    auto ellipse_concave = Algorithms2D::get_concave_hull(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), N);
+   //
+   //    // calculate circle samples centroid and principle axes
+   //    vec2 circle_centroid{ Algorithms2D::Internals::get_centroid(sampled_circle_points.begin(), sampled_circle_points.end()) };
+   //    vec2 circle_axis{ Algorithms2D::get_principle_axis(sampled_circle_points.begin(), sampled_circle_points.end(), circle_centroid) };
+   //    std::array<vec2, 2> circle_segments{ {circle_centroid, circle_centroid + radius * circle_axis} };
+   //
+   //    // calculate triangle samples centroid and principle axes
+   //    vec2 triangle_centroid{ Algorithms2D::Internals::get_centroid(sampled_triangle_points.begin(), sampled_triangle_points.end()) };
+   //    vec2 triangle_axis{ Algorithms2D::get_principle_axis(sampled_triangle_points.begin(), sampled_triangle_points.end(), triangle_centroid) };
+   //    std::array<vec2, 2> triangle_segments{ {triangle_centroid, triangle_centroid + 310.0f * triangle_axis} };
+   //
+   //    // calculate parallelogram samples centroid and principle axes
+   //    vec2 parallelogram_centroid{ Algorithms2D::Internals::get_centroid(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end()) };
+   //    vec2 parallelogram_axis{ Algorithms2D::get_principle_axis(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), parallelogram_centroid) };
+   //    std::array<vec2, 2> parallelogram_segments{ {parallelogram_centroid, parallelogram_centroid + 160.0f * parallelogram_axis} };
+   //
+   //    // calculate ellipse samples centroid and principle axes
+   //    vec2 ellipse_centroid{ Algorithms2D::Internals::get_centroid(sampled_ellipse_points.begin(), sampled_ellipse_points.end()) };
+   //    vec2 ellipse_axis{ Algorithms2D::get_principle_axis(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), ellipse_centroid) };
+   //    std::array<vec2, 2> ellipse_segments{ {ellipse_centroid, ellipse_centroid + xAxis * ellipse_axis} };
+   //
+   //    // export to svg
+   //    svg<vec2> sample_test(800, 800);
+   //    sample_test.add_point_cloud(sampled_circle_points.begin(), sampled_circle_points.end(), 1.0, "red", "none", 0.0f);
+   //    sample_test.add_point_cloud(sampled_triangle_points.begin(), sampled_triangle_points.end(), 1.0, "green", "none", 0.0f);
+   //    sample_test.add_point_cloud(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), 1.0, "blue", "none", 0.0f);
+   //    sample_test.add_point_cloud(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), 1.0, "orange", "none", 0.0f);
+   //
+   //    circle_concave.emplace_back(circle_concave.front());
+   //    triangle_concave.emplace_back(triangle_concave.front());
+   //    parallelogram_concave.emplace_back(parallelogram_concave.front());
+   //    ellipse_concave.emplace_back(ellipse_concave.front());
+   //    sample_test.add_polygon(circle_concave.begin(), circle_concave.end(), "none", "red", 2.0f);
+   //    sample_test.add_polygon(triangle_concave.begin(), triangle_concave.end(), "none", "green", 2.0f);
+   //    sample_test.add_polygon(parallelogram_concave.begin(), parallelogram_concave.end(), "none", "blue", 2.0f);
+   //    sample_test.add_polygon(ellipse_concave.begin(), ellipse_concave.end(), "none", "orange", 2.0f);
+   //
+   //    sample_test.add_circle(circle_centroid, 4.0, "black", "black", 0.0);
+   //    sample_test.add_polyline(circle_segments.begin(), circle_segments.end(), "black", "black", 2.0f);
+   //
+   //    sample_test.add_circle(triangle_centroid, 4.0, "black", "black", 0.0);
+   //    sample_test.add_polyline(triangle_segments.begin(), triangle_segments.end(), "black", "black", 2.0f);
+   //
+   //    sample_test.add_circle(parallelogram_centroid, 4.0, "black", "black", 0.0);
+   //    sample_test.add_polyline(parallelogram_segments.begin(), parallelogram_segments.end(), "black", "black", 2.0f);
+   //
+   //    sample_test.add_circle(ellipse_centroid, 4.0, "black", "black", 0.0);
+   //    sample_test.add_polyline(ellipse_segments.begin(), ellipse_segments.end(), "black", "black", 2.0f);
+   //
+   //    sample_test.to_file("sample_test.svg");
+   //}
 }
 
 void test_for_show() {
@@ -3134,7 +3273,7 @@ void test_for_show() {
        std::vector<std::vector<vec2>> hulls;
        hulls.reserve(medial_axis.size());
        for (std::size_t j{}; j < medial_axis.size(); ++j) {
-	   hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
+           hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
        }
        
        // draw clustered samples
