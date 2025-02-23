@@ -26,6 +26,7 @@
 #include "Glsl.h"
 #include "Algorithms.h"
 #include <vector>
+#include <map>
 #include <queue>
 #include <memory> // unique_ptr
 
@@ -369,13 +370,11 @@ namespace SpacePartitioning {
             if constexpr (k == 2) {
                 this->numCells = { {static_cast<std::size_t>(std::ceil((std::abs(aabb.max[0] - aabb.min[0]) + one) / this->cellSize)),
                                     static_cast<std::size_t>(std::ceil((std::abs(aabb.max[1] - aabb.min[1]) + one) / this->cellSize))} };
-                this->bins.resize(this->numCells[0] * this->numCells[1]);
             }
             else {
                 this->numCells = { {static_cast<std::size_t>(std::ceil((std::abs(aabb.max[0] - aabb.min[0]) + one) / this->cellSize)),
                                     static_cast<std::size_t>(std::ceil((std::abs(aabb.max[1] - aabb.min[1]) + one) / this->cellSize)),
                                     static_cast<std::size_t>(std::ceil((std::abs(aabb.max[2] - aabb.min[2]) + one) / this->cellSize))} };
-                this->bins.resize(this->numCells[0] * this->numCells[1] * this->numCells[2]);
             }
 
             // fill grid
@@ -383,10 +382,16 @@ namespace SpacePartitioning {
             std::size_t i{};
             for (auto it{ begin }; it != end; ++it) {
                 const point_t p{ *it };
-                const std::size_t j{ this->to_index(p) };
-                this->bins[j].push_back(i);
+                const std::size_t key{ this->to_index(p) };
+                if (const auto node = this->bins.find(key); 
+                    node == this->bins.end()) {
+                    this->bins.insert({ key, std::vector<std::size_t>{} });
+                }
+                this->bins[key].emplace_back(i);
                 ++i;
             }
+            std::cout << "---\n";
+            std::cout << "grid count = " << this->bins.size() << '\n';
         }
 
         /**
@@ -421,8 +426,13 @@ namespace SpacePartitioning {
             // lambda to check if point should be included in query
             const auto query_point = [this, METRIC_FUNC = FWD(metric_function), point, distance_criteria, &out]
                                      (index_array_t cellPosition) {
-                const std::size_t cellIndex{ this->to_index(cellPosition) };
-                for (const std::size_t i : this->bins[cellIndex]) {
+                const std::size_t key{ this->to_index(cellPosition) };
+                const auto node = this->bins.find(key);
+                if (node == this->bins.end()) {
+                    return;
+                }
+
+                for (const std::size_t i : node->second) {
                     const point_t pos{ *(this->first + i) };
                     const point_t diff{ point - pos };
                     if (METRIC_FUNC(diff) <= distance_criteria) {
@@ -511,7 +521,7 @@ namespace SpacePartitioning {
             inline static const coordinate_t cellSize{ static_cast<coordinate_t>(1 << k) };
 
             // properties
-            std::vector<std::vector<std::size_t>> bins;
+            std::map<std::size_t, std::vector<std::size_t>> bins;
             index_array_t numCells{ {0} };           // number of cells in each dimension
             index_array_t gridMin{ {0} };            // grid cells minimal values
             index_array_t gridMax{ {0} };            // grid cells maximal values
