@@ -390,8 +390,6 @@ namespace SpacePartitioning {
                 this->bins[key].emplace_back(i);
                 ++i;
             }
-            std::cout << "---\n";
-            std::cout << "grid count = " << this->bins.size() << '\n';
         }
 
         /**
