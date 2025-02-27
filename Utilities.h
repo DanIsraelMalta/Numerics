@@ -171,4 +171,19 @@ namespace Utilities {
     constexpr bool is_buffer_continuous(const It first, const It last) {
         return (&*last - &*first) == (last - first);
     }
+    
+    /**
+    * \brief local implementation of std::unreachable
+    **/
+    [[noreturn]] constexpr void unreachable() {
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+        __assume(false);
+#else // GCC, Clang
+#ifdef NDEBUG
+        __builtin_unreachable();
+#else
+        __builtin_trap();
+#endif
+#endif
+    }
 };
