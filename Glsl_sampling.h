@@ -140,7 +140,7 @@ namespace Sample {
     **/
     template<GLSL::IFixedVector VEC>
         requires(VEC::length() == 2)
-    constexpr VEC sample_parallelogram(const VEC& p0, const VEC& p1, const VEC& p2, const VEC& p3) {
+    constexpr VEC sample_parallelogram(const VEC& p0, const VEC& p1, [[maybe_unused]] const VEC& p2, const VEC& p3) {
         using T = typename VEC::value_type;
 
         const VEC e1{ p1 - p0 };
