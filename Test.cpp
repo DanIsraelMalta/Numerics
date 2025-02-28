@@ -26,6 +26,7 @@
 #include "GLSL_clustering.h"
 #include "Glsl_sampling.h"
 #include "Glsl_svg.h"
+#include "Glsl_pattern_identification.h"
 
 void test_diamond_angle() {
     // test atan2
@@ -2580,7 +2581,6 @@ void test_glsl_space_partitioning() {
 
         // destruction
         grid.clear();
-        assert(sizeof(grid) == 3 * (sizeof(std::array<std::size_t, 2>) + sizeof(vec2)) + sizeof(vec2*) + sizeof(std::vector<vec2>));
     }
 }
 
@@ -2846,7 +2846,7 @@ void test_samples() {
        points.reserve(5 * count);
 
        // create a circle and uniformly sample 1000 points within it
-       const vec2 center(130.0f, 130.0f);
+       const vec2 center(110.0f, 110.0f);
        const float radius{ 50.0f };
        for (std::size_t i{}; i < count; ++i) {
            points.emplace_back(Sample::sample_circle(center, radius));
@@ -2870,7 +2870,7 @@ void test_samples() {
        }
 
        // create an ellipse and uniformly sample 1000 points within it
-       const vec2 ellipse_center(160.0f, 220.0f);
+       const vec2 ellipse_center(160.0f, 210.0f);
        const float xAxis{ 70.0f };
        const float yAxis{ 30.0f };
        std::vector<vec2> sampled_ellipse_points;
@@ -2922,118 +2922,6 @@ void test_samples() {
 
        sample_test.to_file("sample_test.svg");
    }
-
-   //// show 3
-   //{
-   //    // how many points to sample
-   //    constexpr std::size_t count{ 1000 };
-   //
-   //    // create a circle and uniformly sample 1000 points within it
-   //    const vec2 center(130.0f, 130.0f);
-   //    const float radius{ 50.0f };
-   //    std::vector<vec2> sampled_circle_points;
-   //    sampled_circle_points.reserve(count);
-   //    for (std::size_t i{}; i < count; ++i) {
-   //        sampled_circle_points.emplace_back(Sample::sample_circle(center, radius));
-   //    }
-   //
-   //    // creat a triangle and uniformly sample 1000 points within it
-   //    const vec2 v0(20.0f, 220.0f);
-   //    const vec2 v1(20.0f, 520.0f);
-   //    const vec2 v2(500.0f, 400.0f);
-   //    std::vector<vec2> sampled_triangle_points;
-   //    sampled_triangle_points.reserve(count);
-   //    for (std::size_t i{}; i < count; ++i) {
-   //        sampled_triangle_points.emplace_back(Sample::sample_triangle(v0, v1, v2));
-   //    }
-   //
-   //    // create a parallelogram and uniformly sample 2000 points within it
-   //    const vec2 p0(230.0f, 250.0f);
-   //    const vec2 p1(500.0f, 400.0f);
-   //    const vec2 p2(700.0f, 200.0);
-   //    const vec2 p3(300.0f, 100.0f);
-   //    std::vector<vec2> sampled_parallelogram_points;
-   //    sampled_parallelogram_points.reserve(2 * count);
-   //    for (std::size_t i{}; i < 2 * count; ++i) {
-   //        sampled_parallelogram_points.emplace_back(Sample::sample_parallelogram(p0, p1, p2, p3));
-   //    }
-   //
-   //    // create an ellipse and uniformly sample 1000 points within it
-   //    const vec2 ellipse_center(160.0f, 220.0f);
-   //    const float xAxis{ 70.0f };
-   //    const float yAxis{ 30.0f };
-   //    std::vector<vec2> sampled_ellipse_points;
-   //    sampled_ellipse_points.reserve(count);
-   //    for (std::size_t i{}; i < count; ++i) {
-   //        sampled_ellipse_points.emplace_back(Sample::sample_ellipse(ellipse_center, xAxis, yAxis));
-   //    }
-   //    
-   //    // calculate circle samples concave hull
-   //    std::size_t N{ sampled_circle_points.size() / 20 };
-   //    auto circle_concave = Algorithms2D::get_concave_hull(sampled_circle_points.begin(), sampled_circle_points.end(), N);
-   //
-   //    // calculate triangle samples concave hull
-   //    N = sampled_triangle_points.size() / 20;
-   //    auto triangle_concave = Algorithms2D::get_concave_hull(sampled_triangle_points.begin(), sampled_triangle_points.end(), N);
-   //
-   //    // calculate parallelogram samples concave hull
-   //    N = sampled_parallelogram_points.size() / 20;
-   //    auto parallelogram_concave = Algorithms2D::get_concave_hull(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), N);
-   //
-   //    // calculate ellipse samples concave hull
-   //    N = sampled_ellipse_points.size() / 20;
-   //    auto ellipse_concave = Algorithms2D::get_concave_hull(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), N);
-   //
-   //    // calculate circle samples centroid and principle axes
-   //    vec2 circle_centroid{ Algorithms2D::Internals::get_centroid(sampled_circle_points.begin(), sampled_circle_points.end()) };
-   //    vec2 circle_axis{ Algorithms2D::get_principle_axis(sampled_circle_points.begin(), sampled_circle_points.end(), circle_centroid) };
-   //    std::array<vec2, 2> circle_segments{ {circle_centroid, circle_centroid + radius * circle_axis} };
-   //
-   //    // calculate triangle samples centroid and principle axes
-   //    vec2 triangle_centroid{ Algorithms2D::Internals::get_centroid(sampled_triangle_points.begin(), sampled_triangle_points.end()) };
-   //    vec2 triangle_axis{ Algorithms2D::get_principle_axis(sampled_triangle_points.begin(), sampled_triangle_points.end(), triangle_centroid) };
-   //    std::array<vec2, 2> triangle_segments{ {triangle_centroid, triangle_centroid + 310.0f * triangle_axis} };
-   //
-   //    // calculate parallelogram samples centroid and principle axes
-   //    vec2 parallelogram_centroid{ Algorithms2D::Internals::get_centroid(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end()) };
-   //    vec2 parallelogram_axis{ Algorithms2D::get_principle_axis(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), parallelogram_centroid) };
-   //    std::array<vec2, 2> parallelogram_segments{ {parallelogram_centroid, parallelogram_centroid + 160.0f * parallelogram_axis} };
-   //
-   //    // calculate ellipse samples centroid and principle axes
-   //    vec2 ellipse_centroid{ Algorithms2D::Internals::get_centroid(sampled_ellipse_points.begin(), sampled_ellipse_points.end()) };
-   //    vec2 ellipse_axis{ Algorithms2D::get_principle_axis(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), ellipse_centroid) };
-   //    std::array<vec2, 2> ellipse_segments{ {ellipse_centroid, ellipse_centroid + xAxis * ellipse_axis} };
-   //
-   //    // export to svg
-   //    svg<vec2> sample_test(800, 800);
-   //    sample_test.add_point_cloud(sampled_circle_points.begin(), sampled_circle_points.end(), 1.0, "red", "none", 0.0f);
-   //    sample_test.add_point_cloud(sampled_triangle_points.begin(), sampled_triangle_points.end(), 1.0, "green", "none", 0.0f);
-   //    sample_test.add_point_cloud(sampled_parallelogram_points.begin(), sampled_parallelogram_points.end(), 1.0, "blue", "none", 0.0f);
-   //    sample_test.add_point_cloud(sampled_ellipse_points.begin(), sampled_ellipse_points.end(), 1.0, "orange", "none", 0.0f);
-   //
-   //    circle_concave.emplace_back(circle_concave.front());
-   //    triangle_concave.emplace_back(triangle_concave.front());
-   //    parallelogram_concave.emplace_back(parallelogram_concave.front());
-   //    ellipse_concave.emplace_back(ellipse_concave.front());
-   //    sample_test.add_polygon(circle_concave.begin(), circle_concave.end(), "none", "red", 2.0f);
-   //    sample_test.add_polygon(triangle_concave.begin(), triangle_concave.end(), "none", "green", 2.0f);
-   //    sample_test.add_polygon(parallelogram_concave.begin(), parallelogram_concave.end(), "none", "blue", 2.0f);
-   //    sample_test.add_polygon(ellipse_concave.begin(), ellipse_concave.end(), "none", "orange", 2.0f);
-   //
-   //    sample_test.add_circle(circle_centroid, 4.0, "black", "black", 0.0);
-   //    sample_test.add_polyline(circle_segments.begin(), circle_segments.end(), "black", "black", 2.0f);
-   //
-   //    sample_test.add_circle(triangle_centroid, 4.0, "black", "black", 0.0);
-   //    sample_test.add_polyline(triangle_segments.begin(), triangle_segments.end(), "black", "black", 2.0f);
-   //
-   //    sample_test.add_circle(parallelogram_centroid, 4.0, "black", "black", 0.0);
-   //    sample_test.add_polyline(parallelogram_segments.begin(), parallelogram_segments.end(), "black", "black", 2.0f);
-   //
-   //    sample_test.add_circle(ellipse_centroid, 4.0, "black", "black", 0.0);
-   //    sample_test.add_polyline(ellipse_segments.begin(), ellipse_segments.end(), "black", "black", 2.0f);
-   //
-   //    sample_test.to_file("sample_test.svg");
-   //}
 }
 
 void test_for_show() {
@@ -3189,6 +3077,91 @@ void test_for_show() {
        const auto segments = Clustering::get_density_based_clusters(points.cbegin(), points.cend(), kdtree, density_radius, density_points);
        kdtree.clear();
        
+       // use RANSAC to find best fitting circle to a group of points
+       using circle_t = struct { vec2 center; float radius; std::size_t score; };
+       const auto detect_circle = [](const std::vector<vec2>& points,
+                                     const std::size_t iter, const float threshold) -> circle_t {
+           // housekeeping
+           circle_t circle;
+              
+           // points axis aligned bounding box
+           const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(points.begin(), points.end());
+           const vec2 range{ aabb.max - aabb.min };
+           const float radius_range{ GLSL::max(range) };
+
+           // find circle best fit RANSAC style
+           std::size_t best_score{};
+           for (std::size_t i{}; i < iter; ++i) {
+               // circle
+               const float _radius{ 1.0f + radius_range * static_cast<float>(rand()) / RAND_MAX / 2.0f };
+               const vec2 _rand(static_cast<float>(rand()) / RAND_MAX,
+                                static_cast<float>(rand()) / RAND_MAX);
+               const vec2 _center{ aabb.min + range * _rand };
+
+               // how many points are within threshold from circle?
+               std::size_t score{};
+               for (const vec2& p : points) {
+                   if (const float dist{ std::abs(GLSL::distance(p, _center) - _radius) };
+                       dist < threshold) {
+                       ++score;
+                   }
+               }
+
+               if (score > best_score) {
+                   best_score = score;
+                   circle.score = score;
+                   circle.center = _center;
+                   circle.radius = _radius;
+               }
+           }
+
+           // output
+           return circle;
+       };
+
+       // use RANSAC to find best fitting line segment to a group of points
+       using line_t = struct { vec2 p0; vec2 p1; std::size_t score; };
+       const auto detect_line = [](const std::vector<vec2>& points, const std::size_t iter, const float threshold) -> line_t {
+           // housekeeping
+           line_t line;
+
+           // find line best fit RANSAC style
+           std::set<std::size_t> indices;
+           const float len{ static_cast<float>(points.size() - 1) };
+           std::size_t best_score{};
+           for (std::size_t i{}; i < iter; ++i) {
+               const std::size_t i0{ static_cast<std::size_t>(std::floor(static_cast<float>(rand()) / RAND_MAX * len)) };
+               const std::size_t i1{ static_cast<std::size_t>(std::floor(static_cast<float>(rand()) / RAND_MAX * len)) };
+               const vec2 _p0{ points[i0] };
+               const vec2 _p1{ points[i1] };
+
+               const vec2 p10{ _p1 - _p0 };
+               const float det{ GLSL::length(p10) };
+               if (Numerics::areEquals(det, 0.0f)) {
+                   continue;
+               }
+
+               // how many points are within threshold from line?
+               std::size_t score{};
+               for (const vec2& p : points) {
+                   if (const float dist{ std::abs(GLSL::cross(p10, p - _p0) / det) };
+                       dist < threshold) {
+                       ++score;
+                   }
+               }
+
+               if (score > best_score) {
+                   best_score = score;
+                   line.score = score;
+                   line.p0 = _p0;
+                   line.p1 = _p1;
+               }
+           }
+
+           // output
+           return line;
+       };
+
        // export calculations to SVG file 
        svg<vec2> cloud_points_svg(300, 280);
        cloud_points_svg.add_point_cloud(points.cbegin(), points.cend(), 0.5f, "black", "black", 1.0f);
@@ -3204,6 +3177,53 @@ void test_for_show() {
            cloud_points_svg.add_circle(points[i], 3.0f, "none", "slategrey", 1.0f);
        }
 
+       // check if cluster is circle or line using RANSAC.
+       for (std::size_t i{}; i < segments.clusters.size(); ++i) {
+           if (segments.clusters[i].size() < 4) {
+               continue;
+           }
+
+           // get cluster
+           std::vector<vec2> cluster;
+           cluster.reserve(segments.clusters[i].size());
+           for (const std::size_t j : segments.clusters[i]) {
+               cluster.emplace_back(points[j]);
+           }
+
+           // detect line via RANSAC
+           PatternDetection::RansacModels::Line<vec2> line_rnsc;
+           auto line = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 100, line_rnsc, 2.0f);
+
+           // detect circle via RANSAC
+           const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(cluster.begin(), cluster.end());
+           const vec2 range{ aabb.max - aabb.min };
+           const float max_radius{ GLSL::min(aabb.max - aabb.min) / 2.0f };
+           using clamped_t = PatternDetection::clamped_value<float>;
+           PatternDetection::RansacModels::Circle<vec2> circle_rnsc;
+           circle_rnsc.set_model({ {
+                   clamped_t{.value = aabb.min.x, .min = aabb.min.x, .max = aabb.max.x }, // circle center x
+                   clamped_t{.value = aabb.min.y, .min = aabb.min.y, .max = aabb.max.y }, // circle center y
+                   clamped_t{.value = 1.0f,       .min = 1.0f,       .max = max_radius }  // circle radius
+               } });
+           auto circle = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 500, circle_rnsc, 4.0f);
+
+           // if a model fits the data "good enough" - draw it
+           std::cout << "circle: " << circle.score << ", " << line.score << '\n';
+           constexpr std::size_t min_score_for_fit{ 10 };
+           if (Numerics::max(circle.score, line.score) > min_score_for_fit) {
+               // is it a circle?
+               if (circle.score > line.score) {
+                   const vec2 _center(circle.model[0], circle.model[1]);
+                   const float _radius{ circle.model[2] };
+                   cloud_points_svg.add_circle(_center, _radius, "none", "black", 3.0f);
+               } // if not a circle - isit is a line...
+               else {
+                   const vec2 p0(line.model[0], line.model[1]);
+                   const vec2 p1(line.model[2], line.model[3]);
+                   cloud_points_svg.add_line(p0, p1, "none", "black", 3.0f);
+               }
+           }
+       }
        cloud_points_svg.to_file("cloud_points_svg.svg");
    }
 
@@ -3275,15 +3295,15 @@ void test_for_show() {
        for (std::size_t j{}; j < medial_axis.size(); ++j) {
            hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
        }
-       
+
        // draw clustered samples
        svg<vec2> clustered_samples_svg(400, 450);
        std::vector<std::string> colors{ {"red", "green", "blue", "orange", "darkmagenta", "deeppink", "tan", "darkred",
-                                         "darkolivegreen", "fuchsia", "plum", "tomato", "yellowgreen", "silver"}};
+                                         "darkolivegreen", "fuchsia", "plum", "tomato", "yellowgreen", "silver"} };
        for (std::size_t j{}; j < clusters.size(); ++j) {
            clustered_samples_svg.add_point_cloud(clusters[j].begin(), clusters[j].end(), 1.0f, colors[j % colors.size()], colors[j % colors.size()], 1.0f);
        }
-       
+
        // draw clusters concave hulls
        for (std::size_t j{}; j < clusters.size(); ++j) {
            hulls[j].emplace_back(hulls[j].front());
