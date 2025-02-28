@@ -258,6 +258,61 @@ cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/0e44e285-d21e-441a-be36-3d1343be036a)
 
+### lets find the lines and circles which best fit the various clusters by randomly sampling the plane:
+```cpp
+svg<vec2> cloud_points_svg(300, 280);
+
+// iterate over clusters and attempt to find if its a line or a circle using RANSAC method
+for (std::size_t i{}; i < segments.clusters.size(); ++i) {
+    if (segments.clusters[i].size() < 4) {
+        continue;
+    }
+
+    // get cluster
+    std::vector<vec2> cluster;
+    cluster.reserve(segments.clusters[i].size());
+    for (const std::size_t j : segments.clusters[i]) {
+        cluster.emplace_back(points[j]);
+    }
+
+    // detect line via RANSAC
+    PatternDetection::RansacModels::Line<vec2> line_rnsc;
+    auto line = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 100, line_rnsc, 2.0f);
+
+    // detect circle via RANSAC
+    const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(cluster.begin(), cluster.end());
+    const vec2 range{ aabb.max - aabb.min };
+    const float max_radius{ GLSL::min(aabb.max - aabb.min) / 2.0f };
+    using clamped_t = PatternDetection::clamped_value<float>;
+    PatternDetection::RansacModels::Circle<vec2> circle_rnsc;
+    circle_rnsc.set_model({ {
+            clamped_t{.value = aabb.min.x, .min = aabb.min.x, .max = aabb.max.x }, // circle center x
+            clamped_t{.value = aabb.min.y, .min = aabb.min.y, .max = aabb.max.y }, // circle center y
+            clamped_t{.value = 1.0f,       .min = 1.0f,       .max = max_radius }  // circle radius
+        } });
+    auto circle = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 500, circle_rnsc, 4.0f);
+
+    // if a model fits the data "good enough" - draw it
+    std::cout << "circle: " << circle.score << ", " << line.score << '\n';
+    constexpr std::size_t min_score_for_fit{ 10 };
+    if (Numerics::max(circle.score, line.score) > min_score_for_fit) {
+        // is it a circle?
+        if (circle.score > line.score) {
+            const vec2 _center(circle.model[0], circle.model[1]);
+            const float _radius{ circle.model[2] };
+            cloud_points_svg.add_circle(_center, _radius, "none", "black", 3.0f);
+        } // if not a circle - isit is a line...
+        else {
+            const vec2 p0(line.model[0], line.model[1]);
+            const vec2 p1(line.model[2], line.model[3]);
+            cloud_points_svg.add_line(p0, p1, "none", "black", 3.0f);
+        }
+    }
+}
+
+cloud_points_svg.to_file("cloud_points_svg.svg");
+```
+![Image](https://github.com/user-attachments/assets/a51c1e70-3ff3-44a2-b79d-ffd2509c2557)
 
 ## Example 3 - messing around with samples and shape characteristics:
 
