@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -29,6 +29,7 @@
 #include <map>
 #include <queue>
 #include <memory> // unique_ptr
+#include <span>   // kd-tree construction
 
 //
 // collection of Euclidean space partitioning data structure
@@ -109,7 +110,7 @@ namespace SpacePartitioning {
             this->first = Utilities::addressof(*begin);
             std::vector<std::size_t> indices(static_cast<std::size_t>(std::distance(begin, end)));
             Algoithms::iota(indices.begin(), indices.end(), 0);
-            this->root = this->build_tree(0, indices);
+            this->root = this->build_tree(0, std::span<std::size_t>{ indices });
         }
 
         /**
@@ -260,10 +261,10 @@ namespace SpacePartitioning {
             /**
             * \brief spatially divide the collection of points in recursive manner.
             * @param {size_t,           in}  node depth
-            * @param {vector<size_t>,   in}  cloud points vector of indices
+            * @param {span<size_t>,     in}  cloud points vector of indices
             * @param {unique_ptr<Node>, out} pointer to new tree node
             **/
-            constexpr std::unique_ptr<Node> build_tree(std::size_t depth, std::vector<std::size_t> indices) {
+            constexpr std::unique_ptr<Node> build_tree(std::size_t depth, std::span<std::size_t> indices) {
                 constexpr std::size_t N{ point_t::length() };
                 if (indices.empty()) {
                     return nullptr;
@@ -284,8 +285,8 @@ namespace SpacePartitioning {
                 return std::make_unique<Node>(Node{
                     .index = nodeIndex,
                     .splitAxis = axis,
-                    .left = this->build_tree(depth + 1, std::vector<std::size_t>(indices.begin(), indices.begin() + medianIndex)),
-                    .right = this->build_tree(depth + 1, std::vector<std::size_t>(indices.begin() + medianIndex + 1, indices.end()))
+                    .left = this->build_tree(depth + 1, std::span<std::size_t>(indices.begin(), indices.begin() + medianIndex)),
+                    .right = this->build_tree(depth + 1, std::span<std::size_t>(indices.begin() + medianIndex + 1, indices.end()))
                 });
             }
 
