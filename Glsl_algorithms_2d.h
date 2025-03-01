@@ -1185,7 +1185,7 @@ namespace Algorithms2D {
         // housekeeping
         std::vector<VEC> points(first, last);
         if (points.size() < 4) {
-            points;
+            return points;
         }
         const std::size_t len{ points.size() };
         std::vector<VEC> concave_hull;
