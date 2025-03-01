@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -25,11 +25,22 @@
 #pragma once
 #include "Utilities.h"
 #include <vector>
+#include <span>
 
 /**
 * local STL replacements for <algorithm> library
 **/
 namespace Algoithms {
+
+    namespace traits {
+        // vector/span traits and concepts
+        template<typename>                  struct is_vector_or_span                  : public std::false_type {};
+        template<typename T>                struct is_vector_or_span<std::vector<T>>  : public std::true_type {};
+        template<typename T>                struct is_vector_or_span<std::span<T>>    : public std::true_type {};
+        template<typename T, std::size_t N> struct is_vector_or_span<std::span<T, N>> : public std::true_type {};
+        template<typename T> constexpr bool is_vector_or_span_v = is_vector_or_span<T>::value;
+        template<typename T> concept IVectorOrSpan = is_vector_or_span_v<T>;
+    };
 
     /**
     * \brief local implementation of std::find_if_not
@@ -104,10 +115,10 @@ namespace Algoithms {
     * @param {vector, in|out} vector to from which elements shall be removed
     * @param {vector, in}     indices of vector elements to remove
     **/
-    template<class T, class I>
+    template<class T, traits::IVectorOrSpan COL, class I = typename COL::value_type>
         requires(std::is_integral_v<I>)
-    constexpr void remove(std::vector<T>& vec, const std::vector<I> indices) {
-        using index_iter = typename std::vector<I>::const_iterator;
+    constexpr void remove(std::vector<T>& vec, COL indices) {
+        using index_iter = typename COL::const_iterator;
         using vector_iter = typename std::vector<T>::iterator;
 
         if (indices.empty()) {
@@ -276,8 +287,7 @@ namespace Algoithms {
     **/
     template<class It, class Compare, class T = typename std::decay_t<decltype(*std::declval<It>())>>
              requires((std::forward_iterator<It> || std::bidirectional_iterator<It>) && std::is_invocable_v<Compare, T, T>)
-    bool binary_search(It first, It last, const T& value, Compare&& comp)
-    {
+    bool binary_search(It first, It last, const T& value, Compare&& comp) {
         first = Algoithms::lower_bound(first, last, value, FWD(comp));
         return (!(first == last) and !(comp(value, *first)));
     }
@@ -347,11 +357,11 @@ namespace Algoithms {
     }
 
     /**
-    * \brief local specialized implementation of std::ranges::nth_element for std::vector.
+    * \brief local specialized implementation of std::ranges::nth_element for std::vector/std::span.
     **/
-    template<class T, class Compare>
+    template<traits::IVectorOrSpan COL, class Compare, class T = typename COL::value_type>
         requires(std::is_invocable_v<Compare, T, T>)
-    constexpr void nth_element(std::vector<T>& vec, const std::size_t nth, Compare&& comp) {
+    constexpr void nth_element(COL& vec, const std::size_t nth, Compare&& comp) {
         const std::size_t len{ vec.size() - 1 };
         if (vec.empty() || nth == 0 || nth > len) {
             return;
@@ -539,7 +549,7 @@ namespace Algoithms {
                 f[i - 2] = MOV(x);
                 f[i - 1] = MOV(y);
             }
-            };
+        };
 
         // lambda to sort a collection in recursive manner
         const auto sort = [&partition_with_pivot, &partition_with_pivot_reverse, &small_sort, &heap_sort, &median5]
