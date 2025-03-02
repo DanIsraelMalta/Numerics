@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -25,6 +25,7 @@
 #pragma once
 #include "Algorithms.h"
 #include "Numerics.h"
+#include <algorithm>
 
 /**
 * numerical algorithms on collections
@@ -351,6 +352,45 @@ namespace NumericalAlgorithms {
                 }
             }
         }
+    }
+
+    /**
+    * \brief given a collection of objects and a metric, merge/weld/combine all objects whose metric is below given threshold.
+    *        complexity is O(n*long(n)).
+    *
+    * @param {forward_iterator, in}  iterator to first object in object collection
+    * @param {forward_iterator, in}  iterator to last object in object collection
+    * @param {callable,         in}  metric which evaluates two objects and return evaluation in arithmetic type
+    * @param {value_type,       in}  threshold (arithmetic) for objects to be welded / combined / merged
+    * @param {vector<>,         out} collection of merged objects (not ordered same as input objects)
+    **/
+    template<std::forward_iterator InputIt, class METRIC,
+             class OBJ = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename std::invoke_result_t<METRIC, OBJ, OBJ>>
+        requires(std::is_invocable_v<METRIC, OBJ, OBJ> && std::is_arithmetic_v<T>)
+    constexpr std::vector<OBJ> merge_close_objects(const InputIt first, const InputIt last, METRIC&& metric, const T tol) {
+        // housekeeping
+        std::vector<OBJ> objects(first, last);
+        const std::size_t len{ objects.size() };
+
+        // sort objects according to given metric
+        std::sort(objects.begin(), objects.end(),
+                  [m = FWD(metric)](const OBJ& a, const OBJ& b) { return m(a, b) < T{}; });
+
+        // iterate over sorted objects and move "should be merged objects" to the end
+        std::size_t length{};
+        objects[length++] = objects[0];
+        for (std::size_t i{}; i < len; ++i) {
+            const OBJ obj{ objects[i] };
+            const OBJ prev{ objects[length - 1] };
+            if (metric(obj, prev) > tol) {
+                objects[length++] = obj;
+            }
+        }
+        objects.resize(length);
+
+        // output
+        return objects;
     }
 
     /**
