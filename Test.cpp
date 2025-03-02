@@ -2838,7 +2838,6 @@ void test_GLSL_clustering() {
 }
 
 void test_samples() {
-   // show 3
    {
        // how many points to sample
        constexpr std::size_t count{ 1000 };
@@ -2879,14 +2878,18 @@ void test_samples() {
            points.emplace_back(Sample::sample_ellipse(ellipse_center, xAxis, yAxis));
        }
        
+       // lets reduce amount of points by merging close vertices
+       std::vector<vec2> points_reduced{ NumericalAlgorithms::merge_close_objects(points.begin(), points.end(),
+                                         [](const vec2& a, const vec2& b)->float { return GLSL::distance(a, b); }, 10.0f) };
+
        // partition space using bin-lattice grid
        SpacePartitioning::Grid<vec2> grid;
-       grid.construct(points.begin(), points.end());
+       grid.construct(points_reduced.begin(), points_reduced.end());
 
        // use density estimator (DBSCAN) to segment/cluster the point cloud and identify "noise" 
        const float density_radius{ 0.3f * radius };
        const std::size_t density_points{ 4 };
-       const auto segments = Clustering::get_density_based_clusters(points.begin(), points.end(), grid, density_radius, density_points);
+       const auto segments = Clustering::get_density_based_clusters(points_reduced.begin(), points_reduced.end(), grid, density_radius, density_points);
        grid.clear();
 
        // prepare drawing canvas
@@ -2896,11 +2899,15 @@ void test_samples() {
        // calculate clusters characteristics (concave hull, principle axis)
        const std::size_t cluster_count{ segments.clusters.size() };
        for (std::size_t i{}; i < cluster_count; ++i) {
+           if (segments.clusters[i].size() < 4) {
+               continue;
+           }
+
            // get cluster points
            std::vector<vec2> cluster_points;
            cluster_points.reserve(segments.clusters[i].size());
            for (const std::size_t j : segments.clusters[i]) {
-               cluster_points.emplace_back(points[j]);
+               cluster_points.emplace_back(points_reduced[j]);
            }
 
            // calculate points concave hull
