@@ -3234,6 +3234,79 @@ void test_for_show() {
 
        clustered_samples_svg.to_file("clustered_samples.svg");
    }
+
+   // show 4
+   {
+       // define a signal with 200% noise-to-signal ration
+       const float step{ 0.01f };
+       const float max{ 12.0f * std::numbers::pi_v<float> };
+       const std::size_t len{ static_cast<std::size_t>(std::ceil(max / step)) };
+       std::vector<float> x, y;
+       x.reserve(len);
+       y.reserve(len);
+       for (std::size_t i{}; i < len; ++i) {
+           const float _x{ static_cast<float>(i) * step };
+           x.emplace_back(_x);
+           y.emplace_back(1.0f + std::sin(_x) * std::cos(_x) + 2.0f * Hash::normal_distribution());
+       }
+
+       // define scatter reduction parameters
+       constexpr std::size_t N{ 45 }; // number of bins, i.e. - number of final data points
+       constexpr float beta{ 1.0f };  // smoothing parameters, the larger the smoother
+
+       // get observation x-axis min, max and range
+       const auto xmin_max_iter{ std::minmax_element(x.begin(), x.end()) };
+       const float xmin{ *xmin_max_iter.first };
+       const float xmax{ *xmin_max_iter.second };
+       const float dx{ (xmax - xmin) / static_cast<float>(N) };
+
+       // group the amount and sum of observations per bin
+       using vec_n = GLSL::VectorN<float, N>;
+       using mat_n = GLSL::MatrixN<float, N>;
+       vec_n c(0.0f), s(0.0f);
+       for (std::size_t i{}; i < len; ++i) {
+           const std::size_t j{ Numerics::min(1 + static_cast<std::size_t>(std::floor((x[i] - xmin) / dx)), N - 1) };
+           ++c[j];
+           s[j] += y[i];
+       }
+
+       // use first order difference smoothing to calculate reduced Y coordinate values
+       mat_n p(0.0f);
+       for (std::size_t i{}; i < N - 1; ++i) {
+           p(i, i) = 2.0f * beta;
+           p(i, i + 1) = -beta;
+           p(i + 1, i) = -beta;
+       }
+       p(0, 0) = beta;
+       p(N - 1, N - 1) = beta;
+
+       mat_n diag_c(0.0f);
+       for (std::size_t i{}; i < N - 1; ++i) {
+           diag_c(i, i) = c[i];
+       }
+       mat_n A{ diag_c + p };
+       vec_n z{ Solvers::SolveQR(A, s) };
+
+       // calculate reduced X axis
+       vec_n u;
+       for (std::size_t i{}; i < N; ++i) {
+           u[i] = xmin - dx / 2.0f + static_cast<float>(i) * dx;
+       }
+
+       // export as SVG for visualization
+       svg<vec2> data_svg(300, 50);
+       for (std::size_t i{}; i < len; ++i) {
+           const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
+           data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+       }
+       for (std::size_t i{ 1 }; i < N; ++i) {
+           const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
+           const vec2 curr(u[i] * 10.0f, 20.0f + z[i] * 10.0f);
+           data_svg.add_circle(curr, 2.0f, "blue", "blue", 0.0f);
+           data_svg.add_line(prev, curr, "blue", "blue", 1.0f);
+       }
+       data_svg.to_file("data.svg");
+   }
 }
 
 int main() {
