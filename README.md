@@ -436,7 +436,7 @@ sample_test.to_file("sample_test.svg");
 
 ## Example 4 - using linear algebra to reduce amount of data:
 
-### lets reduce a noisy signal with +3k samples to 40 samples while maintainng most of the inormation (red is original signal, blue is reduced signal):
+### lets reduce an extremely noisy signal (200% noise-to-signal ratio) with +3k samples to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
 ```cpp
 // define a signal with 200% noise-to-signal ration
 const float step{ 0.01f };
