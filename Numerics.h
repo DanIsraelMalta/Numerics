@@ -28,7 +28,6 @@
 #include <limits> // std::numeric_limits
 #include <climits> // CHAR_BIT
 #include <cmath> // std::signbit, std::isnan, std::isinf
-#include <numbers> // pi
 #include "Utilities.h"
 #include "Concepts.h"
 
@@ -73,7 +72,6 @@ namespace Numerics {
         constexpr std::size_t num_field_bits{ sizeof(std::size_t) * CHAR_BIT };
         return num_bits ? (1 + ((num_bits - 1) / num_field_bits)) : 0;
     }
-
 
     /**
     * \brief return true if all values are positive
@@ -231,7 +229,9 @@ namespace Numerics {
         [[assume(!std::isnan(lhs) && !std::isinf(lhs) && !std::isnan(rhs) && !std::isinf(rhs))]];
 
         // binary equal
-        if (lhs == rhs) return true;
+        if (lhs == rhs) {
+            return true;
+        }
     
         // absolute error test
         // (equivalent check of std::fabs(lhs - rhs) >= tol, but without absolute value calculation)
@@ -284,7 +284,7 @@ namespace Numerics {
         assert(a <= b);
 
         // since not every range can be split into equidistant floats exactly,
-        // we actually compute ceil(b / distance - a / distance), because in those cases we want to overcount.
+        // we actually calculate ceil(b / distance - a / distance), because in those cases we want to overcount.
         // notice the usage of modified Dekker's FastTwoSum algorithm to handle rounding. 
         const T distance{ Numerics::ulp_magnitude_within_range(a, b) };
         [[assume(distance > 0)]];
@@ -644,5 +644,153 @@ namespace Numerics {
         }
 
         return roots;
+    }
+
+    /**
+    * \brief given a function (f(x)) and bounds [x0, x1], attempt to find the local minimizer 'x' of f(x).
+    *        function uses golden section search combined with parabolic interpolation.
+    * @param {callable,       in}  function to be minimized
+    * @param {floating_point, in}  x lower bound
+    * @param {floating_point, in}  x upper bound
+    * @param {size_t,         in}  maximal amount of iterations (default is 500)
+    * @param {floating_point, in}  tolerance on local minimizer convergence (default is 1e-4)
+    * @param {struct,         out} output signature is {floating_point, floating_point, bool} where:
+    *                              > first value is 'x' which minimizes f(x).
+    *                              > value of f(x) at 'x'.
+    *                              > flag which returns true if optimization converged ('x' was within 'tol_x')
+    *                                and false if optimization terminated due to passing the maximal amount of iterations ('maxIter')
+    **/
+    template<typename FUNC, typename T>
+        requires(std::is_floating_point_v<T>  &&
+                 std::is_invocable_v<FUNC, T> &&
+                 std::is_floating_point_v<typename std::invoke_result_t<FUNC, T>>)
+    constexpr auto fminbnd(FUNC&& func, const T x0, const T x1,
+                           const std::size_t maxIter = 500, const T tol_x = static_cast<T>(1e-4)) {
+        using out_t = struct { T x; T function_value; bool converged; };
+        assert(x0 < x1);
+        assert(tol_x > T{});
+        assert(maxIter > 0);
+
+        // housekeeping
+        const T c{ (static_cast<T>(3.0) - std::sqrt(static_cast<T>(5.0))) / static_cast<T>(2.0) };
+        const T eps{ std::nextafter(static_cast<T>(1.0), static_cast<T>(2.0)) - static_cast<T>(1.0) };
+        const T seps{ std::sqrt(eps) };
+        std::size_t iter{};
+        T a{ x0 };
+        T b{ x1 };
+        
+        // start point
+        T v{ a + c * (b - a) };
+        T w{ v };
+        T xf{ v };
+        T x{ xf };
+        T fx{ func(x) };
+        T d{};
+        T e{};
+
+        // main loop
+        T fv{ fx };
+        T fw{ fx };
+        T xm{ (a + b) / static_cast<T>(2.0) };
+        T tol1{ std::fma(seps, std::abs(xf), tol_x / static_cast<T>(3.0)) };
+        T tol2{ static_cast<T>(2.0) * tol1 };
+        while (iter < maxIter &&
+               std::abs(xf - xm) > (tol2 - (b - a) / static_cast<T>(2.0))) {
+            bool gs{ true };
+
+            // is parabolic fit possible?
+            if (std::abs(e) > tol1) {
+                gs = false;
+                const T xfw{ xf - w };
+                const T xfv{ xf - v };
+                T r{ xfw * (fx - fv) };
+                T q{ xfv * (fx - fw) };
+                T p{ Numerics::diff_of_products(xfv, q, xfw, r) };
+                q = static_cast<T>(2.0) * (q - r);
+                if (q > T{}) {
+                    p = -p;
+                }
+                q = std::abs(q);
+                r = e;
+                e = d;
+
+                // is parabola acceptable>
+                if ((std::abs(p) < std::abs(q * r / static_cast<T>(2.0))) &&
+                    (p > q * (a - xf)) && (p < q * (b - xf))) {
+                    assert(q != T{});
+                    d = p / q;
+                    x = xf + d;
+                    
+                    if (((x - a) < tol2) || ((b - x) < tol2)) {
+                        T si{ Numerics::sign(xm - xf) };
+                        if (Numerics::areEquals(xm - xf, T{})) {
+                            si += static_cast<T>(1.0);
+                        }
+                        d = si * tol1;
+                    }
+                    
+                }
+                else {
+                    gs = false;
+                }
+            }
+
+            // is golden section step required?
+            if (gs) {
+                e = xf >= xm ? a - xf : b - xf;
+                d = c * e;
+            }
+
+            // do no evaluate function to close to 'xf'
+            T si{ Numerics::sign(d) };
+            if (Numerics::areEquals(d, T{})) {
+                si += static_cast<T>(1.0);
+            }
+            x = std::fma(si, Numerics::max(std::abs(d), tol1), xf);
+            const T fu{ func(x) };
+
+            // update parameters for next iteration
+            if (fu <= fx) {
+                if (x >= xf) {
+                    a = xf;
+                }
+                else {
+                    b = xf;
+                }
+                v = w;
+                fv = fw;
+                w = xf;
+                fw = fx;
+                xf = x;
+                fx = fu;
+            }
+            else {
+                if (x < xf) {
+                    a = x;
+                }
+                else {
+                    b = x;
+                }
+
+                if (fu <= fw || Numerics::areEquals(w, xf)) {
+                    v = w;
+                    fv = fw;
+                    w = x;
+                    fw = fu;
+                }
+                else if (fu <= fv || Numerics::areEquals(v, xf) || Numerics::areEquals(v, w)) {
+                    v = x;
+                    fv = fu;
+                }
+            }
+            xm = (a + b) / static_cast<T>(2.0);
+            tol1 = std::fma(seps, std::abs(xf), tol_x / static_cast<T>(3.0));
+            tol2 = static_cast<T>(2.0) * tol1;
+
+            ++iter;
+        }
+
+        // output
+        return out_t{ x, fx, iter != maxIter };
     }
 }
