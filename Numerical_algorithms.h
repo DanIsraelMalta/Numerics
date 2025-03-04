@@ -394,6 +394,34 @@ namespace NumericalAlgorithms {
     }
 
     /**
+    * \brief given a collection of arithmetic values, rearrange it and return its median value.
+    *        complexity is O(n).
+    *
+    * @param {forward_iterator, in}  iterator to first value
+    * @param {forward_iterator, in}  iterator to last value
+    * @param {callable,         in}  comparison function object
+    * @param {value_type,       out} median value
+    **/
+    template<std::forward_iterator InputIt, class Compare,
+             class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
+        requires(std::is_invocable_v<Compare, T, T>)
+    constexpr void median(InputIt first, InputIt last, Compare&& comp) {
+        const std::size_t N{ static_cast<std::size_t>(std::distance(first, last)) };
+        const std::size_t N2{ N / 2 };
+
+        if (N % 2 == 0) {
+            const std::size_t N1{ (N - 1) / 2 };
+            Algoithms::nth_element(first, first + N2, last, FWD(comp));
+            Algoithms::nth_element(first, first + N1, last, FWD(comp));
+            return (*(first + N1) + *(first + N2) / static_cast<T>(2.0);
+        }
+        else {
+            Algoithms::nth_element(first, first + N2, last, FWD(comp));
+            return *(first + N2);
+        }
+    }
+
+    /**
     * \brief Apply a kernal, in ordered manner, on variadic amount of random access arithmetic ranges and return the result in a different range.
     *        Although operation will be element wise, kernel should be given in scalar manner.
     * 
