@@ -239,6 +239,28 @@ void test_numerics() {
         assert(static_cast<std::int32_t>(sol[4] * 10000) == -15000);
         assert(static_cast<std::int32_t>(sol[5] * 10000) == -23979);
     }
+
+    // test fminbnd
+    {
+        const auto func1 = [](const double x) -> double {
+            double f{};
+            for (std::int32_t i{ -10 }; i < 10; ++i) {
+                const double k{ static_cast<double>(i) };
+                f += (k + 1) * (k + 1) * std::cos(k * x) * std::exp(-(k * k) / 2.0);
+            }
+            return f;
+        };
+        const auto sol1 = Numerics::fminbnd(func1, 1.0, 3.0);
+        assert(sol1.converged);
+        assert(static_cast<std::int32_t>(sol1.x * 1000) == 2006);
+
+        const auto func2 = [](const double x, const double a = 9.0 / 7.0) -> double {
+            return std::sin(x - a);
+        };
+        const auto sol2 = Numerics::fminbnd(func2, 1.0, 2.0 * std::numbers::pi_v<double>);
+        assert(sol2.converged);
+        assert(static_cast<std::int32_t>(sol2.x * 1000) == 5998);
+    }
 }
 
 void test_numerical_algorithms() {
@@ -3251,7 +3273,7 @@ void test_for_show() {
        }
 
        // define scatter reduction parameters
-       constexpr std::size_t N{ 45 }; // number of bins, i.e. - number of final data points
+       constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
        constexpr float beta{ 1.0f };  // smoothing parameters, the larger the smoother
 
        // get observation x-axis min, max and range
@@ -3328,5 +3350,5 @@ int main() {
     test_numerical_algorithms();
     test_for_show();
     test_samples();
-	return 1;
+    return 1;
 }
