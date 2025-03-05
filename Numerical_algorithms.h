@@ -214,20 +214,18 @@ namespace NumericalAlgorithms {
     * @param {forward_iterator,  out} iterator to beginning of collection which will hold the filtered output
     * @param {array<arithmetic>, in}  Numerator coefficients of rational transfer function (has NB elements)
     * @param {array<arithmetic>, in}  Denominator coefficients of rational transfer function (has NA elements)
-    * @param {array<arithmetic>, in}  Initial conditions for filter delays (default is zeros)
     **/
     template<std::size_t NB, std::size_t NA,
              std::forward_iterator It, std::forward_iterator Ot,
              class T = typename std::decay_t<decltype(*std::declval<It>())>>
-        requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<Ot>())>>)
-    constexpr void filter(const It x_first, const It x_last, Ot out,
-                          const std::array<T, NB>& b, const std::array<T, NA>& a, const std::array<T, Numerics::max(NB, NA)>& z = {{T{}}}) {
+        requires(std::is_arithmetic_v<T> && std::is_same_v<T, typename std::decay_t<decltype(*std::declval<Ot>())>> && NB > 0 && NA > 0)
+    constexpr void filter(const It x_first, const It x_last, Ot out, const std::array<T, NB>& b, const std::array<T, NA>& a) {
         constexpr std::size_t coeff_size{ Numerics::max(NB, NA) };
         assert(!Numerics::areEquals(a[0], T{}));
         [[assume(a[0] != T{})]];
 
-        // local copy of delay vector
-        std::array<T, coeff_size> Z(z);
+        // delay vector (initialized with zero)
+        std::array<T, coeff_size> Z{ {T{}} };
         
         // normalized Numerator coefficients and equalize its size to Denominator
         std::array<T, coeff_size> bn{ {T{}} };
