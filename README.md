@@ -434,9 +434,9 @@ sample_test.to_file("sample_test.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/6a9d22ee-f257-4001-89e3-ea8b80a81090)
 
-## Example 4 - using linear algebra to reduce amount of data:
+## Example 4 - using linear algebra to simultaneously reduce noise and amount of data:
 
-### lets reduce an extremely noisy signal (200% noise-to-signal ratio) with +3k samples to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
+### lets take 3k samples from an extremely noisy signal (over 200% noise-to-signal ratio):
 ```cpp
 // define a signal with 200% noise-to-signal ration
 const float step{ 0.01f };
@@ -450,7 +450,11 @@ for (std::size_t i{}; i < len; ++i) {
     x.emplace_back(_x);
     y.emplace_back(1.0f + std::sin(_x) * std::cos(_x) + 2.0f * Hash::normal_distribution());
 }
+```
+![Image](https://github.com/user-attachments/assets/5343aacd-3157-4e99-aa72-532bb4ddd051)
 
+### lets reduce the signal to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
+```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 45 }; // number of bins, i.e. - number of final data points
 constexpr float beta{ 1.0f };  // smoothing parameters, the larger the smoother
