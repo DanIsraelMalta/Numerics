@@ -453,7 +453,7 @@ for (std::size_t i{}; i < len; ++i) {
 ```
 ![Image](https://github.com/user-attachments/assets/5343aacd-3157-4e99-aa72-532bb4ddd051)
 
-### lets reduce the signal to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
+### lets try to reduce the signal to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
@@ -513,3 +513,46 @@ for (std::size_t i{ 1 }; i < N; ++i) {
 data_svg.to_file("data.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/1b983385-fa40-488a-a1d0-cb42ff4c1edf)
+
+### lets compare our noise reduction to a 40-tap zero phase linear filter with Hanning weights (filter is in green):
+```cpp
+// Hanning window size
+constexpr std::size_t W{ 40 };
+
+// create "hanning" weights
+std::array<float, W> weights;
+float sum{};
+for (std::size_t i{}; i < W; ++i) {
+    const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
+    sum += 1.0f - value;
+    weights[i] = value;
+}
+for (std::size_t i{}; i < W; ++i) {
+    weights[i] /= sum;
+}
+
+// zero phase filtering
+std::vector<float> smooth(len);
+NumericalAlgorithms::filter<W, 1>(y.begin(), y.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+Algoithms::reverse(smooth.begin(), smooth.end());
+NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+Algoithms::reverse(smooth.begin(), smooth.end());
+
+// export as SVG for visualization
+svg<vec2> data_svg(300, 50);
+for (std::size_t i{}; i < len; ++i) {
+    const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
+    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+
+    const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
+    data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
+}
+for (std::size_t i{ 1 }; i < N; ++i) {
+    const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
+    const vec2 curr(u[i] * 10.0f, 20.0f + z[i] * 10.0f);
+    data_svg.add_circle(curr, 2.0f, "blue", "blue", 0.0f);
+    data_svg.add_line(prev, curr, "blue", "blue", 1.0f);
+}
+data_svg.to_file("data.svg");
+```
+![Image](https://github.com/user-attachments/assets/a8cbd99f-8d8e-47b8-b26b-50ad09e6e7a9)
