@@ -434,26 +434,80 @@ sample_test.to_file("sample_test.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/6a9d22ee-f257-4001-89e3-ea8b80a81090)
 
-## Example 4 - using linear algebra to simultaneously reduce noise and amount of data:
+## Example 4 - playing with linear algebra, filters and noise:
 
-### lets take 3k samples from an extremely noisy signal (over 200% noise-to-signal ratio):
+### lets take 3k samples from an extremely noisy signal (more than 200% noise-to-signal ratio). signal is in black, signal with noise is in red:
 ```cpp
 // define a signal with 200% noise-to-signal ration
 const float step{ 0.01f };
 const float max{ 12.0f * std::numbers::pi_v<float> };
 const std::size_t len{ static_cast<std::size_t>(std::ceil(max / step)) };
-std::vector<float> x, y;
+std::vector<float> x, y, ys;
 x.reserve(len);
 y.reserve(len);
+ys.reserve(len);
 for (std::size_t i{}; i < len; ++i) {
     const float _x{ static_cast<float>(i) * step };
+    const float _y{ 1.0f + std::sin(_x) * std::cos(_x) };
     x.emplace_back(_x);
-    y.emplace_back(1.0f + std::sin(_x) * std::cos(_x) + 2.0f * Hash::normal_distribution());
+    ys.emplace_back(_y);
+    y.emplace_back(_y + 2.0f * Hash::normal_distribution());
 }
-```
-![Image](https://github.com/user-attachments/assets/5343aacd-3157-4e99-aa72-532bb4ddd051)
 
-### lets try to reduce the signal to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
+// export as SVG for visualization
+svg<vec2> data_svg(300, 50);
+for (std::size_t i{}; i < len; ++i) {
+    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
+    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+
+    curr.y = 20.0f + ys[i] * 10.0f;
+    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
+}
+data_svg.to_file("data.svg");
+```
+![Image](https://github.com/user-attachments/assets/3712efbc-52c2-452a-bfdf-47be7e2286ca)
+
+### can a 40-tap zero-phase linear filter (with Hanning weights) be able to retrieve the signal? filter is in green:
+```cpp
+// Hanning window size
+constexpr std::size_t W{ 40 };
+
+// create "hanning" weights
+std::array<float, W> weights;
+float sum{};
+for (std::size_t i{}; i < W; ++i) {
+    const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
+    sum += 1.0f - value;
+    weights[i] = value;
+}
+for (std::size_t i{}; i < W; ++i) {
+    weights[i] /= sum;
+}
+
+// zero phase filtering
+std::vector<float> smooth(len);
+NumericalAlgorithms::filter<W, 1>(y.begin(), y.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+Algoithms::reverse(smooth.begin(), smooth.end());
+NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+Algoithms::reverse(smooth.begin(), smooth.end());
+
+// export as SVG for visualization
+svg<vec2> data_svg(300, 50);
+for (std::size_t i{}; i < len; ++i) {
+    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
+    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+
+    curr.y = 20.0f + ys[i] * 10.0f;
+    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
+
+    const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
+    data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
+}
+data_svg.to_file("data.svg");
+```
+![Image](https://github.com/user-attachments/assets/a2cad841-a9f3-49ef-8ea5-ba492b6470f8)
+
+### I bet first order linear smoothing (using QR decomposition) can both retrieve most of the information (i.e. - reduce noise to bareable levels) and decimate sample size from 30k to 40. extract signal is in blue:
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
@@ -501,48 +555,11 @@ for (std::size_t i{}; i < N; ++i) {
 // export as SVG for visualization
 svg<vec2> data_svg(300, 50);
 for (std::size_t i{}; i < len; ++i) {
-    const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
+    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
     data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
-}
-for (std::size_t i{ 1 }; i < N; ++i) {
-    const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
-    const vec2 curr(u[i]     * 10.0f, 20.0f + z[i]     * 10.0f);
-    data_svg.add_circle(curr, 2.0f, "blue", "blue", 0.0f);
-    data_svg.add_line(prev, curr, "blue", "blue", 1.0f);
-}
-data_svg.to_file("data.svg");
-```
-![Image](https://github.com/user-attachments/assets/1b983385-fa40-488a-a1d0-cb42ff4c1edf)
 
-### lets compare our noise reduction to a 40-tap zero phase linear filter with Hanning weights (filter is in green):
-```cpp
-// Hanning window size
-constexpr std::size_t W{ 40 };
-
-// create "hanning" weights
-std::array<float, W> weights;
-float sum{};
-for (std::size_t i{}; i < W; ++i) {
-    const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
-    sum += 1.0f - value;
-    weights[i] = value;
-}
-for (std::size_t i{}; i < W; ++i) {
-    weights[i] /= sum;
-}
-
-// zero phase filtering
-std::vector<float> smooth(len);
-NumericalAlgorithms::filter<W, 1>(y.begin(), y.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
-Algoithms::reverse(smooth.begin(), smooth.end());
-NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
-Algoithms::reverse(smooth.begin(), smooth.end());
-
-// export as SVG for visualization
-svg<vec2> data_svg(300, 50);
-for (std::size_t i{}; i < len; ++i) {
-    const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
-    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+    curr.y = 20.0f + ys[i] * 10.0f;
+    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
 
     const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
     data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
@@ -555,4 +572,4 @@ for (std::size_t i{ 1 }; i < N; ++i) {
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/a8cbd99f-8d8e-47b8-b26b-50ad09e6e7a9)
+![Image](https://github.com/user-attachments/assets/d770aa71-cdcb-4e2d-bada-1982015391e7)
