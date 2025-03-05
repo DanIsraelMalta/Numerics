@@ -477,7 +477,7 @@ std::array<float, W> weights;
 float sum{};
 for (std::size_t i{}; i < W; ++i) {
     const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
-    sum += 1.0f - value;
+    sum += value;
     weights[i] = value;
 }
 for (std::size_t i{}; i < W; ++i) {
@@ -505,9 +505,9 @@ for (std::size_t i{}; i < len; ++i) {
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/a2cad841-a9f3-49ef-8ea5-ba492b6470f8)
+![Image](https://github.com/user-attachments/assets/4ccafaef-9ca1-4df9-8106-fd1049b1eb28)
 
-### I bet first order linear smoothing (using QR decomposition) can both retrieve most of the information (i.e. - reduce noise to bareable levels) and decimate sample size from 30k to 40. extract signal is in blue:
+### I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40 by applying a first order linear smoothing (which is also less computationally expensive). result is in blue:
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
@@ -572,4 +572,4 @@ for (std::size_t i{ 1 }; i < N; ++i) {
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/d770aa71-cdcb-4e2d-bada-1982015391e7)
+![Image](https://github.com/user-attachments/assets/9b2372b3-1098-40af-a469-2a3880d3ab7d)
