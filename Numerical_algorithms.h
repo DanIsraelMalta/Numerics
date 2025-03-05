@@ -26,6 +26,7 @@
 #include "Algorithms.h"
 #include "Numerics.h"
 #include <algorithm>
+#include <complex>
 
 /**
 * numerical algorithms on collections
@@ -419,6 +420,166 @@ namespace NumericalAlgorithms {
             Algoithms::nth_element(first, first + N2, last, FWD(comp));
             return *(first + N2);
         }
+    }
+
+    /**
+    * \brief perform Fast Fourier Transform on a collection of complex numbers.
+    *        this function implements Cooley–Tukey FFT algorithm.
+    *
+    * @param {RandomAccessSized, in}  buffer of complex values
+    * @param {vector<complex>,   out} (padded) Fourier transform of input vector
+    **/
+    template<class BUFFER>
+        requires(std::ranges::random_access_range<BUFFER> && std::ranges::sized_range<BUFFER>)
+    constexpr auto fft(const BUFFER& x) {
+        using buffer_underlying_T = typename std::ranges::range_value_t<BUFFER>;
+        static_assert(std::is_arithmetic_v<buffer_underlying_T>                 ||
+                      std::is_same_v<buffer_underlying_T, std::complex<float>>  ||
+                      std::is_same_v<buffer_underlying_T, std::complex<double>> ||
+                      std::is_same_v<buffer_underlying_T, std::complex<long double>>);
+        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_T>,
+                                                    std::complex<buffer_underlying_T>,
+                                                    buffer_underlying_T>::type;
+        using T = typename complex_t::value_type;
+        using vec_t = std::vector<complex_t>;
+
+        if (x.empty()) {
+            return vec_t{};
+        }
+        assert(x.size() < std::numeric_limits<std::int32_t>::max());
+
+        // housekeeping
+        const std::int32_t bits{ [n = static_cast<std::int32_t>(x.size())]() {
+            for (std::int32_t i{}; i < 30; ++i) {
+                if (const std::int32_t temp{ 1 << i };
+                    temp >= n) {
+                    return i;
+                }
+            }
+            return 30;
+        }() };
+        const std::int32_t len{ 1 << bits };
+        assert(len >= x.size());
+        const vec_t points{ [len]() {
+            constexpr T two_pi{ static_cast<T>(6.283185307179586476925286766559) };
+            vec_t polar;
+            polar.reserve(len);
+
+            for (std::int32_t i{}; i < len; ++i) {
+                const T phase{ -two_pi * static_cast<T>(i) / static_cast<T>(len) };
+                polar.emplace_back(std::polar(static_cast<T>(1.0), phase));
+            }
+
+            return polar;
+        }() };
+        vec_t prev(len);
+        vec_t temp(len);
+        for (std::size_t i{}; i < x.size(); ++i) {
+            prev[i] = x[i];
+        }
+
+        // lambda which performs in place bit reversal permutation of given buffer
+        // this is done in O(n), thanks to: https://www.researchgate.net/publication/227682626_A_new_superfast_bit_reversal_algorithm
+        const auto in_place_bit_reversal_permutation = [&prev, bits]() {
+            const std::int32_t len{ static_cast<std::int32_t>(prev.size()) };
+
+            if (len <= 2) {
+                return;
+            }
+
+            if (len == 4) {
+                Utilities::swap(prev[1], prev[3]);
+                return;
+            }
+
+            std::vector<std::int32_t> bit_rerversal(len);
+            bit_rerversal[0] = 0;
+            bit_rerversal[1] = 1 << (bits - 1);
+            bit_rerversal[2] = 1 << (bits - 2);
+            bit_rerversal[3] = bit_rerversal[1] + bit_rerversal[2];
+            for (std::int32_t k{ 3 }; k <= bits; ++k) {
+                const std::int32_t nk{ (1 << k) - 1 };
+                const std::int32_t n_km1{ (1 << (k - 1)) - 1 };
+                bit_rerversal[nk] = bit_rerversal[n_km1] + (1 << (bits - k));
+                for (std::int32_t i{ 1 }; i <= n_km1; ++i) {
+                    bit_rerversal[nk - i] = bit_rerversal[nk] - bit_rerversal[i];
+                }
+            }
+
+            for (std::int32_t i{}; i < len; ++i) {
+                if (bit_rerversal[i] > i) {
+                    Utilities::swap(prev[i], prev[bit_rerversal[i]]);
+                }
+            }
+        };
+
+        // lambda which performs one iteration of "butterfly forwarding".
+        // 'phases' is vector of points on the unit circle
+        // 'turn' is iteration indicator
+        // 'bit_count' total number of iterations
+        const auto butterfly_forwarding = [&prev, &temp, &points, bits](const std::int32_t turn) {
+            if (turn == bits) {
+                return;
+            }
+
+            const std::int32_t group_size{ 1 << (turn + 1) };
+            const std::int32_t num_groups{ static_cast<std::int32_t>(prev.size()) / group_size };
+            for (std::int32_t group_index{}; group_index < num_groups; ++group_index) {
+                const std::int32_t base_index{ group_index * group_size };
+                const std::int32_t half_size{ group_size / 2 };
+
+                for (std::int32_t j{}; j < half_size; ++j) {
+                    const std::int32_t x0_index{ base_index + j };
+                    const std::int32_t x1_index{ base_index + half_size + j };
+                    prev[x1_index] *= points[j * num_groups];
+                    temp[x0_index] = prev[x0_index] + prev[x1_index];
+                    temp[x1_index] = prev[x0_index] - prev[x1_index];
+                }
+            }
+        };
+        
+        // Cooley–Tukey FFT algorithm
+        in_place_bit_reversal_permutation();
+        for (std::int32_t turn{}; turn < bits; ++turn) {
+            butterfly_forwarding(turn);
+            Utilities::swap(prev, temp);
+        }
+
+        // output
+        return prev;
+    }
+
+    /**
+    * \brief calculate the Inverse Fast Fourier Transform on a collection of complex numbers.
+    *
+    * @param {RandomAccessSized, in}  buffer of complex values (frequency domain)
+    * @param {vector<complex>,   out} Inverse Fourier transform of input vector
+    **/
+    template<class BUFFER>
+        requires(std::ranges::random_access_range<BUFFER>&& std::ranges::sized_range<BUFFER>)
+    constexpr auto ifft(const BUFFER& x) {
+        using buffer_underlying_T = typename std::ranges::range_value_t<BUFFER>;
+        static_assert(std::is_arithmetic_v<buffer_underlying_T>                 ||
+                      std::is_same_v<buffer_underlying_T, std::complex<float>>  ||
+                      std::is_same_v<buffer_underlying_T, std::complex<double>> ||
+                      std::is_same_v<buffer_underlying_T, std::complex<long double>>);
+        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_T>,
+                                                    std::complex<buffer_underlying_T>,
+                                                    buffer_underlying_T>::type;
+        using T = typename complex_t::value_type;
+        using vec_t = std::vector<complex_t>;
+        using iter_t = typename vec_t::iterator;
+
+        // flip and normalized frequency spectrum
+        const T len{ static_cast<T>(x.size()) };
+        vec_t reverse_freq_spectrum(x);
+        Algoithms::reverse(reverse_freq_spectrum.begin() + 1, reverse_freq_spectrum.end());
+        for (std::size_t i{}; i < len; ++i) {
+            reverse_freq_spectrum[i] /= len;
+        }
+
+        // output
+        return NumericalAlgorithms::fft(reverse_freq_spectrum);
     }
 
     /**
