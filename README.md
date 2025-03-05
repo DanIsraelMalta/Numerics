@@ -456,7 +456,7 @@ for (std::size_t i{}; i < len; ++i) {
 ### lets reduce the signal to 40 samples while maintainng most of the information (red is original signal, blue is reduced signal):
 ```cpp
 // define scatter reduction parameters
-constexpr std::size_t N{ 45 }; // number of bins, i.e. - number of final data points
+constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
 constexpr float beta{ 1.0f };  // smoothing parameters, the larger the smoother
 
 // get observation x-axis min, max and range
