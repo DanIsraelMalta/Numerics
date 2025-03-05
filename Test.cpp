@@ -325,8 +325,8 @@ void test_numerical_algorithms() {
         // FIR filter (3 taps moving average)
         const std::array<double, 3> b{ {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0} };
         const std::array<double, 1> a{ {1.0} };
-        const std::array<double, 6> xx{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
-        std::array<double, 6> y;
+        const std::vector<double> xx{ {2.0, 1.0, 6.0, 2.0, 4.0, 3.0} };
+        std::vector<double> y(6);
         NumericalAlgorithms::filter<3, 1>(xx.begin(), xx.end(), y.begin(), b, a);
         assert(static_cast<std::int32_t>(y[0] * 3.0) == 2);
         assert(static_cast<std::int32_t>(y[1] * 3.0) == 3);
@@ -3287,6 +3287,10 @@ void test_for_show() {
            y.emplace_back(1.0f + std::sin(_x) * std::cos(_x) + 2.0f * Hash::normal_distribution());
        }
 
+       //
+       // reduce noise and sample size using first order difference
+       // 
+
        // define scatter reduction parameters
        constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
        constexpr float beta{ 1.0f };  // smoothing parameters, the larger the smoother
@@ -3330,11 +3334,40 @@ void test_for_show() {
            u[i] = xmin - dx / 2.0f + static_cast<float>(i) * dx;
        }
 
+       //
+       // filter data using "time domain Hanning filter"
+       //
+
+       // Hanning window size
+       constexpr std::size_t W{ 40 };
+
+       // create "hanning" weights
+       std::array<float, W> weights;
+       float sum{};
+       for (std::size_t i{}; i < W; ++i) {
+           const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
+           sum += 1.0f - value;
+           weights[i] = value;
+       }
+       for (std::size_t i{}; i < W; ++i) {
+           weights[i] /= sum;
+       }
+
+       // zero phase filtering
+       std::vector<float> smooth(len);
+       NumericalAlgorithms::filter<W, 1>(y.begin(), y.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+       Algoithms::reverse(smooth.begin(), smooth.end());
+       NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
+       Algoithms::reverse(smooth.begin(), smooth.end());
+
        // export as SVG for visualization
        svg<vec2> data_svg(300, 50);
        for (std::size_t i{}; i < len; ++i) {
            const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
            data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+
+           const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
+           data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
        }
        for (std::size_t i{ 1 }; i < N; ++i) {
            const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
