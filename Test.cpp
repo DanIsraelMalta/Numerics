@@ -377,6 +377,21 @@ void test_numerical_algorithms() {
         assert(std::abs(static_cast<double>(amount_of_twos) / 10000.0 - 0.4) <= 0.01);
         assert(std::abs(static_cast<double>(amount_of_fours) / 10000.0 - 0.4) <= 0.01);
     }
+
+    // test FFT
+    {
+        std::vector<double> x{ 1.0,5.0,-9.0,8.0,-7.0,5.0,6.0,-2.0,6.0,5.0,4.0,-2.0,-3.0,5.0,8.0,-9.0,-7.0,1.0,2.0,4.0 };
+        std::vector<std::complex<double>> vec(x.begin(), x.end());
+        const auto freq = NumericalAlgorithms::fft(vec);
+        const auto time = NumericalAlgorithms::ifft(freq);
+
+        assert(x.size() <= time.size());
+        for (std::size_t i{}; i < x.size(); ++i) {
+            const std::int32_t t{ static_cast<std::int32_t>(std::round(time[i].real())) };
+            const std::int32_t v{ static_cast<std::int32_t>(std::round(x[i])) };
+            assert(t == v);
+        }
+    }
 }
 
 void test_glsl_basics() {
@@ -3350,5 +3365,5 @@ int main() {
     test_numerical_algorithms();
     test_for_show();
     test_samples();
-    return 1;
+	return 1;
 }
