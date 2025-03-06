@@ -410,12 +410,12 @@ namespace NumericalAlgorithms {
 
         if (N % 2 == 0) {
             const std::size_t N1{ (N - 1) / 2 };
-            Algoithms::nth_element(first, first + N2, last, FWD(comp));
-            Algoithms::nth_element(first, first + N1, last, FWD(comp));
+            std::nth_element(first, first + N2, last, FWD(comp));
+            std::nth_element(first, first + N1, last, FWD(comp));
             return (*(first + N1) + *(first + N2)) / static_cast<T>(2.0);
         }
         else {
-            Algoithms::nth_element(first, first + N2, last, FWD(comp));
+            std::nth_element(first, first + N2, last, FWD(comp));
             return *(first + N2);
         }
     }
