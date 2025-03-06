@@ -258,7 +258,7 @@ cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/0e44e285-d21e-441a-be36-3d1343be036a)
 
-### lets find the lines and circles which best fit the various clusters by randomly sampling the plane:
+### lets find the lines and circles which best fit the various clusters by randomly sampling the data:
 ```cpp
 svg<vec2> cloud_points_svg(300, 280);
 
@@ -507,7 +507,7 @@ data_svg.to_file("data.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/4ccafaef-9ca1-4df9-8106-fd1049b1eb28)
 
-### I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40 by applying a first order linear smoothing (which is also less computationally expensive). result is in blue:
+### I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40 by applying a first order grouped linear smoothing (which is also less computationally expensive). result is in blue:
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
