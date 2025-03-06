@@ -404,7 +404,7 @@ namespace NumericalAlgorithms {
     template<std::forward_iterator InputIt, class Compare,
              class T = typename std::decay_t<decltype(*std::declval<InputIt>())>>
         requires(std::is_invocable_v<Compare, T, T>)
-    constexpr void median(InputIt first, InputIt last, Compare&& comp) {
+    constexpr T median(InputIt first, InputIt last, Compare&& comp) {
         const std::size_t N{ static_cast<std::size_t>(std::distance(first, last)) };
         const std::size_t N2{ N / 2 };
 
