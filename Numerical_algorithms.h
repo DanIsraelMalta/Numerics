@@ -430,14 +430,14 @@ namespace NumericalAlgorithms {
     template<class BUFFER>
         requires(std::ranges::random_access_range<BUFFER> && std::ranges::sized_range<BUFFER>)
     constexpr auto fft(const BUFFER& x) {
-        using buffer_underlying_T = typename std::ranges::range_value_t<BUFFER>;
-        static_assert(std::is_arithmetic_v<buffer_underlying_T>                 ||
-                      std::is_same_v<buffer_underlying_T, std::complex<float>>  ||
-                      std::is_same_v<buffer_underlying_T, std::complex<double>> ||
-                      std::is_same_v<buffer_underlying_T, std::complex<long double>>);
-        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_T>,
-                                                    std::complex<buffer_underlying_T>,
-                                                    buffer_underlying_T>::type;
+        using buffer_underlying_t = typename std::ranges::range_value_t<BUFFER>;
+        static_assert(std::is_arithmetic_v<buffer_underlying_t>                 ||
+                      std::is_same_v<buffer_underlying_t, std::complex<float>>  ||
+                      std::is_same_v<buffer_underlying_t, std::complex<double>> ||
+                      std::is_same_v<buffer_underlying_t, std::complex<long double>>);
+        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_t>,
+                                                    std::complex<buffer_underlying_t>,
+                                                    buffer_underlying_t>::type;
         using T = typename complex_t::value_type;
         using vec_t = std::vector<complex_t>;
 
@@ -556,21 +556,19 @@ namespace NumericalAlgorithms {
     template<class BUFFER>
         requires(std::ranges::random_access_range<BUFFER>&& std::ranges::sized_range<BUFFER>)
     constexpr auto ifft(const BUFFER& x) {
-        using buffer_underlying_T = typename std::ranges::range_value_t<BUFFER>;
-        static_assert(std::is_arithmetic_v<buffer_underlying_T>                 ||
-                      std::is_same_v<buffer_underlying_T, std::complex<float>>  ||
-                      std::is_same_v<buffer_underlying_T, std::complex<double>> ||
-                      std::is_same_v<buffer_underlying_T, std::complex<long double>>);
-        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_T>,
-                                                    std::complex<buffer_underlying_T>,
-                                                    buffer_underlying_T>::type;
+        using buffer_underlying_t = typename std::ranges::range_value_t<BUFFER>;
+        static_assert(std::is_arithmetic_v<buffer_underlying_t>                 ||
+                      std::is_same_v<buffer_underlying_t, std::complex<float>>  ||
+                      std::is_same_v<buffer_underlying_t, std::complex<double>> ||
+                      std::is_same_v<buffer_underlying_t, std::complex<long double>>);
+        using complex_t = typename std::conditional<std::is_arithmetic_v<buffer_underlying_t>,
+                                                    std::complex<buffer_underlying_t>,
+                                                    buffer_underlying_t>::type;
         using T = typename complex_t::value_type;
-        using vec_t = std::vector<complex_t>;
-        using iter_t = typename vec_t::iterator;
 
         // flip and normalized frequency spectrum
         const T len{ static_cast<T>(x.size()) };
-        vec_t reverse_freq_spectrum(x);
+        BUFFER reverse_freq_spectrum(x);
         Algoithms::reverse(reverse_freq_spectrum.begin() + 1, reverse_freq_spectrum.end());
         for (std::size_t i{}; i < len; ++i) {
             reverse_freq_spectrum[i] /= len;
