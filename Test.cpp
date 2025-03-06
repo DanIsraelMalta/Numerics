@@ -3278,13 +3278,19 @@ void test_for_show() {
        const float step{ 0.01f };
        const float max{ 12.0f * std::numbers::pi_v<float> };
        const std::size_t len{ static_cast<std::size_t>(std::ceil(max / step)) };
-       std::vector<float> x, y;
+       std::vector<vec2> observation;
+       std::vector<float> x, y, ys;
        x.reserve(len);
        y.reserve(len);
+       ys.reserve(len);
+       observation.reserve(len);
        for (std::size_t i{}; i < len; ++i) {
            const float _x{ static_cast<float>(i) * step };
+           const float _y{ 1.0f + std::sin(_x) + 2.0f * std::cos(_x / 2.0f) };
            x.emplace_back(_x);
-           y.emplace_back(1.0f + std::sin(_x) * std::cos(_x) + 2.0f * Hash::normal_distribution());
+           ys.emplace_back(_y);
+           y.emplace_back(_y + 3.0f * Hash::normal_distribution());
+           observation.emplace_back(vec2(x[i], y[i]));
        }
 
        //
@@ -3335,18 +3341,18 @@ void test_for_show() {
        }
 
        //
-       // filter data using "time domain Hanning filter"
+       // filter data using "time domain Hannin filter"
        //
 
        // Hanning window size
        constexpr std::size_t W{ 40 };
 
-       // create "hanning" weights
+       // create "hannin" weights
        std::array<float, W> weights;
        float sum{};
        for (std::size_t i{}; i < W; ++i) {
            const float value{ 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(W) };
-           sum += 1.0f - value;
+           sum += value;
            weights[i] = value;
        }
        for (std::size_t i{}; i < W; ++i) {
@@ -3360,30 +3366,128 @@ void test_for_show() {
        NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), weights, std::array<float, 1>{ 1.0f });
        Algoithms::reverse(smooth.begin(), smooth.end());
 
-       // export as SVG for visualization
-       svg<vec2> data_svg(300, 50);
-       for (std::size_t i{}; i < len; ++i) {
-           const vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
-           data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
+       //
+       // filter data using a two stage (forward & backward) Kalman smoother
+       // 
 
-           const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
-           data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
+       // Kalman parameters
+       constexpr float R{ 6.0f };      // measurement noise (sigma squared)
+       constexpr float Q{ R / 100.0f };  // process noise (sigma squared)
+
+       // housekeeping
+       std::vector<float> Ppred(len, 0.0f);
+       std::vector<float> Pcor(len, 0.0f);
+       std::vector<float> ypred(len, 0.0f);
+       std::vector<float> y_kalman(len, 0.0f);
+
+       // forward pass initial step
+       float K{ Ppred[0] / (Ppred[0] + R) };
+       ypred[0] = y[0];
+       y_kalman[0] = ypred[0] + K * (y[0] - ypred[0]);
+       Pcor[0] = (1.0f - K) * Ppred[0];
+
+       // forward pass iterations
+       for (std::size_t i{ 1 }; i < len; ++i) {
+           Ppred[i] = Pcor[i - 1] + Q;
+           ypred[i] = y_kalman[i - 1];
+           K = Ppred[i] / (Ppred[i] + R);
+           y_kalman[i] = ypred[i] + K * (y[i] - ypred[i]);
+           Pcor[i] = (1 - K) * Ppred[i];
        }
+
+       // backward pass
+       for (std::size_t i{ len - 2 }; i > 1; --i) {
+           const float A{ Pcor[i] / Ppred[i + 1] };
+           y_kalman[i] = y_kalman[i] + A * (y_kalman[i + 1] - ypred[i + 1]);
+       }
+
+       //
+       // impulse smoother
+       // 
+
+       const std::size_t WINDOW{ len / 40 };
+       std::vector<float> ismooth;
+       std::vector<float> xsmooth;
+       ismooth.reserve(len / WINDOW);
+       xsmooth.reserve(len / WINDOW);
+       for (std::size_t i{ WINDOW + 1 }; i < len; i += WINDOW) {
+           std::vector<float> spn(y.begin() + i - WINDOW, y.begin() + i);
+           const float e{ NumericalAlgorithms::median(spn.begin(), spn.end(),[](float a, float b) -> bool {return a < b; }) };
+
+           std::int32_t p{};
+           std::int32_t n{};
+           float t{};
+           for (std::size_t j{}; j < WINDOW; ++j) {
+               if (const float sj{ spn[j] };
+                   sj > e) {
+                   ++p;
+               }
+               else if (sj < e) {
+                   ++n;
+                   t += sj;
+               }
+           }
+           t -= e;
+           t = std::abs(t);
+
+           ismooth.emplace_back(e + static_cast<float>(p - n) * t / static_cast<float>(WINDOW * WINDOW));
+           xsmooth.emplace_back(x[i - WINDOW / 2]);
+       }
+
+       // export as SVG for visualization
+       svg<vec2> data_svg(300, 150);
+       const float bias{ 50.0f };
+       const float scale{ 10.0f };
+
+       // signal and observation
+       for (std::size_t i{}; i < len; ++i) {
+           const vec2 curr_noise(x[i] * 10.0f, bias + y[i] * scale);
+           data_svg.add_circle(curr_noise, 1.0f, "none", "gray", 1.0f);
+       }
+       for (std::size_t i{ 1 }; i < len; ++i) {
+           const vec2 prev(x[i - 1] * 10.0f, bias + ys[i - 1] * scale);
+           const vec2 curr(x[i]     * 10.0f, bias + ys[i] * scale);
+           data_svg.add_line(prev, curr, "black", "black", 1.0f);
+       }
+
+       // Kalman filtered observation
+       for (std::size_t i{ 1 }; i < len; ++i) {
+           const vec2 prev(x[i - 1] * 10.0f, bias + y_kalman[i - 1] * scale);
+           const vec2 curr(x[i]     * 10.0f, bias + y_kalman[i]     * scale);
+           data_svg.add_line(prev, curr, "green", "green", 1.0f);
+       }
+
+       // Hannin filtered observation
+       for (std::size_t i{ 1 }; i < len; ++i) {
+           const vec2 prev(x[i - 1] * 10.0f, bias + smooth[i - 1] * scale);
+           const vec2 curr(x[i]     * 10.0f, bias + smooth[i] * scale);
+           data_svg.add_line(prev, curr, "red", "red", 1.0f);
+       }
+
+       // scatter reduced observation
        for (std::size_t i{ 1 }; i < N; ++i) {
-           const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
-           const vec2 curr(u[i] * 10.0f, 20.0f + z[i] * 10.0f);
+           const vec2 prev(u[i - 1] * 10.0f, bias + z[i - 1] * scale);
+           const vec2 curr(u[i] * 10.0f, bias + z[i] * scale);
            data_svg.add_circle(curr, 2.0f, "blue", "blue", 0.0f);
            data_svg.add_line(prev, curr, "blue", "blue", 1.0f);
+       }
+
+       // impulse smoother observation
+       for (std::size_t i{ 1 }; i < ismooth.size(); ++i) {
+           const vec2 prev(xsmooth[i - 1] * 10.0f, bias + ismooth[i - 1] * scale);
+           const vec2 curr(xsmooth[i]     * 10.0f, bias + ismooth[i] * scale);
+           data_svg.add_circle(curr, 2.0f, "orange", "orange", 0.0f);
+           data_svg.add_line(prev, curr, "orange", "orange", 1.0f);
        }
        data_svg.to_file("data.svg");
    }
 }
 
 int main() {
-    test_diamond_angle();
-    test_hash();
-    test_variadic();
-    test_numerics();
+    //test_diamond_angle();
+    //test_hash();
+    //test_variadic();
+    //test_numerics();
     test_glsl_basics();
     test_glsl_transformation();
     test_glsl_solvers();
