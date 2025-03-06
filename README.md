@@ -555,7 +555,7 @@ data_svg.to_file("data.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/81e7344a-ee12-4514-b376-4fdfd24c9c78)
 
-#### both Kalman and Hannin filters did good job filtering the noise - but they were pretty resource intensive, required to iterate more than once over the data and they will require an extra step to reduce signal sample size. I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40, in a single pass, by applying a first order grouped linear smoothing. result is in blue:
+#### both Kalman and Hannin filters did good job filtering the noise - but they were pretty resource intensive, required several iterations over the data and will require an extra step to reduce signal sample size. I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40, in a less resource intentsive manner, by using a first order grouped linear smoothing (using QR decomposition). result is in blue:
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
@@ -614,3 +614,47 @@ data_svg.to_file("data.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/c4008d67-f645-451e-86fe-1b982ae7ba4d)
 
+#### can we simplify the first order grouped linear smoothing operation by approximating QR decomposition using "median lader" (which will reduce computational resources even more)? result in orange:
+```cpp
+const std::size_t WINDOW{ len / 40 };
+std::vector<float> ismooth;
+std::vector<float> xsmooth;
+ismooth.reserve(len / WINDOW);
+xsmooth.reserve(len / WINDOW);
+for (std::size_t i{ WINDOW + 1 }; i < len; i += WINDOW) {
+    std::vector<float> spn(y.begin() + i - WINDOW, y.begin() + i);
+    const float e{ NumericalAlgorithms::median(spn.begin(), spn.end(),[](float a, float b) -> bool {return a < b; }) };
+
+    std::int32_t p{};
+    std::int32_t n{};
+    float t{};
+    for (std::size_t j{}; j < WINDOW; ++j) {
+        if (const float sj{ spn[j] };
+            sj > e) {
+            ++p;
+        }
+        else if (sj < e) {
+            ++n;
+            t += sj;
+        }
+    }
+    t -= e;
+    t = std::abs(t);
+
+    ismooth.emplace_back(e + static_cast<float>(p - n) * t / static_cast<float>(WINDOW * WINDOW));
+    xsmooth.emplace_back(x[i - WINDOW / 2]);
+}
+
+// export as SVG for visualization
+svg<vec2> data_svg(300, 150);
+const float bias{ 50.0f };
+const float scale{ 10.0f };
+for (std::size_t i{ 1 }; i < ismooth.size(); ++i) {
+    const vec2 prev(xsmooth[i - 1] * 10.0f, bias + ismooth[i - 1] * scale);
+    const vec2 curr(xsmooth[i]     * 10.0f, bias + ismooth[i] * scale);
+    data_svg.add_circle(curr, 2.0f, "orange", "orange", 0.0f);
+    data_svg.add_line(prev, curr, "orange", "orange", 1.0f);
+}
+data_svg.to_file("data.svg");
+```
+![Image](https://github.com/user-attachments/assets/7daaa60a-7e9c-4004-a9f9-9ee1292f7174)
