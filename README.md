@@ -9,7 +9,7 @@ Features include:
 
 ## Example 1 - messing around with polygons:
 
-### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle all polygon vertices and segments:
+#### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle all polygon vertices and segments:
 ```cpp
 // define polygons
 std::vector<vec2> polygon{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -62,7 +62,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/ddd44817-87da-4c12-8360-52b722aff354)
 
 
-### calculate its medial axis joints and use it to find a set of locally largest inscribed circles:
+#### calculate its medial axis joints and use it to find a set of locally largest inscribed circles:
 ```cpp
 // find 'polygon' medial axis joints and their locally inscribed circles
 const float step{ GLSL::distance(aabb.min, aabb.max) / 1000.0f };
@@ -80,7 +80,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/9cee1967-b4fd-44b8-b672-4494d104fbf5)
 
 
-### uniformally sample the polygon and use the medial axis joints as initial seeds to partition the polygon, via k-means, to different components:
+#### uniformally sample the polygon and use the medial axis joints as initial seeds to partition the polygon, via k-means, to different components:
 ```cpp
  // sample polygon (1500 points)
  constexpr std::size_t sample_size{ 1500 };
@@ -138,7 +138,7 @@ canvas.to_file("canvas.svg");
 ![Image](https://github.com/user-attachments/assets/5c7e2b17-e305-4e78-98d3-2585ef5e59cf)
 
 
-### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle:
+#### slice the polygon along its longitudianl axis, triangulate it ("earcut") and calculate its oriented bounding box and circumcircle:
 ```cpp
 const auto centroid = Algorithms2D::Internals::get_centroid(polygon.begin(), polygon.end());
 auto part = Algorithms2D::clip_polygon_by_infinte_line(polygon.begin(), polygon.end(), centroid, rot.x());
@@ -165,7 +165,7 @@ canvas.to_file("canvas.svg");
 
 ## Example 2 - messing around with patterns and noise:
 
-### generate two dimensional noisy patterns:
+#### generate two dimensional noisy patterns:
 ```cpp
 // generate noisy patterns
 std::vector<vec2> points;
@@ -227,7 +227,7 @@ cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/0b4df27a-f394-484f-bccd-55487c274d8f)
 
-## cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (kd-tree). mark different segments with different colors, use gray for noise:
+#### cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (kd-tree). mark different segments with different colors, use gray for noise:
 ```cpp
 // partition space using kd-tree
 SpacePartitioning::KDTree<vec2> kdtree;
@@ -258,7 +258,7 @@ cloud_points_svg.to_file("cloud_points_svg.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/0e44e285-d21e-441a-be36-3d1343be036a)
 
-### lets find the lines and circles which best fit the various clusters by randomly sampling the data:
+#### lets find the lines and circles which best fit the various clusters by randomly sampling the data:
 ```cpp
 svg<vec2> cloud_points_svg(300, 280);
 
@@ -316,7 +316,7 @@ cloud_points_svg.to_file("cloud_points_svg.svg");
 
 ## Example 3 - messing around with samples and shape characteristics:
 
-### uniformly sample different shapes:
+#### uniformly sample different shapes:
 ```cpp
 // how many points to sample
 constexpr std::size_t count{ 1000 };
@@ -365,7 +365,7 @@ sample_test.to_file("sample_test.svg");
 ![Image](https://github.com/user-attachments/assets/1ab6885f-c1ee-43ba-ad43-7055d4cd6a70)
 
 
-### cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (bin-lattice grid):
+#### cluster/segment point cloud via density estimator (DBSCAN) and spatial query acceleration structure (bin-lattice grid):
 ```cpp
 // partition space using bin-lattice grid
 SpacePartitioning::Grid<vec2> grid;
@@ -397,7 +397,7 @@ sample_test.to_file("sample_test.svg");
 ![Image](https://github.com/user-attachments/assets/99cc53bf-eb86-4937-b12b-906551cff7b0)
 
 
-### find shapes characteristics (concave hull, principle axis) and check if it matches the sampled shapes:
+#### find shapes characteristics (concave hull, principle axis) and check if it matches the sampled shapes:
 ```cpp
 // prepare drawing canvas
 std::array<std::string, 4> colors{ {"red", "green", "blue", "orange"} };
@@ -434,9 +434,9 @@ sample_test.to_file("sample_test.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/6a9d22ee-f257-4001-89e3-ea8b80a81090)
 
-## Example 4 - playing with linear algebra, filters and noise:
+## Example 4 - messing around with digital filters and model reductions:
 
-### lets take 3k samples from an extremely noisy signal (more than 200% noise-to-signal ratio). signal is in black, signal with noise is in red:
+#### lets take 3k samples from an extremely noisy non linear signal. signal is in black, signal with noise is in gray:
 ```cpp
 // define a signal with 200% noise-to-signal ration
 const float step{ 0.01f };
@@ -448,26 +448,77 @@ y.reserve(len);
 ys.reserve(len);
 for (std::size_t i{}; i < len; ++i) {
     const float _x{ static_cast<float>(i) * step };
-    const float _y{ 1.0f + std::sin(_x) * std::cos(_x) };
+    const float _y{ 1.0f + std::sin(_x) + 2.0f * std::cos(_x / 2.0f) };
     x.emplace_back(_x);
     ys.emplace_back(_y);
-    y.emplace_back(_y + 2.0f * Hash::normal_distribution());
+    y.emplace_back(_y + 3.0f * Hash::normal_distribution());
 }
 
 // export as SVG for visualization
-svg<vec2> data_svg(300, 50);
+svg<vec2> data_svg(300, 150);
+const float bias{ 50.0f };
+const float scale{ 10.0f };
 for (std::size_t i{}; i < len; ++i) {
-    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
-    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
-
-    curr.y = 20.0f + ys[i] * 10.0f;
-    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
+    const vec2 curr_noise(x[i] * 10.0f, bias + y[i] * scale);
+    data_svg.add_circle(curr_noise, 1.0f, "none", "gray", 1.0f);
+}
+for (std::size_t i{ 1 }; i < len; ++i) {
+    const vec2 prev(x[i - 1] * 10.0f, bias + ys[i - 1] * scale);
+    const vec2 curr(x[i] * 10.0f, bias + ys[i] * scale);
+    data_svg.add_line(prev, curr, "black", "black", 1.0f);
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/3712efbc-52c2-452a-bfdf-47be7e2286ca)
+![Image](https://github.com/user-attachments/assets/07a82604-542e-45fa-ab72-b2a014187725)
 
-### can a 40-tap zero-phase linear filter (with Hanning weights) be able to retrieve the signal? filter is in green:
+
+#### can a two stage (forward and backward) Klaman filter extract the signal? Kalman output is in green:
+```cpp
+// Kalman parameters
+constexpr float R{ 6.0f };        // measurement noise (sigma squared)
+constexpr float Q{ R / 100.0f };  // process noise (sigma squared)
+
+// housekeeping
+std::vector<float> Ppred(len, 0.0f);
+std::vector<float> Pcor(len, 0.0f);
+std::vector<float> ypred(len, 0.0f);
+std::vector<float> y_kalman(len, 0.0f);
+
+// forward pass initial step
+float K{ Ppred[0] / (Ppred[0] + R) };
+ypred[0] = y[0];
+y_kalman[0] = ypred[0] + K * (y[0] - ypred[0]);
+Pcor[0] = (1.0f - K) * Ppred[0];
+
+// forward pass iterations
+for (std::size_t i{ 1 }; i < len; ++i) {
+    Ppred[i] = Pcor[i - 1] + Q;
+    ypred[i] = y_kalman[i - 1];
+    K = Ppred[i] / (Ppred[i] + R);
+    y_kalman[i] = ypred[i] + K * (y[i] - ypred[i]);
+    Pcor[i] = (1 - K) * Ppred[i];
+}
+
+// backward pass
+for (std::size_t i{ len - 2 }; i > 1; --i) {
+    const float A{ Pcor[i] / Ppred[i + 1] };
+    y_kalman[i] = y_kalman[i] + A * (y_kalman[i + 1] - ypred[i + 1]);
+}
+
+// export as SVG for visualization
+svg<vec2> data_svg(300, 150);
+const float bias{ 50.0f };
+const float scale{ 10.0f };
+for (std::size_t i{ 1 }; i < len; ++i) {
+    const vec2 prev(x[i - 1] * 10.0f, bias + y_kalman[i - 1] * scale);
+    const vec2 curr(x[i]     * 10.0f, bias + y_kalman[i]     * scale);
+    data_svg.add_line(prev, curr, "green", "green", 1.0f);
+}
+data_svg.to_file("data.svg");
+```
+![Image](https://github.com/user-attachments/assets/1b389676-1b95-42a1-8e16-813a083ca48f)
+
+#### can a simple 40-tap zero-phase (two stage) linear filter (with Hanning weights) be able to retrieve the signal better than Kalman? filter is in red:
 ```cpp
 // Hanning window size
 constexpr std::size_t W{ 40 };
@@ -492,22 +543,19 @@ NumericalAlgorithms::filter<W, 1>(smooth.begin(), smooth.end(), smooth.begin(), 
 Algoithms::reverse(smooth.begin(), smooth.end());
 
 // export as SVG for visualization
-svg<vec2> data_svg(300, 50);
-for (std::size_t i{}; i < len; ++i) {
-    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
-    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
-
-    curr.y = 20.0f + ys[i] * 10.0f;
-    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
-
-    const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
-    data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
+svg<vec2> data_svg(300, 150);
+const float bias{ 50.0f };
+const float scale{ 10.0f };
+for (std::size_t i{ 1 }; i < len; ++i) {
+    const vec2 prev(x[i - 1] * 10.0f, bias + smooth[i - 1] * scale);
+    const vec2 curr(x[i]     * 10.0f, bias + smooth[i] * scale);
+    data_svg.add_line(prev, curr, "red", "red", 1.0f);
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/4ccafaef-9ca1-4df9-8106-fd1049b1eb28)
+![Image](https://github.com/user-attachments/assets/81e7344a-ee12-4514-b376-4fdfd24c9c78)
 
-### I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40 by applying a first order grouped linear smoothing (which is also less computationally expensive). result is in blue:
+#### both Kalman and Hannin filters did good job filtering the noise - but they were pretty resource intensive, required to iterate more than once over the data and they will require an extra step to reduce signal sample size. I bet we can simoultanously retrieve original signal and reduce sample size from 3k to 40, in a single pass, by applying a first order grouped linear smoothing. result is in blue:
 ```cpp
 // define scatter reduction parameters
 constexpr std::size_t N{ 40 }; // number of bins, i.e. - number of final data points
@@ -553,23 +601,16 @@ for (std::size_t i{}; i < N; ++i) {
 }
 
 // export as SVG for visualization
-svg<vec2> data_svg(300, 50);
-for (std::size_t i{}; i < len; ++i) {
-    vec2 curr(x[i] * 10.0f, 20.0f + y[i] * 10.0f);
-    data_svg.add_circle(curr, 1.0f, "red", "red", 0.0f);
-
-    curr.y = 20.0f + ys[i] * 10.0f;
-    data_svg.add_circle(curr, 1.0f, "black", "black", 0.0f);
-
-    const vec2 curr2(x[i] * 10.0f, 10.0f + smooth[i] * 10.0f);
-    data_svg.add_circle(curr2, 1.0f, "green", "green", 0.0f);
-}
+svg<vec2> data_svg(300, 150);
+const float bias{ 50.0f };
+const float scale{ 10.0f };
 for (std::size_t i{ 1 }; i < N; ++i) {
-    const vec2 prev(u[i - 1] * 10.0f, 20.0f + z[i - 1] * 10.0f);
-    const vec2 curr(u[i] * 10.0f, 20.0f + z[i] * 10.0f);
+    const vec2 prev(u[i - 1] * 10.0f, bias + z[i - 1] * scale);
+    const vec2 curr(u[i] * 10.0f, bias + z[i] * scale);
     data_svg.add_circle(curr, 2.0f, "blue", "blue", 0.0f);
     data_svg.add_line(prev, curr, "blue", "blue", 1.0f);
 }
 data_svg.to_file("data.svg");
 ```
-![Image](https://github.com/user-attachments/assets/9b2372b3-1098-40af-a469-2a3880d3ab7d)
+![Image](https://github.com/user-attachments/assets/c4008d67-f645-451e-86fe-1b982ae7ba4d)
+
