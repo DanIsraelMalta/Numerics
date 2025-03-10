@@ -793,4 +793,164 @@ namespace Numerics {
         // output
         return out_t{ x, fx, iter != maxIter };
     }
+
+    /**
+    * \brief linear programing solver using simplex method.
+    *        maximize c^T*x, subjected to A*x <= b, where x >= 0
+    *
+    * @param {array<array>,            in}  A (MxN matrix given as array<array<T, N>, M>)
+    * @param {array,                   in}  b (M dimensional array)
+    * @param {array,                   in}  c (N dimensional array)
+    * @param {{array, floating_point}, out} { N dimensional array where optimal solution will be stored,
+                                              value of optimal solution - signed infinity if unbounded, NAN if not optimal value found }
+    **/
+    template<std::size_t M, std::size_t N, typename T>
+        requires(std::is_floating_point_v<T> && N > 0 && M > 0)
+    constexpr auto linearProgramingSolve(const std::array<std::array<T, N>, M>& A,
+                                         const std::array<T, M>& b,
+                                         const std::array<T, N>& c) {
+        using out_t = struct { std::array<T, N> x; T value; };
+        constexpr T eps{ Numerics::equality_precision<T>() };
+
+        // housekeeping
+        out_t out{ std::array<T, N>{{T{}}}, std::numeric_limits<T>::infinity() };
+        std::array<std::int32_t, M> B;
+        std::array<std::int32_t, N + 1> _N;
+        std::array<std::array<T, N + 2>, M + 2> D;
+
+        // lambda to pivot elements in B, _N and D
+        const auto pivot = [&B, &_N, &D](const std::int32_t r, const std::int32_t s) {
+            assert(!Numerics::areEquals(D[r][s], T{}));
+            const T inv{ static_cast<T>(1.0) / D[r][s] };
+
+            for (std::int32_t i{}; i < M + 2; ++i) {
+                if (i != r) {
+                    for (std::int32_t j{}; j < N + 2; ++j) {
+                        if (j != s) {
+                            D[i][j] -= D[r][j] * D[i][s] * inv;
+                        }
+                    }
+                }
+            }
+
+            for (std::int32_t i{}; i < N + 2; ++i) {
+                if (i != s) {
+                    D[r][i] *= inv;
+                }
+            }
+
+            for (std::int32_t i{}; i < M + 2; ++i) {
+                if (i != r) {
+                    D[i][s] *= -inv;
+                }
+            }
+            D[r][s] = inv;
+
+            Utilities::swap(B[r], _N[s]);
+        };
+
+        // lambda which implements two-phase simplex (return true/false if simplex operation was successful)
+        const auto two_phase_simplex = [&B, &_N, &D, &pivot](const std::int32_t phase) -> bool{
+            const std::int32_t x{ phase == 1 ? M + 1 : M };
+
+            while (true) {
+                std::int32_t s{ -1 };
+
+                for (std::int32_t i{}; i <= N; ++i) {
+                    if (phase == 2 && _N[i] == -1) {
+                        continue;
+                    }
+                    if (s == -1 ||
+                        (_N[i] < _N[s] && (D[x][i] < D[x][s] || D[x][i] == D[x][s]))) {
+                        s = i;
+                    }
+                }
+
+                if (D[x][s] > -eps) {
+                    return true;
+                }
+
+                std::int32_t r{ -1 };
+                for (std::int32_t i{}; i < M; ++i) {
+                    if (D[i][s] < eps) {
+                        continue;
+                    }
+
+                    if (r == -1 ||
+                        D[i][N + 1] / D[i][s] < D[r][N + 1] / D[r][s] ||
+                        (B[i] < B[r] && (D[i][N + 1] / D[i][s]) == (D[r][N + 1] / D[r][s]))) {
+                        r = i;
+                    }
+                }
+
+                if (r == -1) {
+                    return false;
+                }
+                pivot(r, s);
+            }
+        };
+
+        // build B, N and D
+        for (std::int32_t i{}; i < M; ++i) {
+            for (std::int32_t j{}; j < N; ++j) {
+                D[i][j] = A[i][j];
+            }
+        }
+        for (std::int32_t i{}; i < M; ++i) {
+            B[i]        = N + i;
+            D[i][N]     = -1;
+            D[i][N + 1] = b[i];
+        }
+        for (std::int32_t i{}; i < N; ++i) {
+            _N[i] = i;
+            D[M][i] = -c[i];
+        }
+        _N[N]       = -1;
+        D[M + 1][N] =  1;
+
+        //
+        // linear programing solver
+        //
+
+        std::int32_t r{};
+        for (int32_t i{ 1 }; i < M; ++i) {
+            if (D[i][N + 1] < D[r][N + 1]) {
+                r = i;
+            }
+        }
+        if (D[r][N + 1] < -eps) {
+            pivot(r, N);
+
+            if (!two_phase_simplex(1) || D[M + 1][N + 1] < -eps) {
+                out.value = -std::numeric_limits<T>::infinity();
+                return out;
+            }
+            for (std::int32_t i{}; i < M; ++i) {
+                if (B[i] == -1) {
+                    std::int32_t s{ -1 };
+                    for (std::int32_t j{}; j <= N; ++j) {
+                        if (s == -1 ||
+                            D[i][j] < D[i][s] ||
+                            (D[i][j] == D[i][s] && _N[j] < _N[s])) {
+                            s = j;
+                        }
+                    }
+                    pivot(i, s);
+                }
+            }
+        }
+
+        if (!two_phase_simplex(2)) {
+            return out;
+        }
+
+        // output
+        for (std::int32_t i{}; i < M; ++i) {
+            if (B[i] < N) {
+                out.x[B[i]] = D[i][N + 1];
+            }
+        }
+        out.value = D[M][N + 1];
+        return out;
+    }
 }
