@@ -278,6 +278,25 @@ void test_numerics() {
         assert(static_cast<std::int32_t>(std::floor(maximizer.x[1]  * 10000.0)) == 4516);
         assert(static_cast<std::int32_t>(std::floor(maximizer.x[2])) == 1);
     }
+
+    // test approximations - sin / sincos
+    {
+        float angle{ -std::numbers::pi_v<float> };
+        const float step{ 0.01f };
+        while (angle < std::numbers::pi_v<float>) {
+            const float sin_real{ std::sin(angle) };
+            const float cos_real{ std::cos(angle) };
+
+            const float sin_approx{ Numerics::Approximation::sin(angle) };
+            const auto sincos = Numerics::Approximation::sincos(angle);
+
+            assert(std::abs(sin_real - sin_approx) < 0.001f);
+            assert(std::abs(sin_real - sincos.sin) < 0.001f);
+            assert(std::abs(cos_real - sincos.cos) < 0.001f);
+
+            angle += step;
+        }
+    }
 }
 
 void test_numerical_algorithms() {
