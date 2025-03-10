@@ -6,7 +6,7 @@
 #include <chrono>
 #include <string>
 #include <unordered_map>
-#include <fstream>
+#include <numeric>
 #include "Algorithms.h"
 #include "DiamondAngle.h"
 #include "Hash.h"
@@ -260,6 +260,23 @@ void test_numerics() {
         const auto sol2 = Numerics::fminbnd(func2, 1.0, 2.0 * std::numbers::pi_v<double>);
         assert(sol2.converged);
         assert(static_cast<std::int32_t>(sol2.x * 1000) == 5998);
+    }
+
+    // test lps solver
+    {
+        constexpr std::int32_t M{ 4 };
+        constexpr std::int32_t N{ 3 };
+        const std::array<std::array<double, N>, M> A{ std::array<double, N>{  6.0, -1.0,  0.0 },
+                                                      std::array<double, N>{ -1.0, -5.0,  0.0 },
+                                                      std::array<double, N>{  1.0,  5.0,  1.0 },
+                                                      std::array<double, N>{ -1.0, -5.0, -1.0 } };
+        const std::array<double, M> b{ 10.0, -4.0, 5.0, -5.0 };
+        const std::array<double, N> c{ 1.0, -1.0, 0.0 };
+        auto maximizer = Numerics::linearProgramingSolve(A, b, c);
+        assert(static_cast<std::int32_t>(std::floor(maximizer.value * 10000.0)) == 12903);
+        assert(static_cast<std::int32_t>(std::floor(maximizer.x[0]  * 10000.0)) == 17419);
+        assert(static_cast<std::int32_t>(std::floor(maximizer.x[1]  * 10000.0)) == 4516);
+        assert(static_cast<std::int32_t>(std::floor(maximizer.x[2])) == 1);
     }
 }
 
@@ -2969,6 +2986,7 @@ void test_samples() {
 }
 
 void test_for_show() {
+
    // show 1
    {
        // define polygons
@@ -3274,7 +3292,7 @@ void test_for_show() {
 
    // show 4
    {
-       // define a signal with 200% noise-to-signal ration
+       // define a signal with high amount of noise
        const float step{ 0.01f };
        const float max{ 12.0f * std::numbers::pi_v<float> };
        const std::size_t len{ static_cast<std::size_t>(std::ceil(max / step)) };
@@ -3446,21 +3464,21 @@ void test_for_show() {
        }
        for (std::size_t i{ 1 }; i < len; ++i) {
            const vec2 prev(x[i - 1] * 10.0f, bias + ys[i - 1] * scale);
-           const vec2 curr(x[i]     * 10.0f, bias + ys[i] * scale);
+           const vec2 curr(x[i] * 10.0f, bias + ys[i] * scale);
            data_svg.add_line(prev, curr, "black", "black", 1.0f);
        }
 
        // Kalman filtered observation
        for (std::size_t i{ 1 }; i < len; ++i) {
            const vec2 prev(x[i - 1] * 10.0f, bias + y_kalman[i - 1] * scale);
-           const vec2 curr(x[i]     * 10.0f, bias + y_kalman[i]     * scale);
+           const vec2 curr(x[i] * 10.0f, bias + y_kalman[i] * scale);
            data_svg.add_line(prev, curr, "green", "green", 1.0f);
        }
 
        // Hannin filtered observation
        for (std::size_t i{ 1 }; i < len; ++i) {
            const vec2 prev(x[i - 1] * 10.0f, bias + smooth[i - 1] * scale);
-           const vec2 curr(x[i]     * 10.0f, bias + smooth[i] * scale);
+           const vec2 curr(x[i] * 10.0f, bias + smooth[i] * scale);
            data_svg.add_line(prev, curr, "red", "red", 1.0f);
        }
 
@@ -3475,7 +3493,7 @@ void test_for_show() {
        // impulse smoother observation
        for (std::size_t i{ 1 }; i < ismooth.size(); ++i) {
            const vec2 prev(xsmooth[i - 1] * 10.0f, bias + ismooth[i - 1] * scale);
-           const vec2 curr(xsmooth[i]     * 10.0f, bias + ismooth[i] * scale);
+           const vec2 curr(xsmooth[i] * 10.0f, bias + ismooth[i] * scale);
            data_svg.add_circle(curr, 2.0f, "orange", "orange", 0.0f);
            data_svg.add_line(prev, curr, "orange", "orange", 1.0f);
        }
@@ -3484,10 +3502,10 @@ void test_for_show() {
 }
 
 int main() {
-    //test_diamond_angle();
-    //test_hash();
-    //test_variadic();
-    //test_numerics();
+    test_diamond_angle();
+    test_hash();
+    test_variadic();
+    test_numerics();
     test_glsl_basics();
     test_glsl_transformation();
     test_glsl_solvers();
