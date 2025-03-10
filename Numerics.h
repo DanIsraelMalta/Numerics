@@ -28,6 +28,7 @@
 #include <limits> // std::numeric_limits
 #include <climits> // CHAR_BIT
 #include <cmath> // std::signbit, std::isnan, std::isinf
+#include <numbers>
 #include "Utilities.h"
 #include "Concepts.h"
 
@@ -528,7 +529,7 @@ namespace Numerics {
     template<typename T>
         requires(std::is_floating_point_v<T>)
     constexpr T angleDifference(const T from, const T to) noexcept {
-        constexpr T tau{ static_cast<T>(6.283185307179586476925286766559) };
+        constexpr T tau{ static_cast<T>(2.0) * std::numbers::pi_v<T> };
         const T difference{ std::fmod(to - from, tau) };
         return std::fmod(static_cast<T>(2) * difference, tau) - difference;
     }
@@ -953,4 +954,61 @@ namespace Numerics {
         out.value = D[M][N + 1];
         return out;
     }
+
+    //
+    // fast (and relatively accurate) mathematical approximations
+    //
+
+    namespace Approximation {
+
+        /**
+        * \brief fast approximation of the sine of an angle (given in radians).
+        *        maximal error relative to std::sin is |1e-3|
+        * @param {floating_point, in}  angle [-pi, pi] [rad]
+        * @param {floating_point, out} sine of input argument
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr T sin(const T x) {
+            constexpr T two_over_pi_squared{ static_cast<T>(4.0) * std::numbers::inv_pi_v<T> * std::numbers::inv_pi_v<T> };
+            constexpr T alpha_sq{ static_cast<T>(-0.224) };
+            constexpr T alpha_sq_comp{ static_cast<T>(1.0) + alpha_sq };
+
+            const T linear_approximation{ two_over_pi_squared * x * (std::numbers::pi_v<T> - std::abs(x)) };
+            const T residual_corrected{ linear_approximation * (alpha_sq_comp - alpha_sq * std::abs(linear_approximation)) };
+            return residual_corrected;
+        }
+
+        /**
+        * \brief fast approximation of both the sine and cosine of an angle (given in radians).
+        *        maximal error relative to std::sin is |1e-3|
+        * @param {floating_point,                   in}  angle [-pi, pi] [rad]
+        * @param {{floating_point, }floating_point, out} {sine, cosine}
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr auto sincos(const T x) {
+            using out_t = struct { T sin; T cos; };
+            constexpr T two_over_pi{ static_cast<T>(2.0) * std::numbers::inv_pi_v<T> };
+            constexpr T two_over_pi_squared{ two_over_pi * two_over_pi };
+            constexpr T alpha_sq{ static_cast<T>(-0.224) };
+            constexpr T alpha_sq_comp{ static_cast<T>(1.0) + alpha_sq };
+
+            // linear approximation
+            const T cp{ std::numbers::pi_v<T> / static_cast<T>(2.0) - std::abs(x) };
+#define LINEAR_SIN_APPROX(theta) ((two_over_pi_squared) * (theta) * ((std::numbers::pi_v<T>) - (std::abs((theta)))))
+            const T sin_linear_approximation{ LINEAR_SIN_APPROX(x) };
+            const T cos_linear_approximation{ LINEAR_SIN_APPROX(cp) };
+#undef LINEAR_SIN_APPROX
+
+            // minimizing residual
+#define RESIDUAL_MINIMIZER(arg) ((arg) * ((alpha_sq_comp) - (alpha_sq) * (std::abs((arg)))))
+            const T sin_residual_corrected{ RESIDUAL_MINIMIZER(sin_linear_approximation) };
+            const T cos_residual_corrected{ RESIDUAL_MINIMIZER(cos_linear_approximation) };
+#undef RESIDUAL_MINIMIZER
+
+            // output
+            return out_t{ sin_residual_corrected, cos_residual_corrected };
+        }
+    };
 }
