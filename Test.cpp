@@ -2388,6 +2388,9 @@ void test_GLSL_algorithms_2D() {
         const float circle_radius{ 20.0f };
         auto points_in_circle = kdtree.range_query(SpacePartitioning::RangeSearchType::Radius, circle_center, circle_radius);
 
+        std::vector<vec2> points_in_circle_not_kdtree{ Algorithms2D::range_query(points.begin(), points.end(), circle_center, circle_radius) };
+        assert(points_in_circle_not_kdtree.size() == points_in_circle.size());
+
         // find extent of the diameter of the convex hull surrounding these points
         std::vector<vec2> circle_points;
         circle_points.reserve(points_in_circle.size());
