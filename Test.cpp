@@ -297,6 +297,28 @@ void test_numerics() {
             angle += step;
         }
     }
+
+    // test approximations - hypot
+    {
+        float x{ -1000.0f };
+        float y{ -1000.0f };
+        float step{ 5.0f };
+        float max_diff{}, max_x{}, max_y{};
+        while (x < 1000.0f) {
+            while (y < 1000.0f) {
+                float d = std::hypot(x, y);
+                float da = Numerics::Approximation::hypot(x, y);
+                if (std::abs(d - da) > max_diff) {
+                    max_diff = std::abs(d - da);
+                    max_x = x;
+                    max_y = y;
+                }
+                y += step;
+            }
+            x += step;
+        }
+        assert((std::hypot(max_x, max_y) / Numerics::Approximation::hypot(max_x, max_y) - 1.0f) * 100.0f < 1.7);
+    }
 }
 
 void test_numerical_algorithms() {
