@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -29,9 +29,8 @@
 #include "Glsl_point_distance.h"
 #include "Glsl_axis_aligned_bounding_box.h"
 #include "Glsl_triangle.h"
-#include "Hash.h"
-#include "DiamondAngle.h"
-#include "Numerical_algorithms.h"
+#include "Hash.h" // get_closest_pair
+#include "Glsl_space_partitioning.h" // loess
 #include <limits>
 #include <vector>
 #include <iterator>
@@ -91,7 +90,7 @@ namespace Algorithms2D {
                 return b.y > a.y;
             }
 
-            // compute the cross product of vectors (c -> a) x (c -> b)
+            // calculate the cross product of vectors (c -> a) x (c -> b)
             const T det{ Numerics::diff_of_products(ac.x, bc.y, bc.x, ac.y) };
             if (det < T{}) {
                 return true;
@@ -1930,7 +1929,7 @@ namespace Algorithms2D {
             neighbors[hash].push_back(i);
         }
 
-        // For each input point, compute the distance to all other inputs that either round to the same grid point
+        // For each input point, calculate the distance to all other inputs that either round to the same grid point
         // or to another grid point within the Moore neighborhood of 3^k-1 surrounding grid points.
         std::size_t a{};
         std::size_t b{ 1 };
@@ -1966,6 +1965,79 @@ namespace Algorithms2D {
         pair.p0 = first + a;
         pair.p1 = first + b;
         return pair;
+    }
+
+    /**
+    * \brief given a collection of points, a single point and a distance,
+    *        return all points in collection which are withing Euclidean distance from given point.
+    * 
+    *        notice that this is a recursive function which emulates the way KD-tree partitions a plane.
+    *
+    * @param {forward_iterator,     in}  iterator to first point in points collection
+    * @param {forward_iterator,     in}  iterator to last point in points collection
+    * @param {IFixedVector,         in}  point to which closest neighbors will be found
+    * @param {value_type,           in}  search radius
+    * @param {vector<IFixedVector>, out} collection of points which are within Euclidean distance from point
+    **/
+    template<std::forward_iterator InputIt,
+             class VEC = typename std::decay_t<decltype(*std::declval<InputIt>())>,
+             class T = typename VEC::value_type>
+        requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
+    constexpr std::vector<VEC> range_query(const InputIt first, const InputIt last, const VEC p, const T radius) {
+
+        // housekeeping
+        const T radius_squared{ radius * radius };
+        std::vector<VEC> output;
+
+#ifdef _DEBUG
+        std::size_t depth{};
+#endif
+
+        // lambda to recursively partition the plane
+#ifdef _DEBUG
+        const auto kd_tree_partition = [radius_squared, radius, &p, &output, &depth]
+#else
+        const auto kd_tree_partition = [radius_squared, radius, &p, &output]
+#endif
+                                       (const InputIt begin, const InputIt end,
+                                        auto&& recursive_driver, std::size_t dim = 1) {
+            if (begin == end) {
+                return;
+            }
+
+#ifdef _DEBUG
+            ++depth;
+#endif
+            // kd-tree style division of points
+            const InputIt median{ begin + std::distance(begin, end) / 2 };
+            std::nth_element(begin, median, end, [dim](const VEC& a, const VEC& b) -> bool {
+                return a[dim] < b[dim];
+            });
+
+            // If the midpoint is within the limit, add it to the output.
+            const VEC middle_point{ *median };
+            if (GLSL::dot(p - middle_point) <= radius_squared) {
+                output.emplace_back(middle_point);
+            }
+
+            // recursion search
+            const T d_plane{ p[dim] - middle_point[dim] };
+            if (d_plane <= radius) {
+                recursive_driver(begin, median, recursive_driver, 1 - dim);
+            }
+            if (d_plane >= -radius) {
+                recursive_driver(median + 1, end, recursive_driver, 1 - dim);
+            }
+
+            // break recursion
+            return;
+        };
+
+        // get points within range
+        kd_tree_partition(first, last, kd_tree_partition);
+
+        // output
+        return output;
     }
 
     /**
