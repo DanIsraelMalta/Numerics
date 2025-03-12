@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -1009,6 +1009,44 @@ namespace Numerics {
 
             // output
             return out_t{ sin_residual_corrected, cos_residual_corrected };
+        }
+
+        /**
+        * \brief fast approximation of hypotonus.
+        *        remarks:
+        *        > maximal error relative to std::hypot is 1.7%,
+        *        > approximation is always smaller than std::hypot.
+        *        > maximal error happens when (x,y) fall on X or Y axis.
+        * 
+        * @param {floating_point, in}  x
+        * @param {floating_point, in}  y
+        * @param {floating_point, out} hypotonus of x & y
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr T hypot(T x, T y) {
+            constexpr T coeff_max{ static_cast<T>(1007.0) / static_cast<T>(1024.0) };
+            constexpr T coeff_min{ static_cast<T>(441.0f) / static_cast<T>(1024.0) };
+
+            // housekeeping
+            T coordinate_min{}, coordinate_max{};
+            if (x < T{}) {
+                x = -x;
+            }
+            if (y < T{}) {
+                y = -y;
+            }
+            if (x < y) {
+                coordinate_min = x;
+                coordinate_max = y;
+            }
+            else {
+                coordinate_min = y;
+                coordinate_max = x;
+            }
+
+            // output
+            return (coeff_max * coordinate_max + coeff_min * coordinate_min );
         }
     };
 }
