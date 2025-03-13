@@ -319,6 +319,28 @@ void test_numerics() {
         }
         assert((std::hypot(max_x, max_y) / Numerics::Approximation::hypot(max_x, max_y) - 1.0f) * 100.0f < 1.7);
     }
+
+    // test approximation - atan2
+    {
+        float x{ -1000.0f };
+        float y{ -1000.0f };
+        float step{ 5.0f };
+        float max_diff{}, max_x{}, max_y{};
+        while (x < 1000.0f) {
+            while (y < 1000.0f) {
+                float atan2 = std::atan2(y, x);
+                float atan2_approx = Numerics::Approximation::atan2(y, x);
+                if (std::abs(atan2 - atan2_approx) > max_diff) {
+                    max_diff = std::abs(atan2 - atan2_approx);
+                    max_x = x;
+                    max_y = y;
+                }
+                y += step;
+            }
+            x += step;
+        }
+        assert(std::abs(std::atan2(max_y, max_x) / Numerics::Approximation::atan2(max_y, max_x) - 1.0f) * 100.0f < 1e-4);
+    }
 }
 
 void test_numerical_algorithms() {
