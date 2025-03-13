@@ -614,7 +614,7 @@ data_svg.to_file("data.svg");
 ```
 ![Image](https://github.com/user-attachments/assets/c4008d67-f645-451e-86fe-1b982ae7ba4d)
 
-#### can we simplify the first order grouped linear smoothing operation by approximating QR decomposition using "median lader" (which will reduce computational resources even more)? result in orange:
+#### can we simplify the first order grouped linear smoothing operation by approximating QR decomposition with a simple median calculation (which will reduce computational resources even more)? result in orange:
 ```cpp
 const std::size_t WINDOW{ len / 40 };
 std::vector<float> ismooth;
