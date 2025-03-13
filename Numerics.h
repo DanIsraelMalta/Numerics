@@ -344,11 +344,11 @@ namespace Numerics {
         requires(std::is_arithmetic_v<T>)
     constexpr T sign(T value) noexcept {
         if constexpr (std::is_integral_v<T> && !std::signed_integral<T>) {
-            return static_cast<T>(1);
+            return static_cast<T>(1.0);
         } else if constexpr (std::signed_integral<T>) {
-            return (value >= T{} ? static_cast<T>(1) : static_cast<T>(-1));
+            return (value >= T{} ? static_cast<T>(1.0) : static_cast<T>(-1.0));
         } else {
-            return std::copysign(static_cast<T>(1), value);
+            return std::copysign(static_cast<T>(1.0), value);
         }
     }
 
@@ -1009,6 +1009,49 @@ namespace Numerics {
 
             // output
             return out_t{ sin_residual_corrected, cos_residual_corrected };
+        }
+
+        /**
+        * \brief fast approximation of atan2.
+        *        maximal error relative to std::atan2 is smaller then 1e-4%,
+        *
+        * @param {floating_point, in}  y
+        * @param {floating_point, in}  x
+        * @param {floating_point, out} atan2((y, x)
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr T atan2(T y, T x) {
+            constexpr T tau{ static_cast<T>(2.0) * std::numbers::pi_v<T> };
+            constexpr T a1 { static_cast<T>( 0.99997726f) };
+            constexpr T a3 { static_cast<T>(-0.33262347f) };
+            constexpr T a5 { static_cast<T>( 0.19354346f) };
+            constexpr T a7 { static_cast<T>(-0.11643287f) };
+            constexpr T a9 { static_cast<T>( 0.05265332f) };
+            constexpr T a11{ static_cast<T>(-0.01172120f) };
+
+            // 'atan2' approximation of 'atan' (see “Approximations for Digital Computers” by Cecil Hastings jr.)
+            const bool swap{ std::abs(x) < std::abs(y) };
+            const T theta{ swap ? (x / y) : (y / x) };
+            const T theta_sq{ theta * theta };
+            T atan_approx{ theta * std::fma(theta_sq,
+                                            std::fma(theta_sq,
+                                                     std::fma(theta_sq,
+                                                              std::fma(theta_sq,
+                                                                       std::fma(theta_sq, a11, a9),
+                                                                       a7),
+                                                              a5),
+                                                     a3),
+                                            a1) };
+
+            // adjust atan2 to the appropriate quadrant
+            atan_approx = swap ? std::copysign(tau, theta) - atan_approx : atan_approx;
+            if (x < T{}) {
+                atan_approx += std::copysign(std::numbers::pi_v<T>, y);
+            }
+
+            // output
+            return atan_approx;
         }
 
         /**
