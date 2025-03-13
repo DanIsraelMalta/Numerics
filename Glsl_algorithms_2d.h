@@ -1971,8 +1971,6 @@ namespace Algorithms2D {
     * \brief given a collection of points, a single point and a distance,
     *        return all points in collection which are withing Euclidean distance from given point.
     * 
-    *        notice that this is a recursive function which emulates the way KD-tree partitions a plane.
-    *
     * @param {forward_iterator,     in}  iterator to first point in points collection
     * @param {forward_iterator,     in}  iterator to last point in points collection
     * @param {IFixedVector,         in}  point to which closest neighbors will be found
@@ -1984,33 +1982,31 @@ namespace Algorithms2D {
              class T = typename VEC::value_type>
         requires(GLSL::is_fixed_vector_v<VEC> && VEC::length() == 2)
     constexpr std::vector<VEC> range_query(const InputIt first, const InputIt last, const VEC p, const T radius) {
+        using pair_t = std::pair<InputIt, InputIt>;
+        using stack_t = std::vector<pair_t>;
+        using diff_t = stack_t::difference_type;
 
         // housekeeping
-        const T radius_squared{ radius * radius };
         std::vector<VEC> output;
+        stack_t range_search_stack;
+        range_search_stack.push_back({ first, last });
+        const T radius_squared{ radius * radius };
+        std::size_t dim{ 1 };
 
-#ifdef _DEBUG
-        std::size_t depth{};
-#endif
-
-        // lambda to recursively partition the plane
-#ifdef _DEBUG
-        const auto kd_tree_partition = [radius_squared, radius, &p, &output, &depth]
-#else
-        const auto kd_tree_partition = [radius_squared, radius, &p, &output]
-#endif
-                                       (const InputIt begin, const InputIt end,
-                                        auto&& recursive_driver, std::size_t dim = 1) {
-            if (begin == end) {
-                return;
+        // partition data kd-tree style
+        while (!range_search_stack.empty()) {
+            // get latest pair to search by
+            const pair_t search_pair{ range_search_stack.back() };
+            range_search_stack.pop_back();
+            const diff_t dist{ std::distance(search_pair.first, search_pair.second) };
+            if (dist <= 0) {
+                continue;
             }
 
-#ifdef _DEBUG
-            ++depth;
-#endif
             // kd-tree style division of points
-            const InputIt median{ begin + std::distance(begin, end) / 2 };
-            std::nth_element(begin, median, end, [dim](const VEC& a, const VEC& b) -> bool {
+            const InputIt median{ search_pair.first + dist / 2 };
+            std::nth_element(search_pair.first, median, search_pair.second,
+                            [dim](const VEC& a, const VEC& b) -> bool {
                 return a[dim] < b[dim];
             });
 
@@ -2023,18 +2019,14 @@ namespace Algorithms2D {
             // recursion search
             const T d_plane{ p[dim] - middle_point[dim] };
             if (d_plane <= radius) {
-                recursive_driver(begin, median, recursive_driver, 1 - dim);
+                range_search_stack.push_back({ search_pair.first, median });
+                dim = 1 - dim;
             }
             if (d_plane >= -radius) {
-                recursive_driver(median + 1, end, recursive_driver, 1 - dim);
+                range_search_stack.push_back({ median + 1, search_pair.second });
+                dim = 1 - dim;
             }
-
-            // break recursion
-            return;
-        };
-
-        // get points within range
-        kd_tree_partition(first, last, kd_tree_partition);
+        }
 
         // output
         return output;
