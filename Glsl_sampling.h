@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -105,11 +105,12 @@ namespace Sample {
     constexpr VEC sample_triangle(const VEC& p0, const VEC& p1, const VEC& p2) {
         using T = typename VEC::value_type;
         
-        const T a{ std::sqrt(static_cast<T>(rand()) / static_cast<T>(RAND_MAX)) };
+        const T a{ Numerics::max(static_cast<T>(rand()) / static_cast<T>(RAND_MAX),
+                                 static_cast<T>(rand()) / static_cast<T>(RAND_MAX)) };
         const T b{ static_cast<T>(rand()) / static_cast<T>(RAND_MAX) };
         const T a1{ static_cast<T>(1.0) - a };
         const T b1{ static_cast<T>(1.0) - b };
-        return (a1 * p0 + a * b1 * p1 + b * a * p2);
+        return (a1 * p0 + a * (b1 * p1 + b * p2));
     }
 
     /**
