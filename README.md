@@ -9,7 +9,7 @@ Features include:
 
 ## Example 1 - messing around with polygons:
 
-#### define a polygon, triangulate it (delaunay) and use it to calculate the set of circles which cumulatively encircle all polygon vertices and segments:
+#### define a polygon, triangulate it (delaunay) and draw it:
 ```cpp
 // define polygons
 std::vector<vec2> polygon{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
@@ -38,28 +38,21 @@ using circumcircle_t = decltype(Algorithms2D::Internals::get_circumcircle(vec2()
 const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(polygon.begin(), polygon.end());
 const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon.begin(), polygon.end(), aabb);
 
-// calculate triangles circumcircles
-std::vector<circumcircle_t> circuumcircles;
-circuumcircles.reserve(delaunay.size() / 3);
-for (std::size_t i{}; i < delaunay.size(); i += 3) {
-    circuumcircles.emplace_back(Algorithms2D::Internals::get_circumcircle(delaunay[i], delaunay[i + 1], delaunay[i + 2]));
-}
-
 // export as SVG for visualization
 svg<vec2> canvas(400, 450);
-canvas.add_polygon(polygon0.begin(), polygon0.end(), "none", "black", 3.0f);
+canvas.add_polygon(polygon.begin(), polygon.end(), "none", "black", 3.0f);
 for (std::size_t i{}; i < delaunay.size(); i += 3) {
     std::array<vec2, 3> tri{ { (delaunay[i]),
                                (delaunay[i + 1]),
                                (delaunay[i + 2]) } };
     canvas.add_polygon(tri.begin(), tri.end(), "none", "black", 3.0f);
 }
-for (circumcircle_t c : circuumcircles) {
-    canvas.add_circle(c.center, std::sqrt(c.radius_squared), "none", "red", 1.0f);
+for (const vec2 p : polygon) {
+    canvas.add_circle(p, 5.0f, "red", "red", 1.0f);
 }
 canvas.to_file("canvas.svg");
 ```
-![Image](https://github.com/user-attachments/assets/ddd44817-87da-4c12-8360-52b722aff354)
+![Image](https://github.com/user-attachments/assets/696d7131-ada4-4d1d-8ef8-92cae62245e9)
 
 
 #### calculate its medial axis joints and use it to find a set of locally largest inscribed circles:
@@ -70,7 +63,7 @@ const auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon.begi
 
 // export as SVG for visualization
 svg<vec2> canvas(400, 450);
-canvas.add_polygon(polygon0.begin(), polygon0.end(), "none", "black", 3.0f);
+canvas.add_polygon(polygon.begin(), polygon.end(), "none", "black", 3.0f);
 for (auto& mat : medial_axis) {
     canvas.add_circle(mat.point, std::sqrt(mat.squared_distance), "none", "blue", 1.0f);
     canvas.add_circle(mat.point, 5.0f, "red", "red", 1.0f);
