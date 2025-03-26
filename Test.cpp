@@ -3053,6 +3053,126 @@ void test_samples() {
 
 void test_for_show() {
 
+    // prints
+    {
+        // define a shape
+        std::vector<vec2> shape{ { vec2(18.0455f, -124.568f),  vec2(27.0455f, -112.568f),  vec2(26.0455f,  -91.5682f), vec2(11.0455f,   -74.5682f),
+                                    vec2(11.0455f, -61.5682f),  vec2(60.0455f, -55.5682f),  vec2(78.0455f,  -100.568f), vec2(78.0455f,   -119.568f),
+                                    vec2(102.045f, -120.568f),  vec2(102.045f, -101.568f),  vec2(83.0455f,  -36.5682f), vec2(60.0455f,   -26.5682f),
+                                    vec2(37.0455f, -27.5682f),  vec2(37.0455f,  42.4318f),  vec2(67.0455f,  101.432f),  vec2(76.0455f,   158.432f),
+                                    vec2(102.045f,  161.432f),  vec2(101.045f,  177.432f),  vec2(56.0455f,  177.432f),  vec2(56.0455f,   155.432f),
+                                    vec2(44.0455f,  110.432f),  vec2(-1.95454f, 66.4318f),  vec2(-43.9545f, 110.432f),  vec2(-55.9545f,  155.432f),
+                                    vec2(-55.9545f, 177.432f),  vec2(-100.955f, 177.432f),  vec2(-101.955f, 161.432f),  vec2(-75.9545f,  158.432f),
+                                    vec2(-66.9545f, 101.432f),  vec2(-36.9545f, 42.4318f),  vec2(-36.9545f, -27.5682f), vec2(-59.9545f,  -26.5682f),
+                                    vec2(-82.9545f, -36.5682f), vec2(-101.955f, -101.568f), vec2(-101.955f, -120.568f), vec2(-77.9545f,  -119.568f),
+                                    vec2(-77.9545f, -100.568f), vec2(-59.9545f, -55.5682f), vec2(-10.9545f, -61.5682f), vec2(-10.9545f,  -74.5682f),
+                                    vec2(-25.9545f, -91.5682f), vec2(-26.9545f, -112.568f), vec2(-17.9545f, -124.568f), vec2(0.0454559f, -128.568f) } };
+
+        // rotate polygons and place them on canvas side by side
+        constexpr float angle{ std::numbers::pi_v<float> / 8.0f };
+        const float sin_angle{ std::sin(angle) };
+        const float cos_angle{ std::cos(angle) };
+        const mat2 rot(cos_angle, -sin_angle, sin_angle, cos_angle);
+        for (vec2& p : shape) {
+            p = rot * p + vec2(150.0f, 200.0f);
+        }
+
+        // draw shape
+        svg<vec2> pic1(400, 450);
+        pic1.add_point_cloud(shape.cbegin(), shape.cend(), 5.0f, "red", "red", 1.0f);
+        pic1.add_polygon(shape.begin(), shape.end(), "none", "black", 3.0f);
+        pic1.to_file("pic1.svg");
+
+        // --------------------------
+
+        // uniformly sample the shape with 3000 points
+        constexpr std::size_t sample_size{ 3000 };
+        const auto aabb = AxisLignedBoundingBox::point_cloud_aabb(shape.begin(), shape.end());
+        const float area{ Algorithms2D::Internals::get_area(shape.begin(), shape.end()) };
+        const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(shape.begin(), shape.end(), aabb);
+        auto polygon_samples = Sample::sample_polygon(delaunay, area, sample_size);
+
+        // draw sampled shape
+        svg<vec2> pic2(400, 450);
+        pic2.add_point_cloud(polygon_samples.cbegin(), polygon_samples.cend(), 1.0f, "black", "black", 0.0f);
+        pic2.to_file("pic2.svg");
+
+        // ------------------------------------------
+        
+        // find point cloud medial axis joints
+        const float step{ GLSL::distance(aabb.min, aabb.max) / 1000.0f };
+        auto medial_axis = Algorithms2D::get_approximated_medial_axis(shape.begin(), shape.end(), step);
+
+        // draw medial axis joints (and their locally largest inscribed circles)
+        svg<vec2> pic3(400, 450);
+        //pic3.add_polygon(shape.begin(), shape.end(), "none", "black", 3.0f);
+        pic3.add_point_cloud(polygon_samples.cbegin(), polygon_samples.cend(), 1.0f, "black", "black", 0.0f);
+        for (auto& mat : medial_axis) {
+            pic3.add_circle(mat.point, std::sqrt(mat.squared_distance), "none", "blue", 1.0f);
+            pic3.add_circle(mat.point, 5.0f, "red", "red", 1.0f);
+        }
+        pic3.to_file("pic3.svg");
+
+        // --------------------------
+        
+        // merge close medial axis joints
+        for (std::size_t i{}; i < medial_axis.size(); ++i) {
+            for (std::size_t j{}; j < medial_axis.size(); ++j) {
+                if (GLSL::distance(medial_axis[i].point, medial_axis[j].point) < 10.0f) {
+                    Utilities::swap(medial_axis[j], medial_axis.back());
+                    medial_axis.pop_back();
+                }
+            }
+        }
+
+        // cluster sampled points, with medial axis joints as initial centers, using k-means
+        std::vector<vec2> intial_centers;
+        intial_centers.reserve(medial_axis.size());
+        for (const auto& ma : medial_axis) {
+            intial_centers.emplace_back(ma.point);
+        }
+        const auto clusterIds = Clustering::k_means(polygon_samples.cbegin(), polygon_samples.cend(), medial_axis.size(), 20, 0.01f, intial_centers);
+
+        // extract clusters
+        std::vector<std::vector<vec2>> clusters(medial_axis.size(), std::vector<vec2>{});
+        for (std::size_t j{}; j < medial_axis.size(); ++j) {
+            clusters[j].reserve(clusterIds[j].size());
+            for (const std::size_t i : clusterIds[j]) {
+                clusters[j].emplace_back(polygon_samples[i]);
+            }
+        }
+
+        // draw clusters
+        svg<vec2> pic4(400, 450);
+        std::vector<std::string> colors{ {"red", "green", "blue", "orange", "darkmagenta", "deeppink", "tan", "darkred",
+                                          "darkolivegreen", "fuchsia", "plum", "tomato", "yellowgreen", "silver"} };
+        for (std::size_t j{}; j < clusters.size(); ++j) {
+            pic4.add_point_cloud(clusters[j].begin(), clusters[j].end(), 1.0f, colors[j % colors.size()], colors[j % colors.size()], 1.0f);
+        }
+        pic4.to_file("pic4.svg");
+
+        // --------------------------
+        
+        // calculate clusters concave hulls
+        std::vector<std::vector<vec2>> hulls;
+        hulls.reserve(medial_axis.size());
+        const std::size_t concave_hull_max_count{ 2 * sample_size / 100 };
+        std::cout << " concave_hull_max_count = " << concave_hull_max_count << '\n';
+        for (std::size_t j{}; j < medial_axis.size(); ++j) {
+            const std::size_t N{ Numerics::min(clusters[j].size(), concave_hull_max_count) };
+            std::cout << " N = " << N << '\n';
+            hulls.emplace_back(Algorithms2D::get_concave_hull(clusters[j].begin(), clusters[j].end(), N));
+        }
+
+        // draw clusters concave hulls
+        svg<vec2> pic5(400, 450);
+        for (std::size_t j{}; j < hulls.size(); ++j) {
+            hulls[j].emplace_back(hulls[j].front());
+            pic5.add_polyline(hulls[j].begin(), hulls[j].end(), "none", colors[j % colors.size()], 2.0f);
+        }
+        pic5.to_file("pic5.svg");
+    }
+
    // show 1
    {
        // define polygons
@@ -3090,15 +3210,10 @@ void test_for_show() {
        const float step{ GLSL::distance(aabb_polygon0.min, aabb_polygon0.max) / 1000.0f };
        const auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon0.begin(), polygon0.end(), step);
 
-       // 'delaunay' triangulate 'polygon1' and calculate its triangles circumcircles
+       // 'delaunay' triangulate 'polygon1'
        using circumcircle_t = decltype(Algorithms2D::Internals::get_circumcircle(vec2(), vec2()));
        const auto aabb1 = AxisLignedBoundingBox::point_cloud_aabb(polygon1.begin(), polygon1.end());
        const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon1.begin(), polygon1.end(), aabb1);
-       std::vector<circumcircle_t> circuumcircles;
-       circuumcircles.reserve(delaunay.size() / 3);
-       for (std::size_t i{}; i < delaunay.size(); i += 3) {
-           circuumcircles.emplace_back(Algorithms2D::Internals::get_circumcircle(delaunay[i], delaunay[i + 1], delaunay[i + 2]));
-       }
 
        // slice 'polygon2' by a line to half, 'earcut' triangulate it and calculate its minimal bounding box and circle
        const auto centroid = Algorithms2D::Internals::get_centroid(polygon2.begin(), polygon2.end());
@@ -3125,8 +3240,8 @@ void test_for_show() {
                                       (delaunay[i + 2]) } };
            canvas.add_polygon(tri.begin(), tri.end(), "none", "black", 3.0f);
        }
-       for (circumcircle_t c : circuumcircles) {
-           canvas.add_circle(c.center, std::sqrt(c.radius_squared), "none", "red", 1.0f);
+       for (const vec2 p : polygon1) {
+           canvas.add_circle(p, 5.0f, "red", "red", 1.0f);
        }
 
        for (std::size_t i{}; i < earcut.size(); i += 3) {
@@ -3251,7 +3366,6 @@ void test_for_show() {
            auto circle = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 500, circle_rnsc, 4.0f);
 
            // if a model fits the data "good enough" - draw it
-           std::cout << "circle: " << circle.score << ", " << line.score << '\n';
            constexpr std::size_t min_score_for_fit{ 10 };
            if (Numerics::max(circle.score, line.score) > min_score_for_fit) {
                // is it a circle?
@@ -3299,8 +3413,8 @@ void test_for_show() {
        const float step{ GLSL::distance(aabb_polygon.min, aabb_polygon.max) / 1000.0f };
        auto medial_axis = Algorithms2D::get_approximated_medial_axis(polygon.begin(), polygon.end(), step);
 
-       // sample polygon (1500 points)
-       constexpr std::size_t sample_size{ 1500 };
+       // sample polygon (3000 points)
+       constexpr std::size_t sample_size{ 3000 };
        const float area{ Algorithms2D::Internals::get_area(polygon.begin(), polygon.end()) };
        const auto delaunay = Algorithms2D::triangulate_polygon_delaunay(polygon.begin(), polygon.end(), aabb_polygon);
        auto polygon_samples = Sample::sample_polygon(delaunay, area, sample_size);
@@ -3335,8 +3449,9 @@ void test_for_show() {
        // calculate clusters concave hulls
        std::vector<std::vector<vec2>> hulls;
        hulls.reserve(medial_axis.size());
+       const std::size_t N{ sample_size / 100 + sample_size / 1000 };
        for (std::size_t j{}; j < medial_axis.size(); ++j) {
-           hulls.emplace_back(Algorithms2D::get_convex_hull(clusters[j].begin(), clusters[j].end()));
+           hulls.emplace_back(Algorithms2D::get_concave_hull(clusters[j].begin(), clusters[j].end(), N));
        }
 
        // draw clustered samples
@@ -3348,7 +3463,7 @@ void test_for_show() {
        }
 
        // draw clusters concave hulls
-       for (std::size_t j{}; j < clusters.size(); ++j) {
+       for (std::size_t j{}; j < hulls.size(); ++j) {
            hulls[j].emplace_back(hulls[j].front());
            clustered_samples_svg.add_polyline(hulls[j].begin(), hulls[j].end(), "none", colors[j % colors.size()], 2.0f);
        }
