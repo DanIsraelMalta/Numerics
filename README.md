@@ -274,7 +274,6 @@ for (std::size_t i{}; i < segments.clusters.size(); ++i) {
     auto circle = PatternDetection::ransac_pattern_detection(cluster.begin(), cluster.end(), 500, circle_rnsc, 4.0f);
 
     // if a model fits the data "good enough" - draw it
-    std::cout << "circle: " << circle.score << ", " << line.score << '\n';
     constexpr std::size_t min_score_for_fit{ 10 };
     if (Numerics::max(circle.score, line.score) > min_score_for_fit) {
         // is it a circle?
