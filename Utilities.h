@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -97,6 +97,7 @@ using std::hardware_destructive_interference_size;
 * generic utilities and local STL replacements
 **/
 namespace Utilities {
+
     /**
     * \brief compile time for loop (unrolls loop)
     * \usage example - iterate over numbers 0, 2, 4:
@@ -116,6 +117,35 @@ namespace Utilities {
             }
             static_for<Start + Inc, Inc, End>(FWD(f));
         }
+    }
+
+    /**
+    * \brief compile time reduce operation (same as std::reduce)
+    * \usage example - sum of array:
+    *    std::array<double, 4> a{{0.0, 1.0, 2.0, 3.0}};
+    *    double sumP= static_reduce<0, 4>(a, std::plus<>{});
+    *    double sum11 = static_reduce(a, std::plus<>{});
+    **/
+    template<std::size_t Start, std::size_t End, class BinaryOp,
+        class VEC, class T = typename VEC::value_type>
+        requires(std::is_invocable_v<BinaryOp, T, T>)
+    constexpr T static_reduce(const VEC& x, BinaryOp op) {
+        if constexpr ((End - Start) == 1) {
+            return x[Start];
+        }
+        else
+        {
+            constexpr std::size_t n{ End - Start };
+            T left_sum{ static_reduce<Start, Start + n / 2>(x, op) };
+            T right_sum{ static_reduce<Start + n / 2, End>(x, op) };
+            return op(left_sum, right_sum);
+        }
+    }
+
+    template<typename T, std::size_t N, class BinaryOp>
+        requires(N > 1 && std::is_invocable_v<BinaryOp, T, T>)
+    constexpr T static_reduce(std::array<T, N> x, BinaryOp op) {
+        return static_reduce<0, N>(x, op);
     }
 
     /**
