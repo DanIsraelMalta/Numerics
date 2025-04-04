@@ -113,10 +113,17 @@ namespace NumericalAlgorithms {
         T count{};
         for (InputIt it{ first }; it != last; ++it) {
             ++count;
+
             const T delta{ *it - mean };
             mean += delta / count;
             const T delta2{ *it - mean };
-            std += delta * delta2;
+
+            if constexpr (std::is_floating_point_v<T>) {
+                std = std::fma(delta, delta2, std);
+            }
+            else {
+                std += delta * delta2;
+            }
         }
         return out_t{ mean, std / count };
     }
@@ -197,7 +204,12 @@ namespace NumericalAlgorithms {
             std::size_t iter{ i };
             for (std::size_t j{}; j <= i; ++j) {
                 if ((j < size_u) && (iter < size_v)) {
-                    sum += *(u_first + j) * *(v_first + iter);
+                    if constexpr (std::is_floating_point_v<T>) {
+                        sum = std::fma(*(u_first + j), *(v_first + iter), sum);
+                    }
+                    else {
+                        sum += *(u_first + j) * *(v_first + iter);
+                    }
                 }
                 --iter;
             }
@@ -322,7 +334,7 @@ namespace NumericalAlgorithms {
 
         // transform probability distribution to cumulative distribution
         const std::size_t p_length{ static_cast<std::size_t>(std::distance(p_first, p_last)) };
-#ifdef DEBUG
+#ifdef _DEBUG
         const std::size_t d_length{ static_cast<std::size_t>(std::distance(d_first, d_last)) };
         assert(p_length == d_length);
 #endif
@@ -457,14 +469,14 @@ namespace NumericalAlgorithms {
             return 30;
         }() };
         const std::int32_t len{ 1 << bits };
-        assert(len >= x.size());
+        assert(static_cast<std::size_t>(len) >= x.size());
         const vec_t points{ [len]() {
-            constexpr T two_pi{ static_cast<T>(6.283185307179586476925286766559) };
+            constexpr T tau{ static_cast<T>(2.0) * std::numbers::pi_v<T> };
             vec_t polar;
             polar.reserve(len);
 
             for (std::int32_t i{}; i < len; ++i) {
-                const T phase{ -two_pi * static_cast<T>(i) / static_cast<T>(len) };
+                const T phase{ -tau * static_cast<T>(i) / static_cast<T>(len) };
                 polar.emplace_back(std::polar(static_cast<T>(1.0), phase));
             }
 
