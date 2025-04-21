@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -197,7 +197,7 @@ namespace Transformation {
         requires(VEC::length() == 3)
     constexpr VEC rotate_point_around_axis(const VEC& p, const VEC& axis, const T angle) noexcept {
         assert(Extra::is_normalized(axis));
-        return GLSL::mix(GLSL::dot(axis, p) * axis, p, std::cos(angle)) + GLSL::cross(axis, p) * std::sin(angle);
+        return Extra::axpy(std::sin(angle), GLSL::cross(axis, p), GLSL::mix(GLSL::dot(axis, p) * axis, p, std::cos(angle)));
     }
     template<auto angle, GLSL::IFixedVector VEC, class T = typename VEC::value_type>
         requires(VEC::length() == 3 && std::is_floating_point_v<T> && std::is_same_v<T, decltype(angle)>)
@@ -205,7 +205,7 @@ namespace Transformation {
         constexpr T sinAngle{ std::sin(angle) };
         constexpr T cosAngle{ std::cos(angle) };
         assert(Extra::is_normalized(axis));
-        return GLSL::mix(GLSL::dot(axis, p) * axis, p, cosAngle) + GLSL::cross(axis, p) * sinAngle;
+        return Extra::axpy(sinAngle, GLSL::cross(axis, p), GLSL::mix(GLSL::dot(axis, p) * axis, p, cosAngle));
     }
 
     /**
@@ -325,7 +325,7 @@ namespace Transformation {
         assert(Extra::is_orthonormal_matrix(rot));
         return rot;
     }
-
+    
     /**
     * \brief Euler angles (X, Y, Z) to quaternion
     * @param {IFixedVector, in}  {X, Y, Z} angles [rad]
@@ -393,6 +393,6 @@ namespace Transformation {
     constexpr VEC3 rotate_point_using_quaternion(const VEC4& quat, const VEC3& point) {
         const VEC3 axis{ quat.xyz };
         const VEC3 temp{ static_cast<T>(2) * GLSL::cross(axis, point) };
-        return (point + quat.w * temp + GLSL::cross(axis, temp));
+        return Extra::axpy(quat.w, temp, point) + GLSL::cross(axis, temp);
     }
 }
