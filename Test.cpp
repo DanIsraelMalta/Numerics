@@ -298,6 +298,36 @@ void test_numerics() {
         }
     }
 
+    // test approximations - acos / acos_positive
+    {
+        float angle{ -std::numbers::pi_v<float> };
+        const float step{ 0.01f };
+        float max_abs_error{};
+        while (angle < std::numbers::pi_v<float>) {
+            const float acos_real{ std::acos(angle) };
+            const float acos_approx{ Numerics::Approximation::acos(angle) };
+            if (const float err{ std::abs(acos_real - acos_approx) }; err > max_abs_error) {
+                max_abs_error = err;
+            }
+
+            angle += step;
+        }
+        assert(max_abs_error < 0.0091);
+
+        angle = 0.0f;
+        max_abs_error = 0.0f;
+        while (angle < std::numbers::pi_v<float>) {
+            const float acos_real{ std::acos(angle) };
+            const float acos_approx{ Numerics::Approximation::acos_positive(angle) };
+            if (const float err{ std::abs(acos_real - acos_approx) }; err > max_abs_error) {
+                max_abs_error = err;
+            }
+
+            angle += step;
+        }
+        assert(max_abs_error < 0.0091);
+    }
+
     // test approximations - hypot
     {
         float x{ -1000.0f };
@@ -3701,5 +3731,5 @@ int main() {
     test_numerical_algorithms();
     test_for_show();
     test_samples();
-	return 1;
+    return 1;
 }
