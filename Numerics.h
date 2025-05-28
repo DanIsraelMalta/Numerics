@@ -981,7 +981,7 @@ namespace Numerics {
 
         /**
         * \brief fast approximation of both the sine and cosine of an angle (given in radians).
-        *        maximal error relative to std::sin is |1e-3|
+        *        maximal error relative to std::sin/std::cos is |1e-3|
         * @param {floating_point,                   in}  angle [-pi, pi] [rad]
         * @param {{floating_point, }floating_point, out} {sine, cosine}
         **/
@@ -1009,6 +1009,66 @@ namespace Numerics {
 
             // output
             return out_t{ sin_residual_corrected, cos_residual_corrected };
+        }
+
+        /**
+        * \brief fast approximation of the arccosine of an angle (given in radians).
+        *        maximal error relative to std::acos is |9e-3|
+        * @param {floating_point, in}  angle [-pi, pi] [rad]
+        * @param {floating_point, out} angle arccosine [-1, 1]
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr auto acos(const T x) {
+            constexpr T a0{ static_cast<T>(-0.1565827) };
+            constexpr T half_pi{ std::numbers::pi_v<T> / static_cast<T>(2.0) };
+
+            const T y{ std::abs(x) };
+            T p{ std::fma(a0, y, half_pi) };
+            p *= std::sqrt(static_cast<T>(1.0) - y);
+            return x >= T{} ? p : std::numbers::pi_v<T> - p;
+        }
+
+        /**
+        * \brief fast approximation of the arcsine of an angle (given in radians).
+        *        maximal error relative to std::asin is |9e-3|
+        * @param {floating_point, in}  angle [-pi, pi] [rad]
+        * @param {floating_point, out} angle arcsine [-1, 1]
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr auto asin(const T x) {
+            constexpr T half_pi{ std::numbers::pi_v<T> / static_cast<T>(2.0) };
+            return half_pi - Numerics::Approximation::acos(x);
+        }
+
+        /**
+        * \brief fast approximation of the arccosine of a positive angle (given in radians).
+        *        maximal error relative to std::acos is |9e-3|
+        * @param {floating_point, in}  positive angle [0, pi] [rad]
+        * @param {floating_point, out} angle arccosine [0, 1]
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr auto acos_positive(const T x) {
+            constexpr T a0{ static_cast<T>(-0.1565827) };
+            constexpr T half_pi{ std::numbers::pi_v<T> / static_cast<T>(2.0) };
+
+            const T p{ std::fma(a0, x, half_pi) };
+            return p * std::sqrt(static_cast<T>(1.0) - x);
+        }
+
+        /**
+        * \brief fast approximation of the arcsine of a positive angle (given in radians).
+        *        maximal error relative to std::asin is |9e-3|
+        * @param {floating_point, in}  angle [0, pi] [rad]
+        * @param {floating_point, out} angle arcsine [0, 1]
+        **/
+        template<typename T>
+            requires(std::is_floating_point_v<T>)
+        constexpr auto asin_positive(const T x) {
+            constexpr T half_pi{ std::numbers::pi_v<T> / static_cast<T>(2.0) };
+            return half_pi - Numerics::Approximation::acos_positive(x);
         }
 
         /**
