@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -101,12 +101,10 @@ namespace Clustering {
 
                         const VEC curPoint{ *(first + curIdx) };
                         const query_t curNeighbors{ spacePartition.range_query(SpacePartitioning::RangeSearchType::Radius, curPoint, minimal_distance) };
-                        if (curNeighbors.size() < minimal_points) {
-                            continue;
-                        }
-
-                        for (const auto& n : curNeighbors) {
-                            neighborDeque.push_back(n.second);
+                        if (curNeighbors.size() >= minimal_points) {
+                            for (const auto& n : curNeighbors) {
+                                neighborDeque.push_back(n.second);
+                            }
                         }
                     }
                 }
