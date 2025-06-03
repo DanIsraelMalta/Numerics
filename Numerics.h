@@ -824,13 +824,19 @@ namespace Numerics {
             assert(!Numerics::areEquals(D[r][s], T{}));
             const T inv{ static_cast<T>(1.0) / D[r][s] };
 
-            for (std::int32_t i{}; i < M + 2; ++i) {
-                if (i != r) {
-                    for (std::int32_t j{}; j < N + 2; ++j) {
-                        if (j != s) {
-                            D[i][j] -= D[r][j] * D[i][s] * inv;
-                        }
+            for (std::int32_t i = 0; i < M + 2; ++i) {
+                // skip the row 'r'?
+                if (i == r) {
+                    continue;
+                }
+
+                for (std::int32_t j = 0; j < N + 2; ++j) {
+                    // Skip the column 's'?
+                    if (j == s) {
+                        continue;
                     }
+
+                    D[i][j] -= D[r][j] * D[i][s] * inv;
                 }
             }
 
@@ -861,8 +867,7 @@ namespace Numerics {
                     if (phase == 2 && _N[i] == -1) {
                         continue;
                     }
-                    if (s == -1 ||
-                        (_N[i] < _N[s] && (D[x][i] < D[x][s] || D[x][i] == D[x][s]))) {
+                    if (s == -1 || (_N[i] < _N[s] && D[x][i] <= D[x][s])) {
                         s = i;
                     }
                 }
