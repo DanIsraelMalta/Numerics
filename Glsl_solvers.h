@@ -1,6 +1,6 @@
 //-------------------------------------------------------------------------------
 //
-// Copyright (c) 2024, Dan Israel Malta <malta.dan@gmail.com>
+// Copyright (c) 2025, Dan Israel Malta <malta.dan@gmail.com>
 // All rights reserved.
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy 
@@ -168,7 +168,7 @@ namespace Decomposition {
                 else if (std::abs(a) > std::abs(b)) {
                     [[assume(a != T{})]];
                     const T t{ b / a };
-                    const T squared{ t * t + static_cast<T>(1) };
+                    const T squared{ std::fma(t, t, static_cast<T>(1.0)) };
                     [[assume(squared >= T{})]];
                     const T u{ Numerics::sign(a) * std::sqrt(squared) };
                     [[assume(u != T{})]];
@@ -178,7 +178,7 @@ namespace Decomposition {
                 else {
                     [[assume(b != T{})]];
                     const T t{ a / b };
-                    const T squared{ t * t + static_cast<T>(1) };
+                    const T squared{ std::fma(t, t, static_cast<T>(1.0)) };
                     [[assume(squared >= T{})]];
                     const T u{ Numerics::sign(b) * std::sqrt(squared) };
                     [[assume(u != T{})]];
@@ -194,7 +194,7 @@ namespace Decomposition {
 
             // perform decomposition
             for (std::size_t j{}; j < N; ++j) {
-                for (std::size_t i{ N - 1 }; i >= j + 1; --i) {
+                for (std::size_t i{ N - 1 }; i > j; --i) {
                     const GLSL::Vector3<T> CSR(givensRotation(R(j, i - 1), R(j, i)));
                     for (std::size_t x{}; x < N; ++x) {
                         // R' = G * R
@@ -655,8 +655,8 @@ namespace Decomposition {
             const auto rotate = [](MAT& mat, std::size_t i, std::size_t j, std::size_t k, std::size_t l, T s, T tau) {
                 const T g{ mat(i, j) };
                 const T h{ mat(k, l) };
-                mat(i, j) = g - s * (h + g * tau);
-                mat(k, l) = h + s * (g - h * tau);
+                mat(i, j) = std::fma(-s, (h + g * tau), g);
+                mat(k, l) = std::fma(s, (g - h * tau), h);
             };
 
             // lambda to calculate 'a' matrix "average sum of off-diagonal elements"
@@ -799,7 +799,7 @@ namespace Solvers {
         // lambda to calculate x at index i
         const auto calculate_x = [&qr, &x](const std::size_t i) {
             T sum{ x[i] };
-            for (std::size_t j{ i + 1 }; j <= N - 1; ++j) {
+            for (std::size_t j{ i + 1 }; j < N; ++j) {
                 sum -= qr.R(j, i) * x[j];
             }
             x[i] = sum / qr.R(i, i);
